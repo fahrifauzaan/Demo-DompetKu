@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { FeatureCTA } from './MarketingCTAModal';
 import FinancePortfolioReport from './FinancePortfolioReport';
 import FinancePerformanceReport from './FinancePerformanceReport';
+import FinanceFIRECalculatorModal from './FinanceFIRECalculatorModal';
+import FinanceEmergencyModal from './FinanceEmergencyModal';
+import FinanceDebtFreedomModal from './FinanceDebtFreedomModal';
+import FinanceRatioSimulatorModal, { RatioType } from './FinanceRatioSimulatorModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 
 
@@ -14,6 +19,13 @@ interface FinanceAnalyticsProps {
 const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNavigate }) => {
   const [activeSubTab, setActiveSubTab] = useState<'summary' | 'diversification' | 'sector'>('summary');
   const [hoveredCashFlowIndex, setHoveredCashFlowIndex] = useState<number | null>(null);
+  const [isFIREModalOpen, setIsFIREModalOpen] = useState(false);
+  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
+  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
+  const [ratioModalConfig, setRatioModalConfig] = useState<{isOpen: boolean, type: RatioType}>({ isOpen: false, type: 'DTI' });
+
+  // State for Income Mode (CFP Baseline average vs Actual)
+  const [incomeMode, setIncomeMode] = useState<'actual' | 'baseline'>('actual');
 
   // Fetch from useFinanceStore
   const transactions = useFinanceStore((state) => state.transactions);
@@ -37,6 +49,28 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
     return `Rp ${(val / 1e6).toFixed(1)}Jt`;
   };
 
+  // Safe parse transaction month helper
+  const parseTransactionMonth = (dateStr: string): string => {
+    if (!dateStr) return '';
+    if (dateStr.includes('-')) {
+      return dateStr.slice(0, 7); // e.g. "2024-03"
+    }
+    const parts = dateStr.split(' ');
+    if (parts.length === 3) {
+      const monthStr = parts[1];
+      const year = parts[2];
+      const monthsMap: Record<string, string> = {
+        Jan: '01', Feb: '02', Mar: '03', Apr: '04', Mei: '05', Jun: '06',
+        Jul: '07', Agu: '08', Sep: '09', Okt: '10', Nov: '11', Des: '12',
+        Januari: '01', Februari: '02', Maret: '03', April: '04', Mei_long: '05', Juni: '06',
+        Juli: '07', Agustus: '08', September: '09', Oktober: '10', November: '11', Desember: '12'
+      };
+      const monthNorm = monthsMap[monthStr] || '01';
+      return `${year}-${monthNorm}`;
+    }
+    return '';
+  };
+
   // Generate 12-Month Historical Net Worth
   const getHistoricalNetWorth = () => {
     const now = new Date();
@@ -50,8 +84,8 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
 
     const monthlyChanges: Record<string, number> = {};
     transactions.forEach(tx => {
-      const key = tx.date.slice(0, 7);
-      const change = tx.type === 'PEMASUKAN' ? tx.amount : tx.type === 'PENGELUARAN' ? -tx.amount : 0;
+      const key = parseTransactionMonth(tx.date);
+      const change = tx.type === 'PEMASUKAN' ? Math.abs(tx.amount) : tx.type === 'PENGELUARAN' ? -Math.abs(tx.amount) : 0;
       monthlyChanges[key] = (monthlyChanges[key] || 0) + change;
     });
 
@@ -81,64 +115,257 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
   const minNW = Math.min(...nwValues, 0);
   const nwRange = maxNW - minNW || 1;
 
+  // State for Period Filtering (CFA/CFP best practice)
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('this_month');
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+
   // Budget Health Score calculation
-  const currentMonthKey = new Date().toISOString().slice(0, 7); // '2026-05'
+  const currentMonthKey = new Date().toISOString().slice(0, 7); // '2026-06'
+  
+  const getPeriodFilterFn = (period: string) => {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+
+    if (period === 'this_month') {
+      return (txDateStr: string) => parseTransactionMonth(txDateStr) === currentMonthKey;
+    }
+    if (period === '3_months') {
+      const last3Months = new Set<string>();
+      for (let i = 0; i < 3; i++) {
+        const d = new Date(curYear, curMonth - i, 1);
+        last3Months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+      return (txDateStr: string) => last3Months.has(parseTransactionMonth(txDateStr));
+    }
+    if (period === '12_months') {
+      const last12Months = new Set<string>();
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(curYear, curMonth - i, 1);
+        last12Months.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+      return (txDateStr: string) => last12Months.has(parseTransactionMonth(txDateStr));
+    }
+    if (period === 'ytd') {
+      const currentYearStr = String(curYear);
+      return (txDateStr: string) => {
+        const m = parseTransactionMonth(txDateStr);
+        return m.startsWith(currentYearStr) && m <= currentMonthKey;
+      };
+    }
+    // Specific month
+    return (txDateStr: string) => parseTransactionMonth(txDateStr) === period;
+  };
+
+  const isTxInPeriod = getPeriodFilterFn(selectedPeriod);
+
+  const getMonthsInPeriod = (period: string) => {
+    if (period === 'this_month' || period.includes('-')) return 1;
+    if (period === '3_months') return 3;
+    if (period === '12_months') return 12;
+    if (period === 'ytd') {
+      return new Date().getMonth() + 1;
+    }
+    return 1;
+  };
+  const periodMonths = getMonthsInPeriod(selectedPeriod);
+
   const allocatedBudget = budgetCategories
     .filter(c => c.type === 'Pengeluaran')
-    .reduce((acc, curr) => acc + curr.allocated, 0);
+    .reduce((acc, curr) => acc + curr.allocated, 0) * periodMonths;
   const currentMonthExpenses = transactions
-    .filter(tx => tx.type === 'PENGELUARAN' && tx.date.startsWith(currentMonthKey))
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .filter(tx => tx.type === 'PENGELUARAN' && isTxInPeriod(tx.date))
+    .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
   const budgetHealthScore = allocatedBudget > 0
     ? Math.max(0, Math.min(100, Math.round(((allocatedBudget - currentMonthExpenses) / allocatedBudget) * 100)))
     : 100;
   const remainingBudget = Math.max(0, allocatedBudget - currentMonthExpenses);
 
-  // Dynamic Warning Category
-  let warningCat = "Transportasi";
+  // Dynamic Warning Category & Savings Rate
+  let warningCat = "Tidak Ada";
   let warningPct = 0;
   const exceededCategory = budgetCategories.find(cat => {
     if (cat.type !== 'Pengeluaran') return false;
     const catExpenses = transactions
-      .filter(tx => tx.type === 'PENGELUARAN' && tx.category === cat.name && tx.date.startsWith(currentMonthKey))
-      .reduce((acc, curr) => acc + curr.amount, 0);
-    return catExpenses > cat.allocated;
+      .filter(tx => tx.type === 'PENGELUARAN' && tx.category === cat.name && isTxInPeriod(tx.date))
+      .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
+    return catExpenses > (cat.allocated * periodMonths);
   });
   if (exceededCategory) {
     const catExpenses = transactions
-      .filter(tx => tx.type === 'PENGELUARAN' && tx.category === exceededCategory.name && tx.date.startsWith(currentMonthKey))
-      .reduce((acc, curr) => acc + curr.amount, 0);
+      .filter(tx => tx.type === 'PENGELUARAN' && tx.category === exceededCategory.name && isTxInPeriod(tx.date))
+      .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
     warningCat = exceededCategory.name;
-    warningPct = Math.round(((catExpenses - exceededCategory.allocated) / exceededCategory.allocated) * 100);
+    warningPct = Math.round(((catExpenses - (exceededCategory.allocated * periodMonths)) / (exceededCategory.allocated * periodMonths)) * 100);
   }
 
-  // Monthly Cash Flow for last 4 months
-  const getCashFlowData = () => {
+  // --- NEW: AI CFO INSIGHTS & FIRE PREDICTOR LOGIC ---
+  const currentMonthIncome = transactions
+    .filter(tx => tx.type === 'PEMASUKAN' && isTxInPeriod(tx.date))
+    .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
+
+  // Calculate baseline income using 3-month average of active months
+  const getHistoricalBaselineIncome = () => {
+    const monthlyIncome: Record<string, number> = {};
+    transactions.forEach(tx => {
+      if (tx.type === 'PEMASUKAN') {
+        const key = parseTransactionMonth(tx.date);
+        if (key) {
+          monthlyIncome[key] = (monthlyIncome[key] || 0) + Math.abs(tx.amount);
+        }
+      }
+    });
+
+    const historicalMonths = Object.keys(monthlyIncome)
+      .filter(m => m !== currentMonthKey && monthlyIncome[m] > 0)
+      .sort((a, b) => b.localeCompare(a));
+
+    const last3Months = historicalMonths.slice(0, 3);
+    if (last3Months.length === 0) {
+      return 15000000; // Fallback to 15 Million
+    }
+    const sum = last3Months.reduce((acc, m) => acc + monthlyIncome[m], 0);
+    return sum / last3Months.length;
+  };
+
+  const baselineIncomeValue = getHistoricalBaselineIncome() * periodMonths;
+  const activeIncome = incomeMode === 'actual' ? currentMonthIncome : baselineIncomeValue;
+
+  // Auto-set incomeMode to baseline on mount/update if currentMonthIncome is 0
+  React.useEffect(() => {
+    if (currentMonthIncome === 0) {
+      setIncomeMode('baseline');
+    } else {
+      setIncomeMode('actual');
+    }
+  }, [currentMonthIncome]);
+  
+  const currentSavings = Math.max(0, currentMonthIncome - currentMonthExpenses);
+  const savingsRate = currentMonthIncome > 0 ? Math.round((currentSavings / currentMonthIncome) * 100) : 0;
+  
+  // Calculate Net Worth Growth
+  const lastMonthNW = history.length >= 2 ? history[history.length - 2].netWorth : netWorth;
+  const nwGrowth = lastMonthNW > 0 ? ((netWorth - lastMonthNW) / lastMonthNW) * 100 : 0;
+  
+  // FIRE Predictor (Rule of 25 = 4% Safe Withdrawal Rate)
+  // Target = 25 * Annual Expenses
+  const annualExpenses = currentMonthExpenses * 12;
+  const fireTarget = annualExpenses * 25;
+  const fireShortfall = Math.max(0, fireTarget - netWorth);
+  
+  let yearsToFIRE = 0;
+  if (fireShortfall <= 0 && fireTarget > 0) {
+    yearsToFIRE = 0; // Already FI
+  } else if (currentSavings > 0) {
+    const annualSavings = currentSavings * 12;
+    const r = 0.06;
+    if (annualSavings > 0) {
+      yearsToFIRE = Math.log((annualSavings + fireTarget * r) / (annualSavings + netWorth * r)) / Math.log(1 + r);
+    } else {
+      yearsToFIRE = 999;
+    }
+  } else {
+    yearsToFIRE = 999; // Never reach FI
+  }
+
+  // Debt Freedom Calculator
+  const totalMinPayment = debts.reduce((acc, curr) => acc + curr.minPayment, 0);
+  const extraDebtPayment = Math.max(0, currentSavings * 0.10); // Assume 10% of savings goes to extra debt payment
+  const totalMonthlyDebtPayment = totalMinPayment + extraDebtPayment;
+  let monthsToDebtFree = 0;
+  if (totalDebts > 0) {
+    if (totalMonthlyDebtPayment <= 0) {
+      monthsToDebtFree = 999;
+    } else {
+      monthsToDebtFree = Math.ceil(totalDebts / totalMonthlyDebtPayment);
+    }
+  }
+  const debtFreeDate = new Date();
+  debtFreeDate.setMonth(debtFreeDate.getMonth() + monthsToDebtFree);
+
+  // --- NEW: FINANCIAL HEALTH KPI (DTI, LIQUIDITY, SOLVENCY) ---
+  const dtiRatio = currentMonthIncome > 0 ? (totalMinPayment / currentMonthIncome) * 100 : 0;
+  
+  // Calculate average monthly expenses over the last 3 months for liquidity
+  const getAvgExpenses = () => {
     const now = new Date();
-    const last4Months: string[] = [];
-    for (let i = 3; i >= 0; i--) {
+    let total = 0;
+    for (let i = 0; i < 3; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
-      last4Months.push(`${yyyy}-${mm}`);
+      const key = `${yyyy}-${mm}`;
+      const monthExp = transactions
+        .filter(tx => tx.type === 'PENGELUARAN' && parseTransactionMonth(tx.date) === key)
+        .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
+      total += monthExp;
+    }
+    return Math.max(total / 3, 1000000); // Fallback to 1 Juta to avoid infinite months
+  };
+  const avgMonthlyExpenses = getAvgExpenses();
+  const liquidityRatio = totalCash / avgMonthlyExpenses; // In months
+  
+  const debtToAssetRatio = totalAssets > 0 ? (totalDebts / totalAssets) * 100 : 0;
+
+  // Monthly Cash Flow for last months (dynamically changes based on selectedPeriod)
+  const getCashFlowData = () => {
+    const now = new Date();
+    const monthsToShow: string[] = [];
+    
+    if (selectedPeriod === '3_months') {
+      for (let i = 2; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        monthsToShow.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+    } else if (selectedPeriod === 'this_month') {
+      for (let i = 3; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        monthsToShow.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+    } else if (selectedPeriod === 'ytd') {
+      const curYear = now.getFullYear();
+      const curMonth = now.getMonth();
+      for (let i = curMonth; i >= 0; i--) {
+        const d = new Date(curYear, curMonth - i, 1);
+        monthsToShow.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+    } else if (selectedPeriod === '12_months') {
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        monthsToShow.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+    } else if (selectedPeriod.includes('-')) {
+      // Specific month selected. Show that month and the 3 months leading up to it
+      const parts = selectedPeriod.split('-');
+      const year = parseInt(parts[0]);
+      const monthIdx = parseInt(parts[1]) - 1; // 0-indexed
+      for (let i = 3; i >= 0; i--) {
+        const d = new Date(year, monthIdx - i, 1);
+        monthsToShow.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
+    } else {
+      for (let i = 3; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        monthsToShow.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+      }
     }
 
     const flowGroup: Record<string, { rawIn: number; rawOut: number }> = {};
-    last4Months.forEach(m => {
+    monthsToShow.forEach(m => {
       flowGroup[m] = { rawIn: 0, rawOut: 0 };
     });
 
     transactions.forEach(tx => {
-      const key = tx.date.slice(0, 7);
+      const key = parseTransactionMonth(tx.date);
       if (flowGroup[key]) {
-        if (tx.type === 'PEMASUKAN') flowGroup[key].rawIn += tx.amount;
-        if (tx.type === 'PENGELUARAN') flowGroup[key].rawOut += tx.amount;
+        if (tx.type === 'PEMASUKAN') flowGroup[key].rawIn += Math.abs(tx.amount);
+        if (tx.type === 'PENGELUARAN') flowGroup[key].rawOut += -Math.abs(tx.amount);
       }
     });
 
-    const list = last4Months.map(m => {
+    const list = monthsToShow.map(m => {
       const dateObj = new Date(parseInt(m.split('-')[0]), parseInt(m.split('-')[1]) - 1, 1);
-      const label = dateObj.toLocaleDateString('id-ID', { month: 'long' });
+      const label = dateObj.toLocaleDateString('id-ID', { month: 'short' });
       const rawIn = flowGroup[m].rawIn;
       const rawOut = flowGroup[m].rawOut;
       return {
@@ -148,11 +375,11 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
       };
     });
 
-    const maxVal = Math.max(...list.map(l => Math.max(l.rawIn, l.rawOut)), 1);
+    const maxVal = Math.max(...list.map(l => Math.max(Math.abs(l.rawIn), Math.abs(l.rawOut))), 1);
     return list.map(l => ({
       ...l,
-      in: Math.max(5, Math.round((l.rawIn / maxVal) * 90)),
-      out: Math.max(5, Math.round((l.rawOut / maxVal) * 90)),
+      in: Math.max(5, Math.round((Math.abs(l.rawIn) / maxVal) * 90)),
+      out: Math.max(5, Math.round((Math.abs(l.rawOut) / maxVal) * 90)),
       val: formatJt(l.rawIn),
     })).reverse(); // reverse so most recent is first
   };
@@ -161,7 +388,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
 
   // Expense Breakdown
   const getExpenseBreakdown = () => {
-    const currentExpenses = transactions.filter(tx => tx.type === 'PENGELUARAN' && tx.date.startsWith(currentMonthKey));
+    const currentExpenses = transactions.filter(tx => tx.type === 'PENGELUARAN' && isTxInPeriod(tx.date));
     let totalInvestasi = 0;
     let totalPokok = 0;
     let totalLifestyle = 0;
@@ -170,14 +397,15 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
     const targetExpenses = currentExpenses.length > 0 ? currentExpenses : transactions.filter(tx => tx.type === 'PENGELUARAN');
     targetExpenses.forEach(tx => {
       const cat = tx.category.toLowerCase();
+      const amt = Math.abs(tx.amount);
       if (cat.includes('investasi') || cat.includes('saham') || cat.includes('reksadana') || cat.includes('tabungan') || cat.includes('pasar') || cat.includes('investment')) {
-        totalInvestasi += tx.amount;
+        totalInvestasi += amt;
       } else if (cat.includes('cicilan') || cat.includes('utang') || cat.includes('kpr') || cat.includes('pinjaman') || cat.includes('debts') || cat.includes('debt')) {
-        totalUtang += tx.amount;
+        totalUtang += amt;
       } else if (cat.includes('gaya hidup') || cat.includes('shop') || cat.includes('hobi') || cat.includes('hiburan') || cat.includes('nonton') || cat.includes('netflix') || cat.includes('elektronik') || cat.includes('langganan') || cat.includes('entertainment') || cat.includes('subscription') || cat.includes('gift') || cat.includes('travel') || cat.includes('personal care')) {
-        totalLifestyle += tx.amount;
+        totalLifestyle += amt;
       } else {
-        totalPokok += tx.amount;
+        totalPokok += amt;
       }
     });
 
@@ -243,6 +471,55 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
     document.body.removeChild(link);
   };
 
+  const getPeriodLabel = (period: string) => {
+    if (period === 'this_month') return 'Bulan Ini';
+    if (period === '3_months') return '3 Bulan Terakhir';
+    if (period === '12_months') return '12 Bulan Terakhir';
+    if (period === 'ytd') return 'Tahun Ini (YTD)';
+    const parts = period.split('-');
+    if (parts.length === 2) {
+      const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+      return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    }
+    return period;
+  };
+
+  const getUniqueTransactionMonths = () => {
+    const months = new Set<string>();
+    transactions.forEach(tx => {
+      const key = parseTransactionMonth(tx.date);
+      if (key) months.add(key);
+    });
+    months.add(currentMonthKey);
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
+  };
+  const availableMonths = getUniqueTransactionMonths();
+
+  const totalPokokDanUtang = currentMonthExpenses * ((pctPokok + pctUtang) / 100);
+  const totalWants = currentMonthExpenses * (pctLifestyle / 100);
+  const totalInvestments = currentMonthExpenses * (pctInvest / 100);
+  const activeSavingsValue = Math.max(0, activeIncome - currentMonthExpenses);
+  const totalTabunganDanInvestasi = totalInvestments + activeSavingsValue;
+
+  const widthSavings = Math.min(100, (totalTabunganDanInvestasi / (activeIncome || 1)) * 100);
+  const widthNeeds = Math.min(100, (totalPokokDanUtang / (activeIncome || 1)) * 100);
+  const widthWants = Math.min(100, (totalWants / (activeIncome || 1)) * 100);
+
+  const isNeedsOver = totalPokokDanUtang > activeIncome * 0.5;
+  const needsColor = isNeedsOver 
+    ? 'bg-gradient-to-r from-amber-500 to-red-500 shadow-md' 
+    : 'bg-blue-500 dark:bg-blue-600';
+
+  const isWantsOver = totalWants > activeIncome * 0.3;
+  const wantsColor = isWantsOver 
+    ? 'bg-gradient-to-r from-red-500 to-rose-600 shadow-md' 
+    : 'bg-orange-400 dark:bg-orange-500';
+
+  const isSavingsUnder = totalTabunganDanInvestasi < activeIncome * 0.2;
+  const savingsColor = isSavingsUnder
+    ? 'bg-purple-400 dark:bg-purple-500'
+    : 'bg-gradient-to-r from-purple-500 to-indigo-600';
+
   return (
     <div className="space-y-8 lg:space-y-10 animate-in fade-in duration-500 pb-12">
       {/* Header & Filters Section */}
@@ -252,11 +529,89 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
           <p className="text-xs text-on-surface-variant dark:text-outline mt-1 font-medium">Wawasan komprehensif dari setiap pergerakan aset Anda.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto no-print">
-          <div 
-            className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 px-4 py-2 rounded-xl flex items-center gap-2 text-on-surface dark:text-white flex-1 sm:flex-none justify-center text-xs font-bold"
-          >
-            <span className="material-symbols-outlined text-sm">calendar_today</span>
-            <span>12 Bulan Terakhir</span>
+          <div className="relative flex-1 sm:flex-none">
+            <button 
+              onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+              className="w-full bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-on-surface dark:text-white text-xs font-bold hover:bg-white/80 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer shadow-sm"
+            >
+              <span className="material-symbols-outlined text-sm text-primary dark:text-[#a7c8ff]">calendar_today</span>
+              <span>{getPeriodLabel(selectedPeriod)}</span>
+              <span className="material-symbols-outlined text-xs transition-transform duration-300" style={{ transform: isFilterDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>keyboard_arrow_down</span>
+            </button>
+
+            <AnimatePresence>
+              {isFilterDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setIsFilterDropdownOpen(false)}
+                  />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 mt-2 w-64 bg-white/70 dark:bg-black/70 backdrop-blur-2xl border border-white/30 dark:border-white/10 rounded-2xl shadow-2xl p-4 z-50 overflow-y-auto max-h-[350px] scrollbar-thin text-left border-t border-l"
+                  >
+                    <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-2">Rentang Cepat</div>
+                    <div className="space-y-1 mb-3">
+                      {[
+                        { key: 'this_month', label: 'Bulan Ini' },
+                        { key: '3_months', label: '3 Bulan Terakhir' },
+                        { key: '12_months', label: '12 Bulan Terakhir' },
+                        { key: 'ytd', label: 'Tahun Ini (YTD)' }
+                      ].map(item => (
+                        <button
+                          key={item.key}
+                          onClick={() => {
+                            setSelectedPeriod(item.key);
+                            setIsFilterDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
+                            selectedPeriod === item.key
+                              ? 'bg-primary dark:bg-primary-container text-white'
+                              : 'text-slate-700 dark:text-slate-350 hover:bg-slate-100/50 dark:hover:bg-white/5'
+                          }`}
+                        >
+                          <span>{item.label}</span>
+                          {selectedPeriod === item.key && (
+                            <span className="material-symbols-outlined text-sm">check</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-slate-200 dark:border-white/10 my-3" />
+
+                    <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 px-2">Pilih Bulan</div>
+                    <div className="space-y-1">
+                      {availableMonths.map(month => {
+                        const label = getPeriodLabel(month);
+                        return (
+                          <button
+                            key={month}
+                            onClick={() => {
+                              setSelectedPeriod(month);
+                              setIsFilterDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
+                              selectedPeriod === month
+                                ? 'bg-primary dark:bg-primary-container text-white'
+                                : 'text-slate-700 dark:text-slate-355 hover:bg-slate-100/50 dark:hover:bg-white/5'
+                            }`}
+                          >
+                            <span>{label}</span>
+                            {selectedPeriod === month && (
+                              <span className="material-symbols-outlined text-sm">check</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </div>
           {/* CSV Export Button */}
           <button 
@@ -303,8 +658,171 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
       {/* Conditional Content Rendering */}
       {activeSubTab === 'summary' && (
         <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-300">
-          {/* Top Display Bento Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* --- NEW: AI CFO INSIGHT BENTO BOX --- */}
+              <div className="bg-gradient-to-br from-primary-container/40 to-surface-container-lowest dark:from-[#a7c8ff]/10 dark:to-transparent border border-primary/20 dark:border-[#a7c8ff]/20 p-6 lg:p-8 rounded-[32px] shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                  <span className="material-symbols-outlined text-9xl">neurology</span>
+                </div>
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-6">
+                    <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] animate-pulse">smart_toy</span>
+                    <h3 className="font-extrabold text-lg text-primary dark:text-[#a7c8ff] tracking-tight">AI CFO Insight</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white/60 dark:bg-black/20 backdrop-blur-md border border-white/40 dark:border-white/5 rounded-2xl p-5">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${nwGrowth >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                          <span className="material-symbols-outlined text-sm">{nwGrowth >= 0 ? 'trending_up' : 'trending_down'}</span>
+                        </div>
+                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Kekayaan Bersih</h4>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Kekayaan bersih Anda {nwGrowth >= 0 ? 'naik' : 'turun'} sebesar <strong className="text-slate-900 dark:text-white">{Math.abs(nwGrowth).toFixed(1)}%</strong> bulan ini. {nwGrowth >= 0 ? 'Pertahankan momentum positif ini dengan terus meningkatkan aset.' : 'Evaluasi kembali pengeluaran untuk menstabilkan neraca.'}
+                      </p>
+                    </div>
+                    <div className="bg-white/60 dark:bg-black/20 backdrop-blur-md border border-white/40 dark:border-white/5 rounded-2xl p-5">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${warningPct > 0 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                          <span className="material-symbols-outlined text-sm">{warningPct > 0 ? 'warning' : 'check_circle'}</span>
+                        </div>
+                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Arus Kas & Anggaran</h4>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        {warningPct > 0 
+                          ? <>Pengeluaran <strong className="text-slate-900 dark:text-white">{warningCat}</strong> melebihi anggaran sebesar <strong className="text-orange-600 dark:text-orange-400">{warningPct}%</strong>. Kurangi pengeluaran opsional minggu ini.</>
+                          : <>Semua kategori pengeluaran Anda masih dalam batas anggaran. Manajemen arus kas yang sangat baik bulan ini!</>}
+                      </p>
+                    </div>
+                    <div className="bg-white/60 dark:bg-black/20 backdrop-blur-md border border-white/40 dark:border-white/5 rounded-2xl p-5">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 flex items-center justify-center">
+                          <span className="material-symbols-outlined text-sm">savings</span>
+                        </div>
+                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Tingkat Tabungan</h4>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Anda menabung <strong className="text-purple-700 dark:text-purple-400">{savingsRate}%</strong> dari pendapatan Anda. {savingsRate >= 20 ? 'Ini berada di atas standar emas (20%). Masa depan finansial Anda sangat cerah!' : 'Coba tingkatkan menuju target ideal 20% untuk mempercepat kemandirian finansial.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* --- NEW: CASH FLOW WATERFALL --- */}
+              <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 rounded-[32px] shadow-sm">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-base lg:text-lg text-on-surface dark:text-white tracking-tight uppercase">Visualisasi Arus Kas Bulan Ini</h3>
+                      {incomeMode === 'baseline' && (
+                        <span className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-0.5 rounded text-[10px] font-bold">
+                          Estimasi Baseline
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Ke mana perginya uang Anda? (Alokasi Kebutuhan vs Keinginan vs Tabungan)</p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 bg-surface-container dark:bg-white/5 p-1 rounded-xl no-print">
+                    <button
+                      onClick={() => setIncomeMode('actual')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        incomeMode === 'actual'
+                          ? 'bg-white dark:bg-primary-container text-primary dark:text-white shadow-sm'
+                          : 'text-on-surface-variant dark:text-outline hover:text-primary dark:hover:text-white'
+                      }`}
+                    >
+                      Aktual
+                    </button>
+                    <button
+                      onClick={() => setIncomeMode('baseline')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        incomeMode === 'baseline'
+                          ? 'bg-white dark:bg-primary-container text-primary dark:text-white shadow-sm'
+                          : 'text-on-surface-variant dark:text-outline hover:text-primary dark:hover:text-white'
+                      }`}
+                    >
+                      Rata-rata
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col gap-4">
+                  {/* Income Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                    <div className="w-full sm:w-48 text-left sm:text-right sm:pr-4 text-xs font-bold text-slate-700 dark:text-slate-300">Pendapatan</div>
+                    <div className="w-full sm:flex-1 h-8 bg-surface-container dark:bg-white/5 rounded-lg sm:rounded-l-none sm:rounded-r-lg relative overflow-hidden">
+                      {/* Background Text (visible on empty track) */}
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm whitespace-nowrap z-0">
+                        Rp {activeIncome.toLocaleString('id-ID')}
+                      </span>
+                      {/* Colored Bar (Clipped wrapper) */}
+                      <div className="absolute top-0 left-0 h-full bg-green-500 dark:bg-green-600 rounded-lg sm:rounded-l-none sm:rounded-r-lg transition-all duration-500 overflow-hidden z-10" style={{ width: '100%' }}>
+                        {/* Foreground Text (White, exact same position) */}
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-white drop-shadow-sm whitespace-nowrap">
+                          Rp {activeIncome.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Savings/Investments Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                    <div className="w-full sm:w-48 text-left sm:text-right sm:pr-4 text-xs font-bold text-slate-700 dark:text-slate-300">Tabungan & Investasi</div>
+                    <div className="w-full sm:flex-1 h-8 bg-surface-container dark:bg-white/5 rounded-lg sm:rounded-l-none sm:rounded-r-lg relative overflow-hidden">
+                      {/* Background Text (visible on empty track) */}
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm whitespace-nowrap z-0">
+                        Rp {totalTabunganDanInvestasi.toLocaleString('id-ID')} (Target 20%: Rp {(activeIncome * 0.2).toLocaleString('id-ID')})
+                      </span>
+                      {/* Colored Bar (Clipped wrapper) */}
+                      <div className={`absolute top-0 left-0 h-full ${savingsColor} rounded-lg sm:rounded-l-none sm:rounded-r-lg transition-all duration-500 overflow-hidden z-10`} style={{ width: `${widthSavings}%` }}>
+                        {/* Foreground Text (White, exact same position) */}
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-white drop-shadow-sm whitespace-nowrap">
+                          Rp {totalTabunganDanInvestasi.toLocaleString('id-ID')} (Target 20%: Rp {(activeIncome * 0.2).toLocaleString('id-ID')})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Needs Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                    <div className="w-full sm:w-48 text-left sm:text-right sm:pr-4 text-xs font-bold text-slate-700 dark:text-slate-300">Kebutuhan Pokok & Utang</div>
+                    <div className="w-full sm:flex-1 h-8 bg-surface-container dark:bg-white/5 rounded-lg sm:rounded-l-none sm:rounded-r-lg relative overflow-hidden">
+                      {/* Background Text (visible on empty track) */}
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm whitespace-nowrap z-0">
+                        Rp {totalPokokDanUtang.toLocaleString('id-ID')} (Target 50%: Rp {(activeIncome * 0.5).toLocaleString('id-ID')})
+                      </span>
+                      {/* Colored Bar (Clipped wrapper) */}
+                      <div className={`absolute top-0 left-0 h-full ${needsColor} rounded-lg sm:rounded-l-none sm:rounded-r-lg transition-all duration-500 overflow-hidden z-10`} style={{ width: `${widthNeeds}%` }}>
+                        {/* Foreground Text (White, exact same position) */}
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-white drop-shadow-sm whitespace-nowrap">
+                          Rp {totalPokokDanUtang.toLocaleString('id-ID')} (Target 50%: Rp {(activeIncome * 0.5).toLocaleString('id-ID')})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Wants Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                    <div className="w-full sm:w-48 text-left sm:text-right sm:pr-4 text-xs font-bold text-slate-700 dark:text-slate-300">Gaya Hidup (Wants)</div>
+                    <div className="w-full sm:flex-1 h-8 bg-surface-container dark:bg-white/5 rounded-lg sm:rounded-l-none sm:rounded-r-lg relative overflow-hidden">
+                      {/* Background Text (visible on empty track) */}
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm whitespace-nowrap z-0">
+                        Rp {totalWants.toLocaleString('id-ID')} (Target 30%: Rp {(activeIncome * 0.3).toLocaleString('id-ID')})
+                      </span>
+                      {/* Colored Bar (Clipped wrapper) */}
+                      <div className={`absolute top-0 left-0 h-full ${wantsColor} rounded-lg sm:rounded-l-none sm:rounded-r-lg transition-all duration-500 overflow-hidden z-10`} style={{ width: `${widthWants}%` }}>
+                        {/* Foreground Text (White, exact same position) */}
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-white drop-shadow-sm whitespace-nowrap">
+                          Rp {totalWants.toLocaleString('id-ID')} (Target 30%: Rp {(activeIncome * 0.3).toLocaleString('id-ID')})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* Net Worth Trend Card */}
             <div className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 rounded-[24px] shadow-sm">
@@ -416,73 +934,51 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
             {/* Cash Flow Table/Chart */}
             <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 rounded-[24px] overflow-hidden shadow-sm flex flex-col">
               <div className="p-6 flex-1 flex flex-col md:p-8">
-                <h3 className="font-headline text-on-surface-variant dark:text-outline text-xs uppercase tracking-widest font-bold mb-8">Arus Kas Bulanan</h3>
-                <div className="space-y-6 flex-1 relative">
-                  <AnimatePresence>
-                    {hoveredCashFlowIndex !== null && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute right-0 top-0 z-20 bg-white dark:bg-[#191c1e] p-4 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 w-48 pointer-events-none"
-                        style={{ top: hoveredCashFlowIndex * 52 }}
-                      >
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">{cashFlowData[hoveredCashFlowIndex].label}</div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-slate-500 font-medium">Masuk</span>
-                            <span className="text-tertiary-fixed-dim dark:text-tertiary-fixed font-bold">{formatJt(cashFlowData[hoveredCashFlowIndex].rawIn)}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-slate-500 font-medium">Keluar</span>
-                            <span className="text-error font-bold">{formatJt(cashFlowData[hoveredCashFlowIndex].rawOut)}</span>
-                          </div>
-                          <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex justify-between items-center">
-                            <span className="text-[10px] font-bold text-slate-400">NETTO</span>
-                            <span className={`text-xs font-bold ${cashFlowData[hoveredCashFlowIndex].rawIn > cashFlowData[hoveredCashFlowIndex].rawOut ? 'text-primary dark:text-[#a7c8ff]' : 'text-error'}`}>
-                              {cashFlowData[hoveredCashFlowIndex].rawIn > cashFlowData[hoveredCashFlowIndex].rawOut ? '+' : ''}
-                              {formatJt(cashFlowData[hoveredCashFlowIndex].rawIn - cashFlowData[hoveredCashFlowIndex].rawOut)}
-                            </span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {cashFlowData.map((row, i) => (
-                    <motion.div 
-                      key={i} 
-                      onHoverStart={() => setHoveredCashFlowIndex(i)}
-                      onHoverEnd={() => setHoveredCashFlowIndex(null)}
-                      className={`flex items-center gap-4 group transition-opacity duration-300 ${hoveredCashFlowIndex !== null && hoveredCashFlowIndex !== i ? 'opacity-40' : 'opacity-100'}`} 
-                    >
-                      <div className="w-16 text-[10px] font-bold text-outline uppercase group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">{row.label}</div>
-                      <div className="flex-1 flex flex-col gap-1.5 transition-transform origin-left group-hover:scale-x-[1.02]">
-                        <motion.div 
-                          animate={{ scaleY: hoveredCashFlowIndex === i ? 1.2 : 1 }}
-                          className="h-3 md:h-4 bg-tertiary-fixed-dim dark:bg-tertiary-fixed rounded-sm transition-all duration-1000 ease-out" 
-                          style={{ width: `${row.in}%` }} 
-                        />
-                        <motion.div 
-                          animate={{ scaleY: hoveredCashFlowIndex === i ? 1.2 : 1 }}
-                          className="h-3 md:h-4 bg-error-container/60 dark:bg-error/80 rounded-sm transition-all duration-1000 ease-out delay-100" 
-                          style={{ width: `${row.out}%` }} 
-                        />
-                      </div>
-                      <div className="w-20 md:w-24 text-right text-xs font-bold tabular-nums dark:text-white group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">{row.val}</div>
-                    </motion.div>
-                  ))}
+                <div className="flex justify-between items-center mb-8">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-headline text-on-surface-variant dark:text-outline text-xs uppercase tracking-widest font-bold">Arus Kas Bulanan</h3>
+                    {cashFlowData.length > 0 && (() => {
+                      const currentMonthFlow = cashFlowData[0];
+                      const netCashFlow = currentMonthFlow ? (currentMonthFlow.rawIn + currentMonthFlow.rawOut) : 0;
+                      return (
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold flex items-center gap-0.5 ${
+                          netCashFlow >= 0 
+                            ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400' 
+                            : 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400'
+                        }`}>
+                          Net: {netCashFlow >= 0 ? '+' : ''}Rp {netCashFlow.toLocaleString('id-ID')}
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
-
-                <div className="mt-8 flex gap-6 border-t border-outline-variant/10 dark:border-white/10 pt-6">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-tertiary-fixed-dim dark:bg-tertiary-fixed rounded-full"></div>
-                    <span className="text-[10px] font-bold text-outline">PEMASUKAN</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-error-container/60 dark:bg-error/80 rounded-full"></div>
-                    <span className="text-[10px] font-bold text-outline">PENGELUARAN</span>
-                  </div>
+                <div className="h-64 mt-4 w-full relative z-10">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={cashFlowData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="pemasukanGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#059669" stopOpacity={0.6} />
+                        </linearGradient>
+                        <linearGradient id="pengeluaranGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f87171" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#ef4444" stopOpacity={0.6} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#888', fontWeight: 'bold' }} />
+                      <YAxis width={65} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#888', fontWeight: 'bold' }} tickFormatter={(val) => formatJt(val)} />
+                      <Tooltip 
+                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                        contentStyle={{ backgroundColor: '#191c1e', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
+                        itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                        formatter={(val: number) => [`Rp ${Math.abs(val).toLocaleString('id-ID')}`, '']}
+                      />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                      <Bar dataKey="rawIn" name="Pemasukan" fill="url(#pemasukanGrad)" radius={[6, 6, 0, 0]} barSize={14} />
+                      <Bar dataKey="rawOut" name="Pengeluaran" fill="url(#pengeluaranGrad)" radius={[6, 6, 0, 0]} barSize={14} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
@@ -495,31 +991,75 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
               </div>
               
               <div className="flex flex-col sm:flex-row items-center gap-8 flex-1">
-                <div className="relative w-48 h-48 shrink-0">
-                  {/* Dynamic Donut SVG */}
-                  <svg className="w-full h-full transform -rotate-90 hover:scale-105 transition-transform" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#002366" strokeWidth="4.2" strokeDasharray={`${pctInvest} 100`} />
-                    <circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#758dd5" strokeWidth="4.2" strokeDasharray={`${pctPokok} 100`} strokeDashoffset={-pctInvest} />
-                    <circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#95d4b3" strokeWidth="4.2" strokeDasharray={`${pctLifestyle} 100`} strokeDashoffset={-(pctInvest + pctPokok)} />
-                    <circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#ba1a1a" strokeWidth="4.2" strokeDasharray={`${pctUtang} 100`} strokeDashoffset={-(pctInvest + pctPokok + pctLifestyle)} />
-                  </svg>
+                <div className="relative w-48 h-48 shrink-0 flex items-center justify-center">
+                  <div className="absolute flex flex-col items-center justify-center text-center pointer-events-none z-20">
+                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-widest uppercase">Total Belanja</span>
+                    <span className="text-xs md:text-sm font-black text-slate-800 dark:text-white mt-0.5 tabular-nums whitespace-nowrap">
+                      Rp {currentMonthExpenses.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Investasi', value: pctInvest, fill: '#8b5cf6' },
+                          { name: 'Kebutuhan Pokok', value: pctPokok, fill: '#3b82f6' },
+                          { name: 'Gaya Hidup', value: pctLifestyle, fill: '#10b981' },
+                          { name: 'Cicilan/Utang', value: pctUtang, fill: '#f43f5e' }
+                        ].filter(i => i.value > 0)}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={82}
+                        paddingAngle={3}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {
+                          [
+                            { name: 'Investasi', value: pctInvest, fill: '#8b5cf6' },
+                            { name: 'Kebutuhan Pokok', value: pctPokok, fill: '#3b82f6' },
+                            { name: 'Gaya Hidup', value: pctLifestyle, fill: '#10b981' },
+                            { name: 'Cicilan/Utang', value: pctUtang, fill: '#f43f5e' }
+                          ].filter(i => i.value > 0).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))
+                        }
+                      </Pie>
+                      <Tooltip formatter={(value) => `${value}%`} contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#191c1e', color: '#fff' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
                 
                 <div className="flex-1 space-y-3 w-full">
                   {[
-                    { name: 'Investasi', val: pctInvest, color: 'bg-primary-container dark:bg-[#a7c8ff]' },
-                    { name: 'Kebutuhan Pokok', val: pctPokok, color: 'bg-secondary-container dark:bg-slate-400' },
-                    { name: 'Gaya Hidup', val: pctLifestyle, color: 'bg-tertiary-fixed-dim dark:bg-tertiary-fixed' },
-                    { name: 'Cicilan/Utang', val: pctUtang, color: 'bg-error dark:bg-error-container' },
+                    { name: 'Investasi', val: pctInvest, amount: currentMonthExpenses * (pctInvest / 100), color: '#8b5cf6' },
+                    { name: 'Kebutuhan Pokok', val: pctPokok, amount: currentMonthExpenses * (pctPokok / 100), color: '#3b82f6' },
+                    { name: 'Gaya Hidup', val: pctLifestyle, amount: currentMonthExpenses * (pctLifestyle / 100), color: '#10b981' },
+                    { name: 'Cicilan/Utang', val: pctUtang, amount: currentMonthExpenses * (pctUtang / 100), color: '#f43f5e' },
                   ]
                     .filter(item => item.val > 0)
                     .map((item, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 hover:bg-surface dark:hover:bg-white/5 rounded-xl transition-colors group">
-                      <div className="flex items-center gap-3">
-                        <span className={`w-2.5 h-2.5 rounded-full ${item.color}`}></span>
-                        <span className="text-xs font-bold text-on-surface dark:text-slate-300 group-hover:text-primary dark:group-hover:text-white transition-colors">{item.name}</span>
+                    <div 
+                      key={i} 
+                      className="p-3 bg-white/40 dark:bg-white/[0.02] backdrop-blur-md border border-white/20 dark:border-white/5 rounded-2xl flex flex-col gap-1.5 hover:bg-white/60 dark:hover:bg-white/[0.05] transition-all group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 group-hover:text-primary dark:group-hover:text-white transition-colors">{item.name}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 shrink-0">
+                          <span className="text-[9px] font-black text-slate-800 dark:text-white bg-slate-200/50 dark:bg-white/10 px-2 py-0.5 rounded-full">{item.val}%</span>
+                          <span className="text-xs font-black tabular-nums text-slate-800 dark:text-white whitespace-nowrap">Rp {Math.round(item.amount).toLocaleString('id-ID')}</span>
+                        </div>
                       </div>
-                      <span className="text-xs font-bold tabular-nums dark:text-white bg-surface-container-low dark:bg-white/10 px-2.5 py-1 rounded-md">{item.val}%</span>
+                      <div className="w-full h-1 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${item.val}%`, backgroundColor: item.color }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -530,28 +1070,45 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
           {/* Insights Cards Grid */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Magic AI Insight */}
+            {/* FIRE Predictor Insight */}
             <div 
-              className="bg-primary-container dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white p-6 rounded-[24px] relative overflow-hidden group shadow-md"
+              onClick={() => setIsFIREModalOpen(true)}
+              className="bg-primary-container dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white p-6 rounded-[24px] relative overflow-hidden group shadow-md flex flex-col justify-between cursor-pointer hover:scale-[1.02] transition-transform"
             >
               <div className="relative z-10">
-                <span className="material-symbols-outlined text-tertiary-fixed-dim dark:text-tertiary-fixed text-3xl mb-4 group-hover:rotate-12 transition-transform">auto_awesome</span>
-                <h4 className="font-headline font-bold mb-2">Smart Insight</h4>
-                <p className="text-sm text-primary-fixed dark:text-slate-300 leading-relaxed font-medium">
-                  {valLifestyle > 0 ? (
-                    <>Membatasi pos "Gaya Hidup" sebesar 10% dari pengeluaran saat ini dapat menghemat hingga <strong className="text-white">Rp {(valLifestyle * 0.1).toLocaleString('id-ID')}</strong> untuk dialokasikan langsung ke Investasi.</>
-                  ) : (
-                    <>Pengeluaran Anda sangat efisien. Pertahankan alokasi dana berlebih ke <strong className="text-white">aset produktif dan investasi</strong>.</>
-                  )}
-                </p>
+                <div className="flex justify-between items-start mb-4">
+                  <span className="material-symbols-outlined text-tertiary-fixed-dim dark:text-tertiary-fixed text-3xl group-hover:rotate-12 transition-transform">local_fire_department</span>
+                  <div className="bg-white/20 px-2 py-1 rounded text-[10px] font-bold tracking-widest uppercase flex items-center gap-1">
+                    FIRE Predictor <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+                  </div>
+                </div>
+                <h4 className="font-headline font-bold mb-1 text-lg">Kebebasan Finansial</h4>
+                {yearsToFIRE === 0 ? (
+                  <p className="text-2xl font-extrabold text-white mt-2">Tercapai! 🎉</p>
+                ) : yearsToFIRE === 999 ? (
+                  <p className="text-xl font-extrabold text-white mt-2">Belum Tersedia</p>
+                ) : (
+                  <div className="mt-2">
+                    <p className="text-3xl font-extrabold text-white tabular-nums">{yearsToFIRE.toFixed(1)} <span className="text-lg font-medium opacity-80">Tahun Lagi</span></p>
+                    <p className="text-xs text-primary-fixed dark:text-slate-300 mt-2 opacity-90">
+                      Jika menabung <strong className="text-white">{savingsRate}%</strong> dari pendapatan Anda terus menerus.
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="absolute -right-4 -bottom-4 opacity-10 blur-[2px] pointer-events-none group-hover:scale-110 transition-transform duration-700">
-                <span className="material-symbols-outlined text-9xl">trending_down</span>
+                <span className="material-symbols-outlined text-9xl">landscape</span>
               </div>
             </div>
 
-            {/* Goal Insight */}
-            <div className="bg-surface-container-low dark:bg-white/5 dark:border dark:border-white/10 p-6 rounded-[24px] border border-outline-variant/10 flex flex-col justify-between">
+            {/* Emergency Goal Insight */}
+            <div 
+              onClick={() => setIsEmergencyModalOpen(true)}
+              className="bg-surface-container-low dark:bg-white/5 dark:border dark:border-white/10 p-6 rounded-[24px] border border-outline-variant/10 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow relative"
+            >
+              <div className="absolute top-4 right-4 bg-primary/10 dark:bg-white/20 text-primary dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
+                SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+              </div>
               <div>
                 <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] mb-4 text-2xl">savings</span>
                 <h4 className="font-headline font-bold mb-2 text-on-surface dark:text-white">Target Dana Darurat</h4>
@@ -569,26 +1126,132 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
               </p>
             </div>
 
-            {/* Warning Insight */}
-            <div className="bg-error-container/20 dark:bg-error-container/10 p-6 rounded-[24px] border border-error-container flex flex-col justify-between">
+            {/* Debt Freedom Projection */}
+            <div 
+              onClick={() => setIsDebtModalOpen(true)}
+              className="bg-surface-container-low dark:bg-white/5 dark:border dark:border-white/10 p-6 rounded-[24px] border border-outline-variant/10 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow relative"
+            >
+              <div className="absolute top-4 right-4 bg-green-500/10 text-green-700 dark:bg-white/20 dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
+                SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+              </div>
               <div>
-                <span className="material-symbols-outlined text-error mb-4 text-2xl animate-pulse">warning</span>
-                <h4 className="font-headline font-bold mb-2 text-on-surface dark:text-white">Peringatan Anggaran</h4>
-                {exceededCategory ? (
-                  <p className="text-sm text-on-surface-variant dark:text-slate-300 mb-4 leading-relaxed font-medium">
-                    Kategori <strong className="text-error">"{warningCat}"</strong> telah melebihi limit bulanan sebesar {warningPct}%.
-                  </p>
+                <div className="flex justify-between items-start mb-4">
+                  <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-3xl">task_alt</span>
+                </div>
+                <h4 className="font-headline font-bold mb-1 text-on-surface dark:text-white">Bebas Utang Pada</h4>
+                {totalDebts <= 0 ? (
+                  <p className="text-2xl font-extrabold text-green-600 dark:text-green-400 mt-2">Bebas Utang! 🎊</p>
+                ) : monthsToDebtFree === 999 ? (
+                  <p className="text-xl font-extrabold text-error mt-2">Risiko Gagal Bayar</p>
                 ) : (
-                  <p className="text-sm text-on-surface-variant dark:text-slate-300 mb-4 leading-relaxed font-medium">
-                    Luar biasa! Pengeluaran Anda di semua pos anggaran bulan ini masih aman terkendali.
-                  </p>
+                  <div className="mt-2">
+                    <p className="text-2xl font-extrabold text-on-surface dark:text-white tabular-nums">
+                      {debtFreeDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                    </p>
+                    <p className="text-xs text-on-surface-variant dark:text-outline mt-2 leading-relaxed">
+                      Lakukan pembayaran ekstra minimal <strong className="text-primary dark:text-[#a7c8ff]">Rp {extraDebtPayment.toLocaleString('id-ID')}</strong>/bulan untuk mencapai target ini.
+                    </p>
+                  </div>
                 )}
               </div>
-              <button onClick={() => onNavigate?.('budget')} className="text-xs font-bold text-error md:text-on-surface hover:text-error dark:text-error-container dark:hover:text-[#ffb4ab] flex items-center gap-1 group w-max cursor-pointer">
-                Sesuaikan Anggaran <span className="material-symbols-outlined text-xs group-hover:translate-x-1 transition-transform">chevron_right</span>
-              </button>
             </div>
           </section>
+
+          {/* --- NEW: FINANCIAL HEALTH SCORECARD --- */}
+          <div className="mt-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-extrabold font-headline text-lg text-on-surface dark:text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]">health_and_safety</span>
+                Financial Health Scorecard
+              </h3>
+            </div>
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* DTI Ratio */}
+              <div 
+                onClick={() => setRatioModalConfig({ isOpen: true, type: 'DTI' })}
+                className="bg-surface-container-lowest dark:bg-black/20 p-6 rounded-[24px] border border-outline-variant/20 dark:border-white/5 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer relative"
+              >
+                <div className="absolute top-4 right-4 bg-outline-variant/20 dark:bg-white/10 text-on-surface-variant dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
+                  SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+                </div>
+                <div>
+                  <div className="flex justify-between items-start mb-4 pr-24">
+                    <span className="material-symbols-outlined text-outline dark:text-slate-500 text-3xl">account_balance</span>
+                    <div className={`px-2 py-1 rounded text-[10px] font-bold tracking-widest uppercase ${dtiRatio < 35 ? 'bg-green-500/10 text-green-600 dark:text-green-400' : dtiRatio < 50 ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>
+                      {dtiRatio < 35 ? 'Sehat' : dtiRatio < 50 ? 'Hati-hati' : 'Berisiko'}
+                    </div>
+                  </div>
+                  <h4 className="font-headline font-bold mb-1 text-sm text-on-surface-variant dark:text-slate-400">Debt-to-Income (DTI)</h4>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <p className={`text-3xl font-extrabold tabular-nums ${dtiRatio < 35 ? 'text-on-surface dark:text-white' : dtiRatio < 50 ? 'text-orange-600 dark:text-orange-400' : 'text-error dark:text-[#ffb4ab]'}`}>
+                      {dtiRatio.toFixed(1)}%
+                    </p>
+                  </div>
+                  <p className="text-xs text-on-surface-variant dark:text-slate-500 mt-2 leading-relaxed">
+                    Beban cicilan utang bulanan terhadap total pendapatan. Standar bank max 35%.
+                  </p>
+                </div>
+              </div>
+
+              {/* Liquidity Ratio */}
+              <div 
+                onClick={() => setRatioModalConfig({ isOpen: true, type: 'LIQUIDITY' })}
+                className="bg-surface-container-lowest dark:bg-black/20 p-6 rounded-[24px] border border-outline-variant/20 dark:border-white/5 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer relative"
+              >
+                <div className="absolute top-4 right-4 bg-outline-variant/20 dark:bg-white/10 text-on-surface-variant dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
+                  SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+                </div>
+                <div>
+                  <div className="flex justify-between items-start mb-4 pr-24">
+                    <span className="material-symbols-outlined text-outline dark:text-slate-500 text-3xl">water_drop</span>
+                    <div className={`px-2 py-1 rounded text-[10px] font-bold tracking-widest uppercase ${liquidityRatio >= 6 ? 'bg-green-500/10 text-green-600 dark:text-green-400' : liquidityRatio >= 3 ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>
+                      {liquidityRatio >= 6 ? 'Sangat Aman' : liquidityRatio >= 3 ? 'Cukup' : 'Rentan'}
+                    </div>
+                  </div>
+                  <h4 className="font-headline font-bold mb-1 text-sm text-on-surface-variant dark:text-slate-400">Rasio Likuiditas Kas</h4>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <p className={`text-3xl font-extrabold tabular-nums ${liquidityRatio >= 3 ? 'text-on-surface dark:text-white' : 'text-error dark:text-[#ffb4ab]'}`}>
+                      {liquidityRatio.toFixed(1)}
+                    </p>
+                    <span className="text-sm font-medium text-on-surface-variant dark:text-slate-500">Bulan</span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant dark:text-slate-500 mt-2 leading-relaxed">
+                    Berapa lama aset cair menutupi pengeluaran tanpa pemasukan. Target aman 6+ bulan.
+                  </p>
+                </div>
+              </div>
+
+              {/* Debt-to-Asset Ratio */}
+              <div 
+                onClick={() => setRatioModalConfig({ isOpen: true, type: 'SOLVENCY' })}
+                className="bg-surface-container-lowest dark:bg-black/20 p-6 rounded-[24px] border border-outline-variant/20 dark:border-white/5 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer relative"
+              >
+                <div className="absolute top-4 right-4 bg-outline-variant/20 dark:bg-white/10 text-on-surface-variant dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
+                  SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+                </div>
+                <div>
+                  <div className="flex justify-between items-start mb-4 pr-24">
+                    <span className="material-symbols-outlined text-outline dark:text-slate-500 text-3xl">scale</span>
+                    <div className={`px-2 py-1 rounded text-[10px] font-bold tracking-widest uppercase ${debtToAssetRatio < 30 ? 'bg-green-500/10 text-green-600 dark:text-green-400' : debtToAssetRatio < 50 ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}`}>
+                      {debtToAssetRatio < 30 ? 'Kuat' : debtToAssetRatio < 50 ? 'Wajar' : 'Berbahaya'}
+                    </div>
+                  </div>
+                  <h4 className="font-headline font-bold mb-1 text-sm text-on-surface-variant dark:text-slate-400">Rasio Solvabilitas</h4>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <p className={`text-3xl font-extrabold tabular-nums ${debtToAssetRatio < 50 ? 'text-on-surface dark:text-white' : 'text-error dark:text-[#ffb4ab]'}`}>
+                      {debtToAssetRatio.toFixed(1)}%
+                    </p>
+                  </div>
+                  <p className="text-xs text-on-surface-variant dark:text-slate-500 mt-2 leading-relaxed">
+                    Persentase aset yang dibiayai oleh utang (Debt-to-Asset). Idealnya selalu di bawah 50%.
+                  </p>
+                </div>
+              </div>
+
+            </section>
+          </div>
+
         </div>
       )}
 
@@ -603,6 +1266,42 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
           <FinancePerformanceReport onShowCTA={onShowCTA} onNavigate={onNavigate} hideHeader />
         </div>
       )}
+
+      {/* FIRE Calculator Modal */}
+      <FinanceFIRECalculatorModal 
+        isOpen={isFIREModalOpen} 
+        onClose={() => setIsFIREModalOpen(false)} 
+        initialNetWorth={netWorth}
+        initialMonthlyExpense={currentMonthExpenses}
+        initialMonthlySavings={currentSavings}
+      />
+
+      <FinanceEmergencyModal
+        isOpen={isEmergencyModalOpen}
+        onClose={() => setIsEmergencyModalOpen(false)}
+        currentCash={totalCash}
+        monthlyExpenses={avgMonthlyExpenses}
+      />
+
+      <FinanceDebtFreedomModal
+        isOpen={isDebtModalOpen}
+        onClose={() => setIsDebtModalOpen(false)}
+        totalDebts={totalDebts}
+        totalMinPayment={totalMinPayment}
+        currentSavings={currentSavings}
+      />
+
+      <FinanceRatioSimulatorModal
+        isOpen={ratioModalConfig.isOpen}
+        onClose={() => setRatioModalConfig(prev => ({ ...prev, isOpen: false }))}
+        ratioType={ratioModalConfig.type}
+        initialIncome={currentMonthIncome}
+        initialDebtPayment={totalMinPayment}
+        initialCash={totalCash}
+        initialExpenses={avgMonthlyExpenses}
+        initialAssets={totalAssets}
+        initialLiabilities={totalDebts}
+      />
     </div>
   );
 };

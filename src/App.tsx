@@ -2,9 +2,18 @@ import React, { useState, useEffect } from 'react';
 import FinanceDemo from './FinanceDemo';
 import FinanceLogin from './finance-components/FinanceLogin';
 import { useAuthStore } from './store/useAuthStore';
+import { useFinanceStore } from './store/useFinanceStore';
+import Finance2FAOverlay from './finance-components/Finance2FAOverlay';
 
 const App: React.FC = () => {
   const user = useAuthStore(state => state.user);
+  const logout = useAuthStore(state => state.logout);
+  const settings = useFinanceStore(state => state.settings);
+  const isAuthenticated2FA = useFinanceStore(state => state.isAuthenticated2FA);
+  const setIsAuthenticated2FA = useFinanceStore(state => state.setIsAuthenticated2FA);
+
+  const is2FAActive = settings.find(s => s.key === 'security_twoFactorActive')?.value === 'true';
+  const secret2FA = settings.find(s => s.key === 'security_2fa_secret')?.value || '';
   const [isDark, setIsDark] = useState<boolean>(() => {
     const saved = localStorage.getItem('nam_wealth_dark_mode');
     if (saved) return saved === 'true';
@@ -28,10 +37,21 @@ const App: React.FC = () => {
   }
 
   return (
-    <FinanceDemo 
-      isDark={isDark} 
-      toggleDark={toggleDark} 
-    />
+    <>
+      <FinanceDemo 
+        isDark={isDark} 
+        toggleDark={toggleDark} 
+      />
+      <Finance2FAOverlay 
+        isOpen={user !== null && is2FAActive && !isAuthenticated2FA} 
+        secret={secret2FA} 
+        onSuccess={() => setIsAuthenticated2FA(true)}
+        onLogout={() => {
+          logout();
+          setIsAuthenticated2FA(false);
+        }}
+      />
+    </>
   );
 };
 

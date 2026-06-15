@@ -8,8 +8,9 @@ interface FinanceNotificationsProps {
   onClose?: () => void;
 }
 
-const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, onClose }) => {
-  const { accounts, assets, settings } = useFinanceStore();
+const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, onNavigate, onClose }) => {
+  const { accounts, assets, settings, promos, readPromos, markPromoRead, budgetCategories, transactions, debts } = useFinanceStore();
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   // Helper to calculate days passed since date
   const getDaysPassed = (dateStr?: string) => {
@@ -44,8 +45,8 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
       message: string;
       time: string;
       icon: string;
-      daysOverdue: number;
-      type: 'account' | 'asset';
+      daysOverdue?: number;
+      type: 'account' | 'asset' | 'budget' | 'debt';
       targetId: string;
     }> = [];
 
@@ -87,7 +88,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
       }
     });
 
-    return alerts.sort((a, b) => b.daysOverdue - a.daysOverdue);
+    return alerts.sort((a, b) => (b.daysOverdue || 0) - (a.daysOverdue || 0));
   }, [accounts, assets]);
 
   // Combine dynamic reminders and static notifications based on settings
@@ -105,7 +106,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
       onClick: () => void;
     }> = [];
 
-    // 1. Add dynamic warnings
+    // 1. Add dynamic asset/account warnings
     activeReminders.forEach(alert => {
       list.push({
         id: alert.id,
@@ -115,49 +116,101 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
         icon: alert.icon,
         isDynamic: true,
         timeText: `Keterangan: ${alert.time}`,
-        onClick: () => onShowCTA({
-          title: `Pembaruan Valuasi: ${alert.title}`,
-          description: `Silakan perbarui nilai ${alert.type === 'account' ? 'saldo' : 'aset'} ini langsung di menu Akun atau Aset untuk mencerminkan kondisi riil neraca kekayaan Anda.`
-        })
+        onClick: () => {
+          if (onNavigate) {
+            onNavigate('aset');
+            if (onClose) onClose();
+          } else {
+            onShowCTA({
+              title: `Pembaruan Valuasi: ${alert.title}`,
+              description: `Silakan perbarui nilai ${alert.type === 'account' ? 'saldo' : 'aset'} ini langsung di menu Akun atau Aset untuk mencerminkan kondisi riil neraca kekayaan Anda.`
+            });
+          }
+        }
       });
     });
 
     // 2. Add budget alert if enabled
     if (showBudgetAlert) {
-      list.push({
-        id: 'static-budget',
-        title: 'Anggaran Food Menipis',
-        message: 'Anda telah menggunakan 92% dari anggaran bulan ini. Tersisa Rp 145.000 hingga akhir pekan.',
-        time: '10:45 AM',
-        icon: 'account_balance_wallet',
-        isBudget: true,
-        onClick: () => onShowCTA({
-          title: "Real-time Budget Enforcement",
-          description: "Cegah overspending dengan kunci transaksi otomatis saat anggaran harian/mingguan telah mencapai batas 95%."
-        })
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      budgetCategories.filter(c => c.type === 'Pengeluaran').forEach(cat => {
+        const spent = transactions
+          .filter(t => t.type === 'expense' && t.category === cat.name && new Date(t.date).getMonth() === currentMonth && new Date(t.date).getFullYear() === currentYear)
+          .reduce((sum, t) => sum + t.amount, 0);
+        
+        const limit = cat.allocated || 1;
+        const percentage = (spent / limit) * 100;
+        const alertThreshold = cat.alertAt || 90;
+        
+        if (percentage >= alertThreshold) {
+          const sisa = Math.max(0, limit - spent);
+          list.push({
+            id: `alert-budget-${cat.id}`,
+            title: `Anggaran ${cat.name} Menipis`,
+            message: `Anda telah menggunakan ${Math.round(percentage)}% dari anggaran bulan ini. Tersisa Rp ${sisa.toLocaleString('id-ID')} hingga akhir bulan.`,
+            time: 'Bulan Ini',
+            icon: cat.icon || 'account_balance_wallet',
+            isBudget: true,
+            onClick: () => {
+              if (onNavigate) {
+                onNavigate('anggaran');
+                if (onClose) onClose();
+              } else {
+                onShowCTA({
+                  title: "Real-time Budget Enforcement",
+                  description: "Cegah overspending dengan mengevaluasi kembali anggaran harian Anda."
+                });
+              }
+            }
+          });
+        }
       });
     }
 
     // 3. Add bill reminder if enabled
     if (showBillReminder) {
-      list.push({
-        id: 'static-bill',
-        title: 'Tagihan Listrik Jatuh Tempo',
-        message: 'Pembayaran listrik PLN senilai Rp 842.000 akan jatuh tempo dalam 2 hari.',
-        time: '08:00 AM',
-        icon: 'event_busy',
-        isBill: true,
-        onClick: () => onShowCTA({
-          title: "Auto-Bill Pay Integration",
-          description: "Sinkronkan dengan Bank Nasional untuk pembayaran tagihan otomatis tanpa denda keterlambatan."
-        })
+      const currentDay = new Date().getDate();
+      debts.forEach(debt => {
+        if (debt.status === 'Lunas') return;
+        if (debt.dueDate) {
+          let diff = debt.dueDate - currentDay;
+          if (diff >= 0 && diff <= 7) {
+            list.push({
+              id: `alert-debt-${debt.id}`,
+              title: `Tagihan Jatuh Tempo: ${debt.name}`,
+              message: `Pembayaran ${debt.type} kepada ${debt.lender || 'kreditur'} akan jatuh tempo dalam ${diff === 0 ? 'hari ini' : diff + ' hari'}.`,
+              time: diff === 0 ? 'Hari Ini' : `${diff} Hari Lagi`,
+              icon: debt.icon || 'event_busy',
+              isBill: true,
+              onClick: () => {
+                if (onNavigate) {
+                  onNavigate('rencana utang');
+                  if (onClose) onClose();
+                } else {
+                  onShowCTA({
+                    title: "Auto-Bill Pay Integration",
+                    description: "Sinkronkan dengan Bank Nasional untuk pembayaran tagihan otomatis tanpa denda keterlambatan."
+                  });
+                }
+              }
+            });
+          }
+        }
       });
     }
 
     return list;
-  }, [activeReminders, showBudgetAlert, showBillReminder, onShowCTA]);
+  }, [activeReminders, showBudgetAlert, showBillReminder, onShowCTA, budgetCategories, transactions, debts, onNavigate, onClose]);
 
-  const totalAlertsCount = visibleWarnings.length;
+  const filteredWarnings = visibleWarnings.filter(w => 
+    w.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    w.message.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totalAlertsCount = filteredWarnings.length;
 
   return (
     <div className="space-y-8 lg:space-y-12 animate-in fade-in duration-500 pb-12">
@@ -185,7 +238,8 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
             className="bg-transparent border-none focus:ring-0 text-sm font-medium w-full text-on-surface dark:text-white placeholder:text-on-surface-variant/50 dark:placeholder:text-slate-500 outline-none" 
             placeholder="Cari notifikasi..." 
             type="text"
-            onClick={() => onShowCTA({title: "Smart Notification Search", description: "Cari riwayat notifikasi dengan NLP (Natural Language Processing) untuk menemukan transaksi spesifik masa lalu."})}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </header>
@@ -203,7 +257,12 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
         </div>
         <div 
           className="bg-primary dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white rounded-[24px] p-6 lg:p-8 flex flex-col justify-between shadow-md cursor-pointer hover:shadow-lg transition-shadow border border-primary-container dark:border-[#a7c8ff]/10"
-          onClick={() => onShowCTA({title: "AI Continuous Monitoring", description: "Arsitek Keuangan AI kami memantau pasar 24/7 dan memberikan wawasan proaktif sebelum pergerakan besar terjadi."})}
+          onClick={() => {
+            if (onNavigate) {
+              onNavigate('analytics');
+              if (onClose) onClose();
+            }
+          }}
         >
           <div className="flex justify-between items-start mb-6">
             <span className="material-symbols-outlined opacity-60 dark:text-[#a7c8ff]">auto_awesome</span>
@@ -228,7 +287,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
           </div>
           
           <div className="space-y-1">
-            {visibleWarnings.length === 0 ? (
+            {filteredWarnings.length === 0 ? (
               <div className="bg-surface-container-lowest dark:bg-white/5 rounded-[24px] p-8 border border-outline-variant/10 dark:border-white/10 text-center flex flex-col items-center justify-center gap-3">
                 <div className="w-14 h-14 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                   <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
@@ -239,9 +298,9 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
                 </div>
               </div>
             ) : (
-              visibleWarnings.map((alert, idx) => {
+              filteredWarnings.map((alert, idx) => {
                 const isFirst = idx === 0;
-                const isLast = idx === visibleWarnings.length - 1;
+                const isLast = idx === filteredWarnings.length - 1;
                 
                 // Style differences
                 let bgClass = "bg-surface-container-lowest dark:bg-surface-variant/10";
@@ -285,16 +344,12 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
                       </div>
                       
                       {alert.isBudget && (
-                        <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1 line-clamp-2 md:line-clamp-none">
-                          Anda telah menggunakan <strong className="text-error dark:text-[#ffb4ab]">92%</strong> dari anggaran bulan ini. Tersisa Rp 145.000 hingga akhir pekan.
-                        </p>
+                        <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1 line-clamp-2 md:line-clamp-none" dangerouslySetInnerHTML={{ __html: alert.message.replace(/(\d+%)/, '<strong class="text-error dark:text-[#ffb4ab]">$1</strong>').replace(/(Rp [\d.,]+)/, '<strong class="text-on-surface dark:text-white">$1</strong>') }} />
                       )}
                       {alert.isBill && (
-                        <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1 line-clamp-2 md:line-clamp-none">
-                          Pembayaran listrik PLN senilai <strong className="text-on-surface dark:text-white">Rp 842.000</strong> akan jatuh tempo dalam 2 hari.
-                        </p>
+                        <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1 line-clamp-2 md:line-clamp-none" dangerouslySetInnerHTML={{ __html: alert.message.replace(/(Rp [\d.,]+)/, '<strong class="text-on-surface dark:text-white">$1</strong>') }} />
                       )}
-                      {alert.isDynamic && (
+                      {alert.isDynamic && !alert.isBudget && !alert.isBill && (
                         <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1">
                           {alert.message}
                         </p>
@@ -314,97 +369,77 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
           </div>
         </div>
 
-        {/* Update Aset */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-2 text-primary dark:text-[#a7c8ff]">
-              <span className="material-symbols-outlined">trending_up</span>
-              <h4 className="font-headline font-bold tracking-tight uppercase text-sm">Update Aset</h4>
-            </div>
-          </div>
-          
-          <div className="space-y-1">
-            <div 
-              className="bg-surface-container-lowest dark:bg-surface-variant/10 p-5 md:p-6 flex gap-4 md:gap-5 hover:bg-surface-bright/50 dark:hover:bg-white/5 transition-colors rounded-t-[20px] lg:rounded-t-[24px] cursor-pointer group border border-outline-variant/10 dark:border-white/5"
-              onClick={() => onShowCTA()}
-            >
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-tertiary-fixed/30 dark:bg-tertiary-fixed/20 flex items-center justify-center text-on-tertiary-fixed-variant dark:text-tertiary-fixed shrink-0">
-                <span className="material-symbols-outlined text-lg md:text-xl">monetization_on</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-1 h-auto sm:h-6">
-                  <h5 className="font-bold text-sm md:text-base text-on-surface dark:text-white truncate pr-2 group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">Kenaikan Harga Emas Antam</h5>
-                  <span className="text-[10px] md:text-[11px] font-bold text-on-surface-variant dark:text-slate-400 tabular-nums shrink-0 whitespace-nowrap bg-surface-container-low dark:bg-white/5 px-2 py-0.5 rounded">Kemarin</span>
-                </div>
-                <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1 line-clamp-2 md:line-clamp-none">Nilai aset emas Anda meningkat sebesar <strong className="text-tertiary-container dark:text-tertiary-fixed">1.2%</strong> mengikuti harga pasar global pagi ini.</p>
-              </div>
-            </div>
-            
-            <div 
-              className="bg-surface-container-low/40 dark:bg-surface-variant/5 p-5 md:p-6 flex gap-4 md:gap-5 hover:bg-surface-bright/50 dark:hover:bg-white/5 transition-colors rounded-b-[20px] lg:rounded-b-[24px] cursor-pointer group border border-outline-variant/10 dark:border-white/5 border-t-0"
-              onClick={() => onShowCTA()}
-            >
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary-fixed/30 dark:bg-[#a7c8ff]/20 flex items-center justify-center text-on-primary-fixed-variant dark:text-[#a7c8ff] shrink-0">
-                <span className="material-symbols-outlined text-lg md:text-xl">show_chart</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-1 h-auto sm:h-6">
-                  <h5 className="font-bold text-sm md:text-base text-on-surface dark:text-white truncate pr-2 group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">Perubahan Nilai Saham BBCA</h5>
-                  <span className="text-[10px] md:text-[11px] font-bold text-on-surface-variant dark:text-slate-400 tabular-nums shrink-0 whitespace-nowrap bg-surface-container-low dark:bg-white/5 px-2 py-0.5 rounded">Kemarin</span>
-                </div>
-                <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1 line-clamp-2 md:line-clamp-none">Saham BBCA ditutup menguat ke level 9.550. Total valuasi portofolio saham Anda naik Rp 2.4M.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Saran Finansial */}
+        {/* Informasi & Promo NAMTECH */}
         {showMarketing && (
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-2 text-on-tertiary-container dark:text-tertiary-fixed">
-                <span className="material-symbols-outlined">lightbulb</span>
-                <h4 className="font-headline font-bold tracking-tight uppercase text-sm">Saran Finansial</h4>
+                <span className="material-symbols-outlined">campaign</span>
+                <h4 className="font-headline font-bold tracking-tight uppercase text-sm">Informasi & Promo NAMTECH</h4>
               </div>
             </div>
             
             <div className="space-y-1">
-              <div 
-                className="bg-surface-container-lowest dark:bg-surface-variant/10 p-5 md:p-6 flex gap-4 md:gap-5 hover:bg-surface-bright/50 dark:hover:bg-white/5 transition-colors rounded-t-[20px] lg:rounded-t-[24px] cursor-pointer group border border-outline-variant/10 dark:border-white/5 relative overflow-hidden"
-                onClick={() => onShowCTA({title: "Personalized Financial Planning", description: "Dapatkan modul kelas pakar mengenai alokasi anggaran dan efisiensi pengeluaran."})}
-              >
-                <div className="absolute left-0 top-0 w-1 h-full bg-tertiary-fixed-dim dark:bg-tertiary-fixed"></div>
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-tertiary-fixed/30 dark:bg-tertiary-fixed/20 flex items-center justify-center text-on-tertiary-fixed-variant dark:text-tertiary-fixed shrink-0 ml-2">
-                  <span className="material-symbols-outlined text-lg md:text-xl">savings</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-1 h-auto sm:h-6">
-                    <h5 className="font-bold text-sm md:text-base text-on-surface dark:text-white truncate pr-2 group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">Tips Menabung: Aturan 50/30/20</h5>
-                    <span className="text-[10px] md:text-[11px] font-bold text-on-surface-variant dark:text-slate-400 tabular-nums shrink-0 whitespace-nowrap bg-surface-container-low dark:bg-white/5 px-2 py-0.5 rounded">3 Hari Lalu</span>
-                  </div>
-                  <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1 line-clamp-2 md:line-clamp-none">Berdasarkan data bulan lalu, Anda bisa menghemat Rp 500rb dengan mengalihkan dana hiburan.</p>
-                  <div className="mt-3 text-xs font-bold text-primary dark:text-[#a7c8ff] flex items-center gap-1 group-hover:gap-2 transition-all">
-                    Pelajari Selengkapnya
-                    <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div 
-                className="bg-surface-container-low/40 dark:bg-surface-variant/5 p-5 md:p-6 flex gap-4 md:gap-5 hover:bg-surface-bright/50 dark:hover:bg-white/5 transition-colors rounded-b-[20px] lg:rounded-b-[24px] cursor-pointer group border border-outline-variant/10 dark:border-white/5 border-t-0 relative overflow-hidden"
-                onClick={() => onShowCTA()}
-              >
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-tertiary-fixed/30 dark:bg-tertiary-fixed/20 flex items-center justify-center text-on-tertiary-fixed-variant dark:text-tertiary-fixed shrink-0">
-                  <span className="material-symbols-outlined text-lg md:text-xl">balance</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-1 h-auto sm:h-6">
-                    <h5 className="font-bold text-sm md:text-base text-on-surface dark:text-white truncate pr-2 group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">Rekomendasi Rebalancing</h5>
-                    <span className="text-[10px] md:text-[11px] font-bold text-on-surface-variant dark:text-slate-400 tabular-nums shrink-0 whitespace-nowrap bg-surface-container-low dark:bg-white/5 px-2 py-0.5 rounded">5 Hari Lalu</span>
-                  </div>
-                  <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1 line-clamp-2 md:line-clamp-none">Portofolio saat ini terlalu berat di teknologi. Disarankan untuk rebalancing ke pasar uang.</p>
-                </div>
-              </div>
+              {promos.filter(p => String(p.isActive).toUpperCase() === 'TRUE').length === 0 ? (
+                 <div className="bg-surface-container-lowest dark:bg-white/5 rounded-[24px] p-6 text-center border border-outline-variant/10 dark:border-white/10">
+                   <p className="text-sm text-outline">Belum ada promo terbaru saat ini.</p>
+                 </div>
+              ) : (
+                promos.filter(p => String(p.isActive).toUpperCase() === 'TRUE').map((promo, idx, arr) => {
+                  const isFirst = idx === 0;
+                  const isLast = idx === arr.length - 1;
+                  
+                  let roundedClass = "";
+                  if (isFirst && isLast) roundedClass = "rounded-[20px] lg:rounded-[24px]";
+                  else if (isFirst) roundedClass = "rounded-t-[20px] lg:rounded-t-[24px]";
+                  else if (isLast) roundedClass = "rounded-b-[20px] lg:rounded-b-[24px]";
+
+                  const borderClass = isFirst ? "border" : "border border-t-0";
+                  
+                  const isUnread = !readPromos.includes(promo.id);
+
+                  return (
+                    <div 
+                      key={promo.id}
+                      className={`bg-surface-container-lowest dark:bg-surface-variant/10 p-5 md:p-6 flex gap-4 md:gap-5 hover:bg-surface-bright/50 dark:hover:bg-white/5 transition-colors ${roundedClass} cursor-pointer group ${borderClass} border-outline-variant/10 dark:border-white/5 relative overflow-hidden`}
+                      onClick={() => {
+                        if (isUnread) markPromoRead(promo.id);
+                        if (promo.url) window.open(promo.url.startsWith('http') ? promo.url : `https://${promo.url}`, '_blank');
+                      }}
+                    >
+                      {isUnread && (
+                        <div className="absolute left-0 top-0 w-1 h-full bg-tertiary-fixed-dim dark:bg-tertiary-fixed"></div>
+                      )}
+                      <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-tertiary-fixed/30 dark:bg-tertiary-fixed/20 flex items-center justify-center text-on-tertiary-fixed-variant dark:text-tertiary-fixed shrink-0 ${isUnread ? 'ml-2' : ''}`}>
+                        <span className="material-symbols-outlined text-lg md:text-xl">{promo.icon || 'campaign'}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-1 h-auto sm:h-6">
+                          <h5 className="font-bold text-sm md:text-base text-on-surface dark:text-white truncate pr-2 group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">
+                            {promo.title}
+                          </h5>
+                          {isUnread ? (
+                            <span className="text-[10px] md:text-[11px] font-bold text-white dark:text-[#001b3c] tabular-nums shrink-0 whitespace-nowrap bg-primary dark:bg-[#a7c8ff] px-2 py-0.5 rounded uppercase tracking-wider shadow-sm">Baru</span>
+                          ) : (
+                            <span className="text-[10px] md:text-[11px] font-bold text-on-surface-variant dark:text-slate-400 tabular-nums shrink-0 whitespace-nowrap bg-surface-container-low dark:bg-white/5 px-2 py-0.5 rounded">
+                              {promo.date ? new Date(promo.date).toLocaleDateString('id-ID') : 'Promo'}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-on-surface-variant dark:text-slate-300 text-xs md:text-sm leading-relaxed mt-1 line-clamp-2 md:line-clamp-none">
+                          {promo.message}
+                        </p>
+                        {promo.url && (
+                          <div className="mt-3 text-xs font-bold text-primary dark:text-[#a7c8ff] flex items-center gap-1 group-hover:gap-2 transition-all">
+                            Klaim Promo Sekarang
+                            <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}

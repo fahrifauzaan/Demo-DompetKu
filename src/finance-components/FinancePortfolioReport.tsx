@@ -74,14 +74,202 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
     };
   });
 
-  const totalCash = accounts.reduce((acc, curr) => acc + curr.balance, 0);
-  const totalInvestments = portfolioItemsWithLive.reduce((acc, curr) => acc + curr.marketValue, 0);
-  const totalPhysical = assets.filter(a => a.category !== 'investasi').reduce((acc, curr) => acc + curr.currentValue, 0);
-  const grandTotal = totalCash + totalInvestments + totalPhysical || 1;
+  // 6 Asset Classes calculation according to CFP guidelines
+  const cashAccounts = accounts.filter(a => a.type !== 'investment');
+  const investmentAccounts = accounts.filter(a => a.type === 'investment');
   
+  let totalCashFromAccounts = cashAccounts.reduce((sum, a) => sum + a.balance, 0);
+  let totalCryptoFromAccounts = 0;
+  let totalEquitiesFromAccounts = 0;
+  
+  investmentAccounts.forEach(a => {
+    const nameLower = a.name.toLowerCase();
+    if (nameLower.includes('kripto') || nameLower.includes('crypto') || nameLower.includes('btc') || nameLower.includes('eth') || nameLower.includes('binance') || nameLower.includes('indodax')) {
+      totalCryptoFromAccounts += a.balance;
+    } else {
+      totalEquitiesFromAccounts += a.balance;
+    }
+  });
+
+  // Calculate portfolio items classification
+  let totalFixedIncomeClass = 0;
+  let totalEquitiesClass = totalEquitiesFromAccounts;
+  let totalCryptoClass = totalCryptoFromAccounts;
+  let cashAssetsVal = 0;
+
+  portfolioItemsWithLive.forEach(item => {
+    const subType = item.subType || '';
+    const title = item.title || '';
+    const val = item.marketValue;
+    
+    if (subType === 'deposito') {
+      cashAssetsVal += val;
+    } else if (subType === 'sbn' || subType === 'obligasi' || subType === 'p2p' || title.includes('ST012')) {
+      totalFixedIncomeClass += val;
+    } else if (subType === 'saham' || subType === 'reksadana') {
+      totalEquitiesClass += val;
+    } else if (subType === 'kripto') {
+      totalCryptoClass += val;
+    } else {
+      totalEquitiesClass += val;
+    }
+  });
+
+  const totalCashClass = totalCashFromAccounts + cashAssetsVal;
+  const totalRealEstateClass = assets.filter(a => a.category === 'real-estat').reduce((sum, a) => sum + a.currentValue, 0);
+  const totalOthersClass = assets.filter(a => a.category === 'kendaraan' || a.category === 'koleksi').reduce((sum, a) => sum + a.currentValue, 0);
+
+  const grandTotal = totalCashClass + totalFixedIncomeClass + totalEquitiesClass + totalCryptoClass + totalRealEstateClass + totalOthersClass || 1;
+
+  // For the main 3-group Treemap diagram
+  const totalInvestments = totalFixedIncomeClass + totalEquitiesClass + totalCryptoClass;
+  const totalCash = totalCashClass;
+  const totalPhysical = totalRealEstateClass + totalOthersClass;
+
   const pctInvest = Math.round((totalInvestments / grandTotal) * 100);
   const pctCash = Math.round((totalCash / grandTotal) * 100);
   const pctPhysical = Math.max(0, 100 - pctInvest - pctCash);
+
+  // 1. Herfindahl-Hirschman Index (HHI) for Diversification Score
+  const wCash = totalCashClass / grandTotal;
+  const wFixed = totalFixedIncomeClass / grandTotal;
+  const wEquities = totalEquitiesClass / grandTotal;
+  const wCrypto = totalCryptoClass / grandTotal;
+  const wRealEstate = totalRealEstateClass / grandTotal;
+  const wOthers = totalOthersClass / grandTotal;
+
+  const hhi = (wCash*wCash) + (wFixed*wFixed) + (wEquities*wEquities) + (wCrypto*wCrypto) + (wRealEstate*wRealEstate) + (wOthers*wOthers);
+  // Diversification score from 1.0 to 10.0
+  const divScore = Math.max(1, Math.min(10, parseFloat((10 * (1 - (hhi - 0.167) / (1 - 0.167))).toFixed(1))));
+  
+  let divRating = '';
+  if (divScore >= 8.0) divRating = 'Sangat Baik';
+  else if (divScore >= 6.0) divRating = 'Baik';
+  else if (divScore >= 4.0) divRating = 'Moderat';
+  else divRating = 'Kurang';
+
+  // 2. Highest Sector/Asset Concentration Calculation
+  const classValues = [
+    { name: 'Kas & Setara Kas', val: totalCashClass },
+    { name: 'Pendapatan Tetap', val: totalFixedIncomeClass },
+    { name: 'Saham & Reksa Dana', val: totalEquitiesClass },
+    { name: 'Aset Kripto', val: totalCryptoClass },
+    { name: 'Properti & Real Estate', val: totalRealEstateClass },
+    { name: 'Aset Fisik & Alternatif', val: totalOthersClass }
+  ];
+  
+  // Sort classes by value descending
+  const sortedClasses = [...classValues].sort((a, b) => b.val - a.val);
+  const maxClass = sortedClasses[0];
+  const maxClassPct = Math.round((maxClass.val / grandTotal) * 100);
+  
+  let concentrationRating = '';
+  if (maxClassPct > 50) concentrationRating = 'Tinggi';
+  else if (maxClassPct >= 25) concentrationRating = 'Sedang';
+  else concentrationRating = 'Rendah';
+
+  // 3. Dynamic Risk Score Calculation
+  const weightedRisk = (totalCashClass * 1.0 + totalFixedIncomeClass * 2.0 + (totalRealEstateClass + totalOthersClass) * 3.0 + totalEquitiesClass * 4.0 + totalCryptoClass * 5.0) / grandTotal;
+  
+  let riskProfileName = '';
+  let riskProfileDesc = '';
+  if (weightedRisk < 1.8) {
+    riskProfileName = 'Konservatif';
+    riskProfileDesc = 'Portofolio Anda didominasi oleh kas dan setara kas. Sangat stabil terhadap gejolak pasar, namun memiliki pertumbuhan rendah yang rentan terhadap gerusan inflasi jangka panjang.';
+  } else if (weightedRisk < 2.6) {
+    riskProfileName = 'Moderat Konservatif';
+    riskProfileDesc = 'Alokasi portofolio Anda condong ke arah perlindungan modal dengan porsi kas dan pendapatan tetap yang cukup tebal, disertai sedikit eksposur pada aset pertumbuhan.';
+  } else if (weightedRisk < 3.4) {
+    riskProfileName = 'Moderat';
+    riskProfileDesc = 'Portofolio Anda seimbang antara instrumen likuiditas, properti riil, dan aset pertumbuhan. Memberikan apresiasi nilai jangka panjang yang stabil dengan tingkat risiko terukur.';
+  } else if (weightedRisk < 4.2) {
+    riskProfileName = 'Moderat Agresif';
+    riskProfileDesc = 'Portofolio Anda didominasi oleh instrumen investasi pertumbuhan seperti ekuitas saham dan reksa dana. Sangat baik untuk akumulasi kekayaan jangka menengah-panjang dengan volatilitas sedang.';
+  } else {
+    riskProfileName = 'Agresif';
+    riskProfileDesc = 'Portofolio Anda sangat agresif dengan porsi ekuitas tinggi atau alokasi aset digital yang signifikan. Potensi imbal hasil eksponensial dengan konsekuensi siap menghadapi fluktuasi pasar yang tajam.';
+  }
+
+  // 4. Dynamic Rebalancing Recommendations
+  // Standard liquid targets based on Risk Profile
+  let targetCash = 20;
+  let targetFixed = 30;
+  let targetEquities = 45;
+  let targetCrypto = 5;
+
+  if (riskProfileName === 'Konservatif') {
+    targetCash = 50; targetFixed = 40; targetEquities = 10; targetCrypto = 0;
+  } else if (riskProfileName === 'Moderat Konservatif') {
+    targetCash = 35; targetFixed = 45; targetEquities = 20; targetCrypto = 0;
+  } else if (riskProfileName === 'Moderat') {
+    targetCash = 20; targetFixed = 30; targetEquities = 45; targetCrypto = 5;
+  } else if (riskProfileName === 'Moderat Agresif') {
+    targetCash = 15; targetFixed = 20; targetEquities = 60; targetCrypto = 5;
+  } else if (riskProfileName === 'Agresif') {
+    targetCash = 5; targetFixed = 15; targetEquities = 70; targetCrypto = 10;
+  }
+
+  const liquidTotal = totalCashClass + totalFixedIncomeClass + totalEquitiesClass + totalCryptoClass || 1;
+  const wCashLiquid = totalCashClass / liquidTotal;
+  const wFixedLiquid = totalFixedIncomeClass / liquidTotal;
+  const wEquitiesLiquid = totalEquitiesClass / liquidTotal;
+  const wCryptoLiquid = totalCryptoClass / liquidTotal;
+
+  const diffCash = Math.round((wCashLiquid * 100) - targetCash);
+  const diffFixed = Math.round((wFixedLiquid * 100) - targetFixed);
+  const diffEquities = Math.round((wEquitiesLiquid * 100) - targetEquities);
+  const diffCrypto = Math.round((wCryptoLiquid * 100) - targetCrypto);
+
+  const rawRecs = [];
+  if (Math.abs(diffCash) >= 2) {
+    rawRecs.push({
+      act: diffCash > 0 ? 'Alokasikan surplus kas ke instrumen investasi produktif' : 'Tingkatkan cadangan kas untuk memperkuat likuiditas',
+      dir: diffCash > 0 ? 'Kurangi' : 'Tambah',
+      target: `${diffCash > 0 ? '-' : '+'}${Math.abs(diffCash)}.0%`,
+      color: diffCash > 0 ? 'text-rose-400 dark:text-rose-300' : 'text-emerald-400 dark:text-emerald-300',
+      absVal: Math.abs(diffCash)
+    });
+  }
+  if (Math.abs(diffFixed) >= 2) {
+    rawRecs.push({
+      act: diffFixed > 0 ? 'Kurangi porsi obligasi untuk realokasi aset pertumbuhan' : 'Tambah porsi obligasi/SBN untuk pendapatan pasif stabil',
+      dir: diffFixed > 0 ? 'Kurangi' : 'Tambah',
+      target: `${diffFixed > 0 ? '-' : '+'}${Math.abs(diffFixed)}.0%`,
+      color: diffFixed > 0 ? 'text-rose-400 dark:text-rose-300' : 'text-emerald-400 dark:text-emerald-300',
+      absVal: Math.abs(diffFixed)
+    });
+  }
+  if (Math.abs(diffEquities) >= 2) {
+    rawRecs.push({
+      act: diffEquities > 0 ? 'Kurangi eksposur saham/reksadana untuk amankan profit' : 'Akumulasi saham/reksadana saham untuk pertumbuhan jangka panjang',
+      dir: diffEquities > 0 ? 'Kurangi' : 'Tambah',
+      target: `${diffEquities > 0 ? '-' : '+'}${Math.abs(diffEquities)}.0%`,
+      color: diffEquities > 0 ? 'text-rose-400 dark:text-rose-300' : 'text-emerald-400 dark:text-emerald-300',
+      absVal: Math.abs(diffEquities)
+    });
+  }
+  if (Math.abs(diffCrypto) >= 2) {
+    rawRecs.push({
+      act: diffCrypto > 0 ? 'Ambil untung (TP) kripto untuk kurangi risiko volatilitas' : 'Akumulasi bertahap aset kripto berkapitalisasi besar',
+      dir: diffCrypto > 0 ? 'Kurangi' : 'Tambah',
+      target: `${diffCrypto > 0 ? '-' : '+'}${Math.abs(diffCrypto)}.0%`,
+      color: diffCrypto > 0 ? 'text-rose-400 dark:text-rose-300' : 'text-emerald-400 dark:text-emerald-300',
+      absVal: Math.abs(diffCrypto)
+    });
+  }
+
+  // Sort recommendations by deviation size descending
+  const sortedRecs = [...rawRecs].sort((a, b) => b.absVal - a.absVal);
+  const finalRecs = sortedRecs.slice(0, 3);
+  if (finalRecs.length === 0) {
+    finalRecs.push({
+      act: 'Alokasi portofolio Anda sudah optimal dan sesuai profil risiko',
+      dir: 'Aksi',
+      target: '0.0%',
+      color: 'text-emerald-400 dark:text-emerald-300',
+      absVal: 0
+    });
+  }
 
   // Format Helper for Millions/Billions
   const formatM = (val: number) => {
@@ -175,44 +363,100 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
       {/* Top Overview Bento Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Asset Allocation Donut Chart */}
+        {/* Asset Allocation Treemap */}
         <div className="lg:col-span-4 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px] flex flex-col justify-between shadow-sm">
           <div>
-            <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant dark:text-outline mb-6">Alokasi Aset Utama</h3>
-            <div 
-              className="relative w-48 h-48 mx-auto mb-8 hover:scale-105 transition-transform" 
-            >
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" fill="transparent" r="16" stroke="currentColor" className="text-surface-container-high dark:text-white/10" strokeWidth="3"></circle>
-                <circle cx="18" cy="18" fill="transparent" r="16" stroke="currentColor" className="text-primary-container dark:text-[#a7c8ff]" strokeDasharray={`${pctInvest} 100`} strokeWidth="3" strokeLinecap="round"></circle>
-                <circle cx="18" cy="18" fill="transparent" r="16" stroke="currentColor" className="text-tertiary-container dark:text-tertiary-fixed" strokeDasharray={`${pctCash} 100`} strokeDashoffset={`-${pctInvest}`} strokeWidth="3" strokeLinecap="round"></circle>
-                <circle cx="18" cy="18" fill="transparent" r="16" stroke="currentColor" className="text-primary-fixed dark:text-slate-400" strokeDasharray={`${pctPhysical} 100`} strokeDashoffset={`-${pctInvest + pctCash}`} strokeWidth="3" strokeLinecap="round"></circle>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xs text-on-surface-variant dark:text-slate-400 font-medium">Total Aset</span>
-                <span className="text-base font-bold font-headline dark:text-white mt-1 text-center px-2">{formatM(totalCash + totalInvestments + totalPhysical)}</span>
-              </div>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant dark:text-outline">Alokasi Aset Utama</h3>
+              <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] text-xl opacity-50">account_tree</span>
+            </div>
+            
+            <div className="w-full h-48 mb-8 flex gap-2">
+              {pctInvest + pctCash > 0 && (
+                <div className="flex flex-col gap-2 transition-all duration-500" style={{ flex: `${pctInvest + pctCash} ${pctInvest + pctCash} 0%`, minWidth: 0 }}>
+                   {pctInvest > 0 && (
+                      <div className="bg-primary-container dark:bg-[#a7c8ff] rounded-xl flex flex-col items-center justify-center p-2 relative group transition-all hover:scale-[1.02] cursor-default shadow-sm border border-primary/10 dark:border-[#a7c8ff]/20" style={{ flex: `${pctInvest} ${pctInvest} 0%`, minHeight: 0 }}>
+                        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors rounded-xl"></div>
+                        {pctInvest >= 15 ? (
+                          <>
+                            <span className="text-primary dark:text-[#001b3c] font-extrabold text-xl lg:text-2xl tracking-tighter">{pctInvest}%</span>
+                            <span className="text-[10px] text-primary/70 dark:text-[#001b3c]/70 font-bold uppercase tracking-widest hidden sm:block mt-0.5">Investasi</span>
+                          </>
+                        ) : pctInvest >= 5 ? (
+                          <span className="text-primary dark:text-[#001b3c] font-extrabold text-sm tracking-tighter">{pctInvest}%</span>
+                        ) : null}
+                        {/* Tooltip */}
+                        <div className="bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2.5 rounded-xl shadow-xl whitespace-nowrap z-30 pointer-events-none absolute bottom-[105%] left-1/2 -translate-x-1/2 opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Investasi Berjalan</div>
+                          <div className="text-sm font-extrabold text-primary dark:text-[#a7c8ff]">{formatM(totalInvestments)} ({pctInvest}%)</div>
+                        </div>
+                      </div>
+                   )}
+                   {pctCash > 0 && (
+                      <div className="bg-tertiary-container dark:bg-tertiary-fixed rounded-xl flex flex-col items-center justify-center p-2 relative group transition-all hover:scale-[1.02] cursor-default shadow-sm border border-tertiary/10 dark:border-tertiary-fixed/20" style={{ flex: `${pctCash} ${pctCash} 0%`, minHeight: 0 }}>
+                        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors rounded-xl"></div>
+                        {pctCash >= 15 ? (
+                          <>
+                            <span className="text-tertiary dark:text-[#31111d] font-extrabold text-lg lg:text-xl tracking-tighter">{pctCash}%</span>
+                            <span className="text-[10px] text-tertiary/70 dark:text-[#31111d]/70 font-bold uppercase tracking-widest hidden sm:block mt-0.5">Lancar</span>
+                          </>
+                        ) : pctCash >= 5 ? (
+                          <span className="text-tertiary dark:text-[#31111d] font-extrabold text-sm tracking-tighter">{pctCash}%</span>
+                        ) : null}
+                        {/* Tooltip */}
+                        <div className="bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2.5 rounded-xl shadow-xl whitespace-nowrap z-30 pointer-events-none absolute bottom-[105%] left-1/2 -translate-x-1/2 opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Aset Lancar (Kas)</div>
+                          <div className="text-sm font-extrabold text-tertiary dark:text-tertiary-fixed">{formatM(totalCashClass)} ({pctCash}%)</div>
+                        </div>
+                      </div>
+                   )}
+                </div>
+              )}
+              {pctPhysical > 0 && (
+                 <div className="bg-primary-fixed dark:bg-slate-600 rounded-xl flex flex-col items-center justify-center p-2 relative group transition-all hover:scale-[1.02] cursor-default shadow-sm border border-primary-fixed/20 dark:border-white/10" style={{ flex: `${pctPhysical} ${pctPhysical} 0%`, minWidth: 0 }}>
+                    <div className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors rounded-xl"></div>
+                    {pctPhysical >= 15 ? (
+                      <>
+                        <span className="text-on-primary-fixed dark:text-white font-extrabold text-lg lg:text-xl tracking-tighter">{pctPhysical}%</span>
+                        <span className="text-[10px] text-on-primary-fixed/70 dark:text-white/70 font-bold uppercase tracking-widest hidden sm:block mt-0.5">Fisik</span>
+                      </>
+                    ) : pctPhysical >= 5 ? (
+                      <span className="text-on-primary-fixed dark:text-white font-extrabold text-sm tracking-tighter">{pctPhysical}%</span>
+                    ) : null}
+                    {/* Tooltip */}
+                    <div className="bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2.5 rounded-xl shadow-xl whitespace-nowrap z-30 pointer-events-none absolute bottom-[105%] left-1/2 -translate-x-1/2 opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Aset Fisik/Tetap</div>
+                      <div className="text-sm font-extrabold text-on-primary-fixed dark:text-white">{formatM(totalPhysical)} ({pctPhysical}%)</div>
+                    </div>
+                 </div>
+              )}
+            </div>
+            
+            <div className="text-center mb-6 border-b border-outline-variant/10 dark:border-white/10 pb-6">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-slate-400">Total Kekayaan</span>
+              <p className="text-2xl font-extrabold font-headline dark:text-white mt-1 tabular-nums tracking-tight text-primary dark:text-[#a7c8ff]">{formatM(totalCash + totalInvestments + totalPhysical)}</p>
             </div>
           </div>
-          <div className="space-y-3 border-t border-outline-variant/10 dark:border-white/10 pt-6 font-semibold">
-            <div className="flex items-center justify-between">
+          
+          <div className="space-y-3 font-semibold">
+            <div className="flex items-center justify-between group">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary-container dark:bg-[#a7c8ff]"></div>
-                <span className="text-xs font-semibold text-on-surface-variant dark:text-outline uppercase tracking-wider">Investasi</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-primary-container dark:bg-[#a7c8ff]"></div>
+                <span className="text-xs font-semibold text-on-surface dark:text-slate-300 uppercase tracking-wider group-hover:text-primary transition-colors">Investasi Berjalan</span>
               </div>
               <span className="text-sm font-bold dark:text-white">{pctInvest}%</span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between group">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-tertiary-container dark:bg-tertiary-fixed"></div>
-                <span className="text-xs font-semibold text-on-surface-variant dark:text-outline uppercase tracking-wider">Lancar (Kas)</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-tertiary-container dark:bg-tertiary-fixed"></div>
+                <span className="text-xs font-semibold text-on-surface dark:text-slate-300 uppercase tracking-wider group-hover:text-tertiary transition-colors">Aset Lancar (Kas)</span>
               </div>
               <span className="text-sm font-bold dark:text-white">{pctCash}%</span>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between group">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary-fixed dark:bg-slate-500"></div>
-                <span className="text-xs font-semibold text-on-surface-variant dark:text-outline uppercase tracking-wider">Fisik (Properti/Emas)</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-primary-fixed dark:bg-slate-600"></div>
+                <span className="text-xs font-semibold text-on-surface dark:text-slate-300 uppercase tracking-wider group-hover:text-primary-fixed transition-colors">Aset Fisik/Tetap</span>
               </div>
               <span className="text-sm font-bold dark:text-white">{pctPhysical}%</span>
             </div>
@@ -290,23 +534,39 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
           </h3>
           <div className="space-y-8">
             <div>
-              <div className="flex justify-between items-center mb-2 font-semibold">
-                <span className="text-xs md:text-sm font-medium dark:text-white">Konsentrasi Sektor (Teknologi & Keuangan)</span>
-                <span className="text-xs font-bold text-primary dark:text-[#a7c8ff] bg-primary/10 dark:bg-[#a7c8ff]/10 px-2 py-0.5 rounded">Tinggi (42%)</span>
+              <div className="flex justify-between items-center mb-2 font-semibold flex-wrap gap-1">
+                <span className="text-xs md:text-sm font-medium dark:text-white">Konsentrasi Kelas Terbesar ({maxClass.name})</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                  concentrationRating === 'Tinggi' ? 'text-rose-600 dark:text-rose-400 bg-rose-500/10' :
+                  concentrationRating === 'Sedang' ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10' :
+                  'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+                }`}>
+                  {concentrationRating} ({maxClassPct}%)
+                </span>
               </div>
               <div className="w-full h-1.5 bg-surface-container-high dark:bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-primary dark:bg-[#a7c8ff] rounded-full" style={{ width: '42%' }}></div>
+                <div className="h-full bg-primary dark:bg-[#a7c8ff] rounded-full transition-all duration-500" style={{ width: `${maxClassPct}%` }}></div>
               </div>
             </div>
             
             <div>
               <div className="flex justify-between items-center mb-2 font-semibold">
-                <span className="text-xs md:text-sm font-medium dark:text-white">Skor Diversifikasi</span>
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">Sangat Baik (8.4/10)</span>
+                <span className="text-xs md:text-sm font-medium dark:text-white">Skor Diversifikasi Portofolio</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                  divRating === 'Sangat Baik' ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' :
+                  divRating === 'Baik' ? 'text-teal-600 dark:text-teal-400 bg-teal-500/10' :
+                  divRating === 'Moderat' ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10' :
+                  'text-rose-600 dark:text-rose-400 bg-rose-500/10'
+                }`}>
+                  {divRating} ({divScore.toFixed(1)}/10)
+                </span>
               </div>
               <div className="w-full h-1.5 bg-surface-container-high dark:bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full" style={{ width: '84%' }}></div>
+                <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${divScore * 10}%` }}></div>
               </div>
+              <p className="text-[10px] text-on-surface-variant dark:text-slate-400/70 mt-1.5 font-medium leading-tight">
+                * Dihitung secara real-time berdasarkan Indeks Herfindahl-Hirschman (HHI) lintas 6 kelas aset.
+              </p>
             </div>
             
             <div 
@@ -316,8 +576,8 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                 <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]">security</span>
               </div>
               <div>
-                <p className="text-sm font-bold mb-1 dark:text-white">Profil Risiko: Moderat Agresif</p>
-                <p className="text-xs text-on-surface-variant dark:text-slate-300 leading-relaxed">Portofolio Anda memiliki korelasi rendah antar aset, memberikan perlindungan yang baik terhadap volatilitas pasar lokal.</p>
+                <p className="text-sm font-bold mb-1 dark:text-white">Profil Risiko Portofolio: {riskProfileName}</p>
+                <p className="text-xs text-on-surface-variant dark:text-slate-300 leading-relaxed">{riskProfileDesc}</p>
               </div>
             </div>
           </div>
@@ -328,28 +588,29 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
             <span className="material-symbols-outlined text-9xl">balance</span>
           </div>
-          <div>
-            <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-[#a7c8ff] mb-6 relative z-10 flex items-center gap-2">
-              <span className="material-symbols-outlined">lightbulb</span> Rekomendasi AI
-            </h3>
-            <div className="space-y-3 relative z-10">
-              {[
-                { act: 'Kurangi Porsi Saham', dir: 'Kurangi', target: '-5.0%', color: 'text-rose-400 dark:text-rose-300' },
-                { act: 'Tambah Instrumen Obligasi', dir: 'Tambah', target: '+3.5%', color: 'text-emerald-400 dark:text-emerald-300' },
-                { act: 'Ambil Untung (TP) Kripto', dir: 'Aksi', target: '+1.5%', color: 'text-emerald-400 dark:text-emerald-300' },
-              ].map((rec, i) => (
-                <div key={i} className="bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/10 flex items-center justify-between hover:bg-white/20 transition-colors cursor-pointer" onClick={() => onShowCTA({title: "Auto Execution System", description: "Beri izin pada Robo-Advisor untuk mengeksekusi order jual beli ini langsung di akun integrasi Anda dengan sekali klik."})}>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] opacity-70 uppercase tracking-widest mb-1">{rec.dir}</span>
-                    <span className="text-xs md:text-sm font-bold text-white shadow-sm">{rec.act}</span>
+          <div className="flex flex-col h-full justify-between">
+            <div>
+              <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-[#a7c8ff] mb-6 relative z-10 flex items-center gap-2">
+                <span className="material-symbols-outlined">lightbulb</span> Rekomendasi Rebalancing AI
+              </h3>
+              <div className="space-y-3 relative z-10">
+                {finalRecs.map((rec, i) => (
+                  <div key={i} className="bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/10 flex items-center justify-between hover:bg-white/20 transition-colors cursor-pointer" onClick={() => onShowCTA({title: "Auto Execution System", description: "Beri izin pada Robo-Advisor untuk mengeksekusi order rebalancing portofolio ini secara otomatis dengan satu klik."})}>
+                    <div className="flex flex-col max-w-[75%]">
+                      <span className="text-[9px] opacity-75 uppercase tracking-widest mb-1">{rec.dir}</span>
+                      <span className="text-xs font-bold text-white shadow-sm leading-snug">{rec.act}</span>
+                    </div>
+                    <div className="text-right font-semibold shrink-0">
+                      <span className="text-[9px] opacity-75 block mb-1 uppercase tracking-widest">Porsi Likuid</span>
+                      <span className={`text-xs font-bold ${rec.color} bg-black/20 px-2 py-0.5 rounded`}>{rec.target}</span>
+                    </div>
                   </div>
-                  <div className="text-right font-semibold">
-                    <span className="text-[10px] opacity-70 block mb-1 uppercase tracking-widest">Target</span>
-                    <span className={`text-sm font-bold ${rec.color} bg-black/20 px-2 py-0.5 rounded`}>{rec.target}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+            <p className="text-[9px] opacity-75 mt-6 relative z-10 leading-tight">
+              * Rekomendasi dihitung berdasarkan perbandingan alokasi likuid Anda saat ini dengan target ideal profil risiko <strong>{riskProfileName}</strong>.
+            </p>
           </div>
         </div>
       </div>

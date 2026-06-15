@@ -2,8 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
+import * as OTPAuth from 'otpauth';
+import { QRCodeSVG } from 'qrcode.react';
+import FinancePinModal from './FinancePinModal';
 import { useAuthStore } from '../store/useAuthStore';
 import FinanceOnboardingModal from './FinanceOnboardingModal';
+
+const getDeviceInfo = () => {
+  const ua = navigator.userAgent;
+  let device = 'Unknown Device';
+  let icon = 'devices';
+  if (/Macintosh|Mac OS X/.test(ua)) { device = 'MacBook / Mac'; icon = 'laptop_mac'; }
+  else if (/Windows NT/.test(ua)) { device = 'Windows PC'; icon = 'computer'; }
+  else if (/iPhone|iPad|iPod/.test(ua)) { device = 'iPhone / iPad'; icon = 'smartphone'; }
+  else if (/Android/.test(ua)) { device = 'Android Device'; icon = 'smartphone'; }
+
+  let browser = 'Browser';
+  if (/Chrome/.test(ua) && !/Edge|Edg/.test(ua)) browser = 'Chrome';
+  else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+  else if (/Firefox/.test(ua)) browser = 'Firefox';
+  else if (/Edge|Edg/.test(ua)) browser = 'Edge';
+
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  let location = timeZone.split('/')[1]?.replace('_', ' ') || timeZone;
+  if (location === 'Jakarta') location = 'Jakarta, ID';
+
+  return { label: `${device} (${browser}) • ${location}`, icon };
+};
 
 interface FinanceSettingsProps {
   onShowCTA: (feature?: FeatureCTA) => void;
@@ -53,8 +78,16 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
   const [currency, setCurrency] = useState(getSetting('currency', 'IDR'));
   const [language, setLanguage] = useState(getSetting('language', 'Bahasa Indonesia'));
   const [profilePassword, setProfilePassword] = useState(getSetting('last_password', 'password123'));
+  const [lastPasswordUpdated, setLastPasswordUpdated] = useState(getSetting('last_password_updated', ''));
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Security Modal States
+  const [showSetupPin, setShowSetupPin] = useState(false);
+  const [showSetup2FA, setShowSetup2FA] = useState(false);
+  const [temp2faSecret, setTemp2faSecret] = useState('');
+  const [temp2faToken, setTemp2faToken] = useState('');
+  const [temp2faError, setTemp2faError] = useState(false);
 
   // Apple Glassmorphism Password Modal States
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -73,6 +106,7 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
     setCurrency(getSetting('currency', 'IDR'));
     setLanguage(getSetting('language', 'Bahasa Indonesia'));
     setProfilePassword(getSetting('last_password', 'password123'));
+    setLastPasswordUpdated(getSetting('last_password_updated', ''));
     setNotifications({
       budgetAlert: getSettingBool('notification_budgetAlert', true),
       billReminder: getSettingBool('notification_billReminder', true),
@@ -120,6 +154,10 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
     // Save password
     const passToSave = typeof overridePassword === 'string' ? overridePassword : profilePassword;
     upsertSetting('last_password', passToSave);
+    if (typeof overridePassword === 'string') {
+      upsertSetting('last_password_updated', new Date().toISOString());
+      setLastPasswordUpdated(new Date().toISOString());
+    }
     
     // Save to Finance Store settings
     await updateSettings(updatedSettings);
@@ -137,6 +175,21 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
     setIsSaving(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
+  };
+
+    const getTimeAgo = (dateString: string) => {
+    if (!dateString) return 'Belum pernah diubah';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Belum pernah diubah';
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Baru saja diubah';
+    if (diffInSeconds < 3600) return `Terakhir diubah ${Math.floor(diffInSeconds / 60)} menit yang lalu`;
+    if (diffInSeconds < 86400) return `Terakhir diubah ${Math.floor(diffInSeconds / 3600)} jam yang lalu`;
+    if (diffInSeconds < 2592000) return `Terakhir diubah ${Math.floor(diffInSeconds / 86400)} hari yang lalu`;
+    if (diffInSeconds < 31536000) return `Terakhir diubah ${Math.floor(diffInSeconds / 2592000)} bulan yang lalu`;
+    return `Terakhir diubah ${Math.floor(diffInSeconds / 31536000)} tahun yang lalu`;
   };
 
   const SECTIONS = [
@@ -262,7 +315,7 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                           </div>
                           <div>
                             <h4 className="font-bold text-sm dark:text-white">Ubah Password</h4>
-                            <p className="text-xs text-outline">Terakhir diubah 2 bulan lalu</p>
+                            <p className="text-xs text-outline">{getTimeAgo(lastPasswordUpdated)}</p>
                           </div>
                         </div>
                         <span className="material-symbols-outlined text-outline group-hover:translate-x-1 duration-200">chevron_right</span>
@@ -279,7 +332,16 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                           </div>
                         </div>
                         <div 
-                          onClick={() => setSecuritySettings(prev => ({ ...prev, pinActive: !prev.pinActive }))}
+                          onClick={() => {
+                            if (securitySettings.pinActive) {
+                              setSecuritySettings(prev => ({ ...prev, pinActive: false }));
+                              const updated = [...settings.filter(s => s.key !== 'security_pinActive' && s.key !== 'security_pin'), { key: 'security_pinActive', value: 'false' }];
+                              updateSettings(updated);
+                            } else {
+                              setTemp2faToken('');
+                              setShowSetupPin(true);
+                            }
+                          }}
                           className={`w-12 h-6 rounded-full relative p-1 cursor-pointer transition-colors duration-200 ${securitySettings.pinActive ? 'bg-primary dark:bg-[#a7c8ff]' : 'bg-outline-variant/30'}`}
                         >
                           <motion.div 
@@ -296,11 +358,24 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                           </div>
                           <div>
                             <h4 className="font-bold text-sm dark:text-white">Autentikasi Dua Faktor (2FA)</h4>
-                            <p className="text-xs text-outline">Lapisan keamanan tambahan via email atau SMS</p>
+                            <p className="text-xs text-outline">Lapisan keamanan tambahan via aplikasi authenticator</p>
                           </div>
                         </div>
                         <div 
-                          onClick={() => setSecuritySettings(prev => ({ ...prev, twoFactorActive: !prev.twoFactorActive }))}
+                          onClick={() => {
+                            if (securitySettings.twoFactorActive) {
+                              setSecuritySettings(prev => ({ ...prev, twoFactorActive: false }));
+                              const updated = [...settings.filter(s => s.key !== 'security_twoFactorActive' && s.key !== 'security_2fa_secret'), { key: 'security_twoFactorActive', value: 'false' }];
+                              updateSettings(updated);
+                            } else {
+                              // generate new secret and open modal
+                              const newSecret = new OTPAuth.Secret({ size: 20 });
+                              setTemp2faSecret(newSecret.base32);
+                              setTemp2faToken('');
+                              setTemp2faError(false);
+                              setShowSetup2FA(true);
+                            }
+                          }}
                           className={`w-12 h-6 rounded-full relative p-1 cursor-pointer transition-colors duration-200 ${securitySettings.twoFactorActive ? 'bg-primary dark:bg-[#a7c8ff]' : 'bg-outline-variant/30'}`}
                         >
                           <motion.div 
@@ -316,9 +391,9 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                        <div className="space-y-4">
                          <div className="flex items-center justify-between px-2">
                            <div className="flex items-center gap-3">
-                             <span className="material-symbols-outlined text-outline text-xl">laptop</span>
+                             <span className="material-symbols-outlined text-outline text-xl">{getDeviceInfo().icon}</span>
                              <div className="text-xs">
-                               <p className="font-bold dark:text-white">MacBook Pro 14" • Jakarta, ID</p>
+                               <p className="font-bold dark:text-white">{getDeviceInfo().label}</p>
                                <p className="text-outline">Sesi saat ini</p>
                              </div>
                            </div>
@@ -433,6 +508,75 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                         <div className="flex items-center justify-between p-4 bg-surface-container dark:bg-white/5 rounded-2xl border border-outline-variant/20 dark:border-white/10">
                           <span className="text-sm font-medium dark:text-white">Pemisah Ribuan</span>
                           <span className="text-xs text-outline font-bold">Titik (.)</span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4 pt-4 border-t border-outline-variant/10 dark:border-white/5">
+                        <h3 className="text-sm font-bold text-outline uppercase ml-1">Ekspor & Impor Data (Lokal)</h3>
+                        <p className="text-xs text-outline ml-1 mb-2">Backup atau kembalikan seluruh data DompetKu dalam format JSON lokal Anda.</p>
+                        <div className="flex gap-4">
+                          <button 
+                            onClick={() => {
+                              const state = useFinanceStore.getState();
+                              const backup = {
+                                transactions: state.transactions,
+                                accounts: state.accounts,
+                                assets: state.assets,
+                                budgetCategories: state.budgetCategories,
+                                debts: state.debts,
+                                settings: state.settings,
+                                monthlyBudgets: state.monthlyBudgets
+                              };
+                              const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = url;
+                              link.download = `dompetku_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="flex-1 px-4 py-3 bg-surface-container dark:bg-white/10 text-on-surface-variant dark:text-outline rounded-xl font-bold text-xs hover:bg-surface-bright dark:hover:bg-white/20 transition-all border border-outline-variant/20 dark:border-white/10 flex justify-center items-center gap-2 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-sm">download</span> Ekspor JSON
+                          </button>
+                          
+                          <label className="flex-1 px-4 py-3 bg-surface-container dark:bg-white/10 text-on-surface-variant dark:text-outline rounded-xl font-bold text-xs hover:bg-surface-bright dark:hover:bg-white/20 transition-all border border-outline-variant/20 dark:border-white/10 flex justify-center items-center gap-2 cursor-pointer">
+                            <span className="material-symbols-outlined text-sm">upload</span> Impor JSON
+                            <input 
+                              type="file" 
+                              accept=".json"
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  try {
+                                    const data = JSON.parse(event.target?.result as string);
+                                    if (data.transactions || data.accounts) {
+                                      useFinanceStore.setState({
+                                        transactions: data.transactions || [],
+                                        accounts: data.accounts || [],
+                                        assets: data.assets || [],
+                                        budgetCategories: data.budgetCategories || [],
+                                        debts: data.debts || [],
+                                        settings: data.settings || [],
+                                        monthlyBudgets: data.monthlyBudgets || {}
+                                      });
+                                      alert('Data berhasil diimpor!');
+                                    } else {
+                                      alert('Format JSON tidak valid.');
+                                    }
+                                  } catch (err) {
+                                    alert('Gagal membaca file JSON.');
+                                  }
+                                };
+                                reader.readAsText(file);
+                                e.target.value = ''; // reset input
+                              }} 
+                            />
+                          </label>
                         </div>
                       </div>
                     </div>
@@ -663,6 +807,90 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 2FA Setup Modal */}
+      <AnimatePresence>
+        {showSetup2FA && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowSetup2FA(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full max-w-md bg-surface-container-lowest dark:bg-[#0b1221] p-8 rounded-[32px] border border-white/20 shadow-2xl flex flex-col items-center text-center">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Setup 2-Factor Authentication</h2>
+              <p className="text-sm text-outline mb-6">Scan QR Code ini menggunakan aplikasi Google Authenticator atau Authy Anda.</p>
+              
+              <div className="bg-white p-4 rounded-2xl mb-6 inline-block">
+                <QRCodeSVG value={`otpauth://totp/DompetKu:${profileEmail}?secret=${temp2faSecret}&issuer=DompetKu`} size={200} />
+              </div>
+              <p className="font-mono text-xs text-outline mb-6 tracking-widest">{temp2faSecret}</p>
+
+              <div className="w-full space-y-4">
+                <input type="text" maxLength={6} placeholder="000000" className="w-full text-center tracking-[0.5em] text-2xl font-mono py-3 bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl focus:outline-none focus:border-primary dark:text-white" value={temp2faToken} onChange={(e) => { setTemp2faToken(e.target.value.replace(/\D/g, '')); setTemp2faError(false); }} />
+                {temp2faError && <p className="text-red-500 text-xs text-center">Kode tidak valid</p>}
+                
+                <button 
+                  onClick={() => {
+                    let totp = new OTPAuth.TOTP({ issuer: "DompetKu", label: profileEmail, algorithm: "SHA1", digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(temp2faSecret) });
+                    if (totp.validate({ token: temp2faToken, window: 1 }) !== null) {
+                      setSecuritySettings(prev => ({ ...prev, twoFactorActive: true }));
+                      updateSettings([...settings.filter(s => s.key !== 'security_twoFactorActive' && s.key !== 'security_2fa_secret'), { key: 'security_twoFactorActive', value: 'true' }, { key: 'security_2fa_secret', value: temp2faSecret }]);
+                      useFinanceStore.getState().setIsAuthenticated2FA(true); // Prevent locking the user out
+                      setShowSetup2FA(false);
+                      setSaveSuccess(true);
+                      setTimeout(() => setSaveSuccess(false), 2000);
+                    } else {
+                      setTemp2faError(true);
+                    }
+                  }}
+                  className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-3 rounded-xl shadow transition-all"
+                >
+                  Verifikasi & Aktifkan
+                </button>
+                <button onClick={() => setShowSetup2FA(false)} className="w-full text-outline text-sm font-bold mt-2">Batal</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Setup PIN */}
+      <AnimatePresence>
+        {showSetupPin && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowSetupPin(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full max-w-sm bg-surface-container-lowest dark:bg-[#0b1221] p-8 rounded-[32px] border border-white/20 shadow-2xl flex flex-col items-center">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2 text-center">Buat PIN Baru</h2>
+              <p className="text-sm text-outline mb-6 text-center">Masukkan 6 digit angka untuk mengamankan transaksi Anda.</p>
+              
+              <input 
+                type="password" 
+                maxLength={6} 
+                placeholder="••••••" 
+                className="w-full text-center tracking-[0.5em] text-3xl font-mono py-4 bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-2xl focus:outline-none focus:border-primary dark:text-white mb-6" 
+                value={temp2faToken} // Reusing token variable for PIN
+                onChange={(e) => setTemp2faToken(e.target.value.replace(/\D/g, ''))} 
+              />
+              
+              <button 
+                onClick={() => {
+                  if (temp2faToken.length === 6) {
+                    setSecuritySettings(prev => ({ ...prev, pinActive: true }));
+                    updateSettings([...settings.filter(s => s.key !== 'security_pinActive' && s.key !== 'security_pin'), { key: 'security_pinActive', value: 'true' }, { key: 'security_pin', value: temp2faToken }]);
+                    setShowSetupPin(false);
+                    setTemp2faToken('');
+                    setSaveSuccess(true);
+                    setTimeout(() => setSaveSuccess(false), 2000);
+                  }
+                }}
+                disabled={temp2faToken.length !== 6}
+                className="w-full bg-primary disabled:bg-primary/50 hover:bg-primary-dark text-white font-bold py-4 rounded-2xl shadow transition-all mb-3"
+              >
+                Simpan PIN
+              </button>
+              <button onClick={() => setShowSetupPin(false)} className="w-full text-outline text-sm font-bold mt-2">Batal</button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

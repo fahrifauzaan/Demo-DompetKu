@@ -4,11 +4,17 @@ import { FeatureCTA } from './MarketingCTAModal';
 interface FinanceTransactionsProps {
   onShowCTA: (feature?: FeatureCTA) => void;
   onNavigate?: (tab: string) => void;
+  onEditTransaction?: (id: string) => void;
 }
 import { useFinanceStore } from '../store/useFinanceStore';
+import FinancePinModal from './FinancePinModal';
 
-const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, onNavigate }) => {
+const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, onNavigate, onEditTransaction }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showPinModal, setShowPinModal] = useState(false);
+  const settings = useFinanceStore(state => state.settings);
+  const isPinActive = settings.find(s => s.key === 'security_pinActive')?.value === 'true';
+  const savedPin = settings.find(s => s.key === 'security_pin')?.value || '';
   const [selectedAccount, setSelectedAccount] = useState('Semua Akun');
   const [selectedType, setSelectedType] = useState('Semua Tipe');
   const [selectedMonth, setSelectedMonth] = useState('Semua Bulan');
@@ -17,7 +23,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  const { transactions, deleteTransaction, accounts, setLedgerPrintTransactions, setPrintType } = useFinanceStore();
+  const { transactions, deleteTransaction, accounts, setLedgerPrintTransactions, setPrintType, updateAccount } = useFinanceStore();
 
   // Custom robust date parser for Indonesian & English date string formats in the database
   const parseDateString = (dateStr: string) => {
@@ -150,6 +156,22 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
     return res;
   }, [searchQuery, selectedAccount, selectedType, selectedMonth, selectedYear, transactions]);
 
+  const executeDelete = async () => {
+    const txToDelete = transactions.find(t => t.id === deletingId);
+    if (txToDelete) {
+      const accToUpdate = accounts.find(a => a.name === txToDelete.account);
+      if (accToUpdate) {
+        await updateAccount({
+          ...accToUpdate,
+          balance: accToUpdate.balance - txToDelete.amount
+        });
+      }
+      await deleteTransaction(deletingId);
+    }
+    setDeletingId(null);
+    setShowPinModal(false);
+  };
+
   const handleDownloadCSV = () => {
     if (filteredTransactions.length === 0) {
       alert("Tidak ada data transaksi untuk diekspor pada filter ini.");
@@ -221,7 +243,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
       </div>
 
       {/* Filter & Search Section - Apple Glassmorphism */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 lg:p-6 bg-white/40 dark:bg-[#1c1c1e]/60 backdrop-blur-3xl border border-white/50 dark:border-white/10 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 lg:p-6 liquid-glass rounded-3xl border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
         <div className="space-y-1.5 lg:col-span-1 sm:col-span-2">
           <label className="text-[10px] lg:text-xs font-bold uppercase tracking-wider text-on-surface-variant dark:text-outline ml-1">Cari</label>
           <div className="relative group">
@@ -288,13 +310,13 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
       </div>
 
       {/* Transaction Table Section - Apple Glassmorphism */}
-      <div className="bg-white/40 dark:bg-[#1c1c1e]/60 backdrop-blur-3xl rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-white/50 dark:border-white/10 min-h-[400px]">
-        <div className="overflow-x-auto">
+      <div className="liquid-glass rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-white/20 dark:border-white/10 min-h-[400px]">
+        <div className="overflow-x-auto relative z-10">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-white/30 dark:bg-black/20 backdrop-blur-md text-on-surface-variant dark:text-outline text-[10px] lg:text-xs font-bold uppercase tracking-widest hidden sm:table-row border-b border-white/40 dark:border-white/10">
+              <tr className="bg-surface-container-low dark:bg-white/5 backdrop-blur-md text-slate-900 dark:text-slate-200 text-[10px] lg:text-xs font-black uppercase tracking-widest hidden sm:table-row border-b border-outline-variant/30 dark:border-white/10">
                 <th className="px-4 lg:px-6 py-4 whitespace-nowrap">Tanggal</th>
-                <th className="px-4 lg:px-6 py-4 w-full">Deskripsi</th>
+                <th className="px-4 lg:px-6 py-4 whitespace-nowrap">Deskripsi</th>
                 <th className="px-4 lg:px-6 py-4 whitespace-nowrap">Akun</th>
                 <th className="px-4 lg:px-6 py-4 whitespace-nowrap">Status</th>
                 <th className="px-4 lg:px-6 py-4 whitespace-nowrap">Kategori</th>
@@ -302,32 +324,32 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
                 <th className="px-2 lg:px-4 py-4"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/40 dark:divide-white/5">
+            <tbody className="divide-y divide-outline-variant/20 dark:divide-white/5">
               {filteredTransactions.map((t, idx) => (
-                <tr key={`${t.id}-${idx}`} className="hover:bg-white/50 dark:hover:bg-white/10 transition-colors flex flex-col sm:table-row p-4 sm:p-0">
-                  <td className="px-0 sm:px-4 lg:px-6 py-1 sm:py-5 font-bold sm:font-medium text-xs lg:text-sm text-outline dark:text-outline sm:text-on-surface sm:dark:text-white order-2 sm:order-none whitespace-nowrap">{formatDate(t.date)}</td>
+                <tr key={`${t.id}-${idx}`} className="hover:bg-surface-container-lowest dark:hover:bg-white/10 transition-colors flex flex-col sm:table-row p-4 sm:p-0">
+                  <td className="px-0 sm:px-4 lg:px-6 py-1 sm:py-5 font-bold text-xs lg:text-sm text-slate-900 dark:text-slate-200 order-2 sm:order-none whitespace-nowrap">{formatDate(t.date)}</td>
                   <td className="px-0 sm:px-4 lg:px-6 py-1 sm:py-5 order-1 sm:order-none w-full sm:w-auto">
                     <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-full bg-white/60 dark:bg-black/40 backdrop-blur-md border border-white/50 dark:border-white/10 flex items-center justify-center flex-shrink-0 shadow-sm">
-                        <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] text-xl">{t.icon}</span>
+                      <div className="w-11 h-11 rounded-full bg-slate-100 dark:bg-white/10 border border-slate-300 dark:border-white/20 flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>{t.icon}</span>
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-on-surface dark:text-white text-base sm:text-sm whitespace-normal line-clamp-2 break-words" title={t.desc}>{t.desc}</span>
-                        <span className="text-[10px] lg:text-xs text-on-surface-variant dark:text-outline whitespace-normal line-clamp-1 break-words">{t.location}</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white text-base sm:text-sm whitespace-normal line-clamp-2 break-words" title={t.desc}>{t.desc}</span>
+                        <span className="text-[10px] lg:text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-normal line-clamp-1 break-words">{t.location}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="hidden sm:table-cell px-4 lg:px-6 py-5 text-xs lg:text-sm text-on-secondary-fixed-variant dark:text-slate-400 capitalize whitespace-nowrap">{t.account}</td>
+                  <td className="hidden sm:table-cell px-4 lg:px-6 py-5 text-xs lg:text-sm font-bold text-slate-900 dark:text-slate-200 capitalize whitespace-nowrap">{t.account}</td>
                   <td className="hidden sm:table-cell px-4 lg:px-6 py-5 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wider border ${t.status === 'Selesai' ? 'bg-green-100/50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200/50 dark:border-green-800/30' : 'bg-slate-100/50 dark:bg-slate-800/30 text-slate-600 dark:text-slate-300 border-slate-200/50 dark:border-slate-700/30'}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider border ${t.status === 'Selesai' ? 'bg-green-100 dark:bg-green-900/60 text-green-900 dark:text-green-100 border-green-300 dark:border-green-800/50' : 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-slate-300 dark:border-slate-700'}`}>
                       {t.status.toUpperCase()}
                     </span>
                   </td>
                   <td className="hidden sm:table-cell px-4 lg:px-6 py-5 whitespace-nowrap">
-                    <span className="px-3 py-1.5 bg-white/40 dark:bg-black/30 backdrop-blur-md border border-white/50 dark:border-white/5 text-on-surface-variant dark:text-slate-300 rounded-lg text-[10px] font-extrabold uppercase tracking-widest shadow-sm">{t.category}</span>
+                    <span className="px-3 py-1.5 bg-slate-100 dark:bg-white/10 border border-slate-300 dark:border-white/20 text-slate-900 dark:text-slate-100 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">{t.category}</span>
                   </td>
-                  <td className={`px-0 sm:px-4 lg:px-6 py-2 sm:py-5 text-left sm:text-right font-headline font-bold tabular-nums text-xl lg:text-base order-3 sm:order-none flex justify-between items-center whitespace-nowrap ${t.type === 'PEMASUKAN' ? 'text-tertiary-container dark:text-tertiary-fixed' : 'text-on-surface dark:text-white'}`}>
-                    <span className="sm:hidden text-xs text-outline font-normal uppercase">{t.type}</span>
+                  <td className={`px-0 sm:px-4 lg:px-6 py-2 sm:py-5 text-left sm:text-right font-headline font-black tabular-nums text-xl lg:text-base order-3 sm:order-none flex justify-between items-center whitespace-nowrap ${t.type === 'PEMASUKAN' ? 'text-green-700 dark:text-green-400' : 'text-slate-900 dark:text-white'}`}>
+                    <span className="sm:hidden text-xs text-slate-600 dark:text-slate-400 font-bold uppercase">{t.type}</span>
                     {t.amount > 0 ? '+' : ''}Rp {t.amount.toLocaleString('id-ID')}
                   </td>
                   <td className="hidden sm:table-cell px-2 lg:px-4 py-5 text-right relative">
@@ -341,12 +363,11 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
                           <button 
                             onClick={() => {
                               setShowActionId(null);
-                              // Navigate to add-transaction page — editing can be done by creating a correcting entry
-                              onNavigate && onNavigate('add-transaction');
+                              onEditTransaction && onEditTransaction(t.id);
                             }}
                             className="w-full px-4 py-2.5 text-xs font-bold text-left hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-2 dark:text-white"
                           >
-                            <span className="material-symbols-outlined text-sm">content_copy</span> Duplikat
+                            <span className="material-symbols-outlined text-sm">edit</span> Edit
                           </button>
                           <button 
                             onClick={() => {
@@ -394,7 +415,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
 
       {/* Bento Summary Grid - Apple Glassmorphism */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-        <div className="p-6 bg-white/40 dark:bg-[#1c1c1e]/60 backdrop-blur-3xl rounded-3xl space-y-4 border border-white/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+        <div className="p-6 liquid-glass rounded-3xl space-y-4 border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] lg:text-xs font-bold uppercase text-on-surface-variant dark:text-outline tracking-wider">Pengeluaran Bulanan</span>
             <span className="text-[10px] lg:text-xs text-error dark:text-[#ffb4ab] font-bold">+12% vs bulan lalu</span>
@@ -406,7 +427,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
           <p className="text-[10px] lg:text-xs text-on-surface-variant dark:text-outline font-medium">Anda telah menggunakan 74% dari anggaran bulanan Anda.</p>
         </div>
         
-        <div className="p-6 bg-white/40 dark:bg-[#1c1c1e]/60 backdrop-blur-3xl rounded-3xl space-y-4 border border-white/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+        <div className="p-6 liquid-glass rounded-3xl space-y-4 border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] lg:text-xs font-bold uppercase text-on-surface-variant dark:text-outline tracking-wider">Merchant Teratas</span>
             <span className="material-symbols-outlined text-outline">shopping_cart</span>
@@ -423,7 +444,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
           <div className="text-xl lg:text-2xl font-headline font-bold text-on-surface dark:text-white tabular-nums">Rp 12.842.200</div>
         </div>
         
-        <div className="p-6 bg-white/40 dark:bg-[#1c1c1e]/60 backdrop-blur-3xl rounded-3xl flex flex-col justify-between border border-white/50 dark:border-white/10 lg:col-span-1 md:col-span-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+        <div className="p-6 liquid-glass rounded-3xl flex flex-col justify-between border border-white/20 dark:border-white/10 lg:col-span-1 md:col-span-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
           <div className="space-y-2">
             <span className="text-[10px] lg:text-xs font-bold uppercase text-on-surface-variant dark:text-outline tracking-wider flex items-center gap-2">
               <span className="material-symbols-outlined text-sm text-tertiary-fixed">tips_and_updates</span>
@@ -459,9 +480,12 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
                   Batal
                 </button>
                 <button 
-                  onClick={async () => {
-                    await deleteTransaction(deletingId);
-                    setDeletingId(null);
+                  onClick={() => {
+                    if (isPinActive && savedPin) {
+                      setShowPinModal(true);
+                    } else {
+                      executeDelete();
+                    }
                   }}
                   className="flex-1 py-3 bg-error text-white rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all"
                 >
@@ -524,6 +548,14 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
           </div>
         </div>
       )}
+      <FinancePinModal 
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onSuccess={executeDelete}
+        savedPin={savedPin}
+        title="Otorisasi Hapus"
+        subtitle="Masukkan PIN Anda untuk menghapus transaksi ini."
+      />
     </div>
   );
 };

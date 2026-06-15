@@ -33,6 +33,7 @@ export type FinanceTab = 'dashboard' | 'transactions' | 'budget' | 'assets' | 'd
 
 const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
   const [activeTab, setActiveTab] = useState<FinanceTab>('dashboard');
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showCTA, setShowCTA] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -145,13 +146,29 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
       }
     });
 
+    // 3. Promos (unread marketing messages)
+    const isMarketingOn = settings.find(s => s.key === 'notification_marketing')?.value === 'true';
+    if (isMarketingOn) {
+      const { promos, readPromos } = useFinanceStore.getState();
+      const unreadPromosCount = promos.filter(p => String(p.isActive).toUpperCase() === 'TRUE' && !readPromos.includes(p.id)).length;
+      count += unreadPromosCount;
+    }
+
     return count;
-  }, [accounts, assets]);
+  }, [accounts, assets, settings, useFinanceStore(state => state.promos), useFinanceStore(state => state.readPromos)]);
 
   useEffect(() => {
     // Selalu coba sync di awal jika ada URL (baik punya user maupun default demo URL)
     syncFromGoogleSheets();
   }, [syncFromGoogleSheets, user?.sheetUrl]);
+
+  // Fetch Promos when marketing setting is turned on
+  const isMarketingOn = useFinanceStore(state => state.settings).find(s => s.key === 'notification_marketing')?.value === 'true';
+  useEffect(() => {
+    if (isMarketingOn) {
+      useFinanceStore.getState().fetchPromos('https://script.google.com/macros/s/AKfycbz1E-CxMWgT9UhmlIh8LJb5wRmJEQZ3Y7mwpqbFjQtfuoV1U4vTjISMq0gDKPv6VWYu/exec');
+    }
+  }, [isMarketingOn]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -198,10 +215,10 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
   };
 
   return (
-    <div className={`flex w-full min-h-screen font-body transition-colors duration-200 ${isDark ? 'dark bg-slate-950' : 'bg-surface'}`}>
+    <div className={`flex w-full min-h-screen font-body transition-colors duration-200 ${isDark ? 'dark bg-[#0a0f18]' : 'bg-surface'}`}>
       
       {/* SideNavBar (Desktop) */}
-      <aside className="h-screen w-64 fixed left-0 top-0 hidden lg:flex flex-col bg-slate-50 dark:bg-slate-950 border-r border-slate-200/20 z-40 no-print">
+      <aside className="h-screen w-64 fixed left-0 top-0 hidden lg:flex flex-col bg-slate-50 dark:bg-[#0a0f18] border-r border-slate-200/20 z-40 no-print">
         <div className="px-4 py-8 border-b border-slate-200/20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-blue-600/20">
@@ -254,7 +271,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
       {/* Main Content Canvas */}
       <main className="lg:pl-64 w-full min-h-screen">
         {/* TopNavBar Header */}
-        <header className="fixed top-0 left-0 lg:left-64 right-0 z-30 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-xl h-16 shadow-sm flex items-center px-4 lg:px-8 justify-between no-print">
+        <header className="fixed top-0 left-0 lg:left-64 right-0 z-30 bg-slate-50/80 dark:bg-[#0a0f18]/80 backdrop-blur-xl h-16 shadow-sm flex items-center px-4 lg:px-8 justify-between no-print">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <button 
               onClick={() => setShowMobileMenu(!showMobileMenu)} 
@@ -314,7 +331,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
                   notifications
                 </span>
                 {overdueNotificationsCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-error dark:bg-[#ffb4ab] rounded-full border-2 border-slate-50 dark:border-slate-950 animate-pulse" />
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-error dark:bg-[#ffb4ab] rounded-full border-2 border-slate-50 dark:border-[#0a0f18] animate-pulse" />
                 )}
               </div>
               <span 
@@ -367,14 +384,14 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
           )}
 
           {activeTab === 'dashboard' && <FinanceDashboard onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
-          {activeTab === 'transactions' && <FinanceTransactions onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
-          {activeTab === 'budget' && <FinanceBudget onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
+          {activeTab === 'transactions' && <FinanceTransactions onShowCTA={handleShowCTA} onNavigate={handleNavigate} onEditTransaction={(id) => { setEditingTransactionId(id); setActiveTab('add-transaction'); }} />}
+          {activeTab === 'budget' && <FinanceBudget onShowCTA={handleShowCTA} />}
           {activeTab === 'assets' && <FinanceAssets onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
           {activeTab === 'debts' && <FinanceDebts onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
           {activeTab === 'analytics' && <FinanceAnalytics onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
           
           {/* Sub-Modules (Forms & Modals) */}
-          {activeTab === 'add-transaction' && <FinanceAddTransaction onShowCTA={handleShowCTA} onBack={() => setActiveTab('transactions')} />}
+          {activeTab === 'add-transaction' && <FinanceAddTransaction onShowCTA={handleShowCTA} onBack={() => { setActiveTab('transactions'); setEditingTransactionId(null); }} editingTransactionId={editingTransactionId} />}
           {activeTab === 'add-category' && <FinanceAddCategory onShowCTA={handleShowCTA} onBack={() => setActiveTab('budget')} />}
           {activeTab === 'integration' && <FinanceIntegration onShowCTA={handleShowCTA} onBack={() => setActiveTab('dashboard')} />}
           {activeTab === 'add-asset' && <FinanceAddAsset onShowCTA={handleShowCTA} onBack={() => setActiveTab('assets')} />}
@@ -384,7 +401,14 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
           {activeTab === 'portfolio-report' && <FinancePortfolioReport onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
           {activeTab === 'performance-report' && <FinancePerformanceReport onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
           {activeTab === 'equity-ledger' && <FinanceEquityLedger onShowCTA={handleShowCTA} onNavigate={handleNavigate} onBack={() => setActiveTab('assets')} />}
-          {activeTab === 'notifications' && <FinanceNotifications onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
+          {activeTab === 'notifications' && (
+            <FinanceNotifications 
+              onShowCTA={handleShowCTA} 
+              onNavigate={(tab) => {
+                setActiveTab(tab as any);
+              }}
+            />
+          )}
           {activeTab === 'settings' && <FinanceSettings onShowCTA={handleShowCTA} onBack={() => setActiveTab('dashboard')} />}
         </div>
         
@@ -409,7 +433,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              className="absolute left-0 top-0 bottom-0 w-64 bg-slate-50 dark:bg-slate-950 shadow-2xl flex flex-col"
+              className="absolute left-0 top-0 bottom-0 w-64 bg-slate-50 dark:bg-[#0a0f18] shadow-2xl flex flex-col"
             >
               <div className="px-4 py-8 border-b border-slate-200/20">
                 <div className="flex items-center gap-3">

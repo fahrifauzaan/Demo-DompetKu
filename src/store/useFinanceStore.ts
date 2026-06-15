@@ -108,6 +108,16 @@ export interface Setting {
   value: string;
 }
 
+export interface Promo {
+  id: string;
+  title: string;
+  message: string;
+  date: string;
+  url: string;
+  icon: string;
+  isActive: boolean | string;
+}
+
 // ===================== STORE STATE =====================
 
 interface FinanceState {
@@ -118,6 +128,11 @@ interface FinanceState {
   budgetCategories: BudgetCategory[];
   debts: Debt[];
   settings: Setting[];
+  promos: Promo[];
+  readPromos: string[];
+  fetchPromos: (url: string) => Promise<void>;
+  markPromoRead: (id: string) => void;
+  markAllPromosRead: () => void;
   googleSheetUrl: string;
   googleAccessToken: string | null;
   spreadsheetId: string | null;
@@ -162,6 +177,10 @@ interface FinanceState {
   // Actions — Full Sync
   syncFromGoogleSheets: () => Promise<void>;
   resetFinance: () => void;
+
+  // Security
+  isAuthenticated2FA: boolean;
+  setIsAuthenticated2FA: (val: boolean) => void;
 }
 
 // ===================== HELPERS =====================
@@ -365,6 +384,8 @@ export const useFinanceStore = create<FinanceState>()(
       budgetCategories: DEFAULT_BUDGET_CATEGORIES,
       debts: DEBTS_DATA as Debt[],
       settings: DEFAULT_SETTINGS,
+      promos: [],
+      readPromos: [],
       googleSheetUrl: 'https://script.google.com/macros/s/AKfycbzhD4TrmhBhb1484U7thVyEJDvZAFYtAbiG0bRK_jcWCiLKwy1EtBFCOQKikaj9l6yL2Q/exec',
       googleAccessToken: null,
       spreadsheetId: null,
@@ -376,6 +397,28 @@ export const useFinanceStore = create<FinanceState>()(
       reportPrintYear: new Date().getFullYear(),
       printType: null,
       ledgerPrintTransactions: [],
+
+      // Security
+      isAuthenticated2FA: false,
+      setIsAuthenticated2FA: (val) => set({ isAuthenticated2FA: val }),
+
+      // ---- Promos ----
+      fetchPromos: async (url) => {
+        try {
+          // fetch using credentials: omit to prevent CORS errors when user is logged into Google
+          const res = await fetch(url, { redirect: 'follow', credentials: 'omit' });
+          const data = await res.json();
+          set({ promos: data || [] });
+        } catch (e) {
+          console.error('[FinanceStore] Gagal fetch promo:', e);
+        }
+      },
+      markPromoRead: (id) => {
+        set((state) => ({ readPromos: [...state.readPromos, id] }));
+      },
+      markAllPromosRead: () => {
+        set((state) => ({ readPromos: state.promos.map(p => p.id) }));
+      },
 
       // ---- URL Management ----
       setGoogleSheetUrl: (url) => {

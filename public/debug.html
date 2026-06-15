@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+  fetch('https://script.google.com/macros/s/AKfycbz1E-CxMWgT9UhmlIh8LJb5wRmJEQZ3Y7mwpqbFjQtfuoV1U4vTjISMq0gDKPv6VWYu/exec')
+    .then(res => res.json())
+    .then(data => {
+      document.body.innerHTML = "Success! " + JSON.stringify(data);
+    })
+    .catch(e => {
+      document.body.innerHTML = "Error: " + e.message;
+    });
+</script>
+</body>
+</html>

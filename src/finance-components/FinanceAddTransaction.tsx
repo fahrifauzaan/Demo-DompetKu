@@ -45,13 +45,18 @@ const incomeCategories = [
 interface FinanceAddTransactionProps {
   onShowCTA: (feature?: FeatureCTA) => void;
   onBack: () => void;
+  editingTransactionId?: string | null;
 }
 
-const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA, onBack }) => {
+const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA, onBack, editingTransactionId }) => {
   const accounts = useFinanceStore(state => state.accounts);
   const budgetCategories = useFinanceStore(state => state.budgetCategories);
   const transactions = useFinanceStore(state => state.transactions);
   const addTransaction = useFinanceStore(state => state.addTransaction);
+  const updateTransaction = useFinanceStore(state => state.updateTransaction);
+  const updateAccount = useFinanceStore(state => state.updateAccount);
+  
+  const editingTx = editingTransactionId ? transactions.find(t => t.id === editingTransactionId) : null;
 
   const [transactionType, setTransactionType] = useState<'pengeluaran' | 'pemasukan' | 'transfer'>('pengeluaran');
   const [amount, setAmount] = useState('0');
@@ -61,6 +66,10 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [desc, setDesc] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const settings = useFinanceStore(state => state.settings);
+  const isPinActive = settings.find(s => s.key === 'security_pinActive')?.value === 'true';
+  const savedPin = settings.find(s => s.key === 'security_pin')?.value || '';
 
   const currentCategories = transactionType === 'pemasukan' 
     ? incomeCategories 
@@ -70,6 +79,24 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
     // Reset category when transaction type changes
     setCategory(currentCategories[0].name);
   }, [transactionType]);
+
+  useEffect(() => {
+    if (editingTx) {
+      setTransactionType(editingTx.amount < 0 ? 'pengeluaran' : 'pemasukan');
+      setAmount(Math.abs(editingTx.amount).toLocaleString('id-ID'));
+      setAccount(editingTx.account);
+      setCategory(editingTx.category);
+      
+      // Attempt to format date nicely for the input type="date"
+      if (editingTx.date) {
+        try {
+           const d = new Date(editingTx.date);
+           if (!isNaN(d.getTime())) setDate(d.toISOString().split('T')[0]);
+        } catch(e) {}
+      }
+      setDesc(editingTx.desc || '');
+    }
+  }, [editingTx]);
 
   // Set default selected account on mount or when accounts change
   useEffect(() => {
@@ -101,12 +128,100 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
     setAmount(formatted);
   };
 
+  const executeSave = async () => {
+    setIsSaving(true);
+    const rawAmount = parseInt(amount.replace(/\D/g, ''), 10) || 0;
+
+    if (editingTx) {
+      const finalAmount = transactionType === 'pengeluaran' ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+      const amountDiff = finalAmount - editingTx.amount;
+      
+      await updateTransaction({
+        ...editingTx,
+        date,
+        desc: desc || (transactionType === 'pengeluaran' ? 'Pengeluaran Baru' : 'Pemasukan Baru'),
+        amount: finalAmount,
+        category,
+        icon: currentCategories.find(c => c.name === category)?.icon || 'receipt_long',
+        account,
+        type: transactionType.toUpperCase() as TransactionType
+      });
+
+      const targetAcc = accounts.find(a => a.name === account);
+      if (targetAcc) {
+         if (account !== editingTx.account) {
+            const oldAcc = accounts.find(a => a.name === editingTx.account);
+            if (oldAcc) await updateAccount({ ...oldAcc, balance: oldAcc.balance - editingTx.amount });
+            await updateAccount({ ...targetAcc, balance: targetAcc.balance + finalAmount });
+         } else {
+            await updateAccount({ ...targetAcc, balance: targetAcc.balance + amountDiff });
+         }
+      }
+    } else {
+      if (transactionType === 'transfer') {
+        // 1. Transaction 1: Deduction from Source Account
+        await addTransaction({
+          date,
+          desc: desc ? `Transfer ke ${toAccount}: ${desc}` : `Transfer Saldo ke ${toAccount}`,
+          location: 'Local',
+          amount: -Math.abs(rawAmount),
+          category: 'Transfer',
+          icon: 'swap_horiz',
+          status: 'Selesai',
+          account: account,
+          type: 'TRANSFER'
+        });
+
+        // 2. Transaction 2: Addition to Destination Account
+        await addTransaction({
+          date,
+          desc: desc ? `Transfer dari ${account}: ${desc}` : `Transfer Saldo dari ${account}`,
+          location: 'Local',
+          amount: Math.abs(rawAmount),
+          category: 'Transfer',
+          icon: 'swap_horiz',
+          status: 'Selesai',
+          account: toAccount,
+          type: 'TRANSFER'
+        });
+
+        const acc1 = accounts.find(a => a.name === account);
+        if (acc1) await updateAccount({ ...acc1, balance: acc1.balance - rawAmount });
+        const acc2 = accounts.find(a => a.name === toAccount);
+        if (acc2) await updateAccount({ ...acc2, balance: acc2.balance + rawAmount });
+
+      } else {
+        const finalAmount = transactionType === 'pengeluaran' ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+        await addTransaction({
+          date,
+          desc: desc || (transactionType === 'pengeluaran' ? 'Pengeluaran Baru' : 'Pemasukan Baru'),
+          location: 'Local',
+          amount: finalAmount,
+          category,
+          icon: currentCategories.find(c => c.name === category)?.icon || 'receipt_long',
+          status: 'Selesai',
+          account,
+          type: transactionType.toUpperCase() as TransactionType
+        });
+        
+        const targetAcc = accounts.find(a => a.name === account);
+        if (targetAcc) {
+          await updateAccount({ ...targetAcc, balance: targetAcc.balance + finalAmount });
+        }
+      }
+    }
+    
+    setIsSaving(false);
+    setShowPinModal(false);
+    onBack(); // Go back to transactions view
+  };
+
   const handleSave = async () => {
     if (!account) {
       alert('Silakan pilih akun rekening terlebih dahulu!');
       return;
     }
-    if (transactionType === 'transfer') {
+    if (transactionType === 'transfer' && !editingTx) {
       if (!toAccount) {
         alert('Silakan pilih akun rekening tujuan terlebih dahulu!');
         return;
@@ -120,45 +235,83 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
     setIsSaving(true);
     const rawAmount = parseInt(amount.replace(/\D/g, ''), 10) || 0;
 
-    if (transactionType === 'transfer') {
-      // 1. Transaction 1: Deduction from Source Account
-      await addTransaction({
-        date,
-        desc: desc ? `Transfer ke ${toAccount}: ${desc}` : `Transfer Saldo ke ${toAccount}`,
-        location: 'Local',
-        amount: -Math.abs(rawAmount),
-        category: 'Transfer',
-        icon: 'swap_horiz',
-        status: 'Selesai',
-        account: account,
-        type: 'TRANSFER'
-      });
-
-      // 2. Transaction 2: Addition to Destination Account
-      await addTransaction({
-        date,
-        desc: desc ? `Transfer dari ${account}: ${desc}` : `Transfer Saldo dari ${account}`,
-        location: 'Local',
-        amount: Math.abs(rawAmount),
-        category: 'Transfer',
-        icon: 'swap_horiz',
-        status: 'Selesai',
-        account: toAccount,
-        type: 'TRANSFER'
-      });
-    } else {
+    if (editingTx) {
       const finalAmount = transactionType === 'pengeluaran' ? -Math.abs(rawAmount) : Math.abs(rawAmount);
-      await addTransaction({
+      const amountDiff = finalAmount - editingTx.amount;
+      
+      await updateTransaction({
+        ...editingTx,
         date,
         desc: desc || (transactionType === 'pengeluaran' ? 'Pengeluaran Baru' : 'Pemasukan Baru'),
-        location: 'Local',
         amount: finalAmount,
         category,
         icon: currentCategories.find(c => c.name === category)?.icon || 'receipt_long',
-        status: 'Selesai',
         account,
         type: transactionType.toUpperCase() as TransactionType
       });
+
+      const targetAcc = accounts.find(a => a.name === account);
+      if (targetAcc) {
+         if (account !== editingTx.account) {
+            const oldAcc = accounts.find(a => a.name === editingTx.account);
+            if (oldAcc) await updateAccount({ ...oldAcc, balance: oldAcc.balance - editingTx.amount });
+            await updateAccount({ ...targetAcc, balance: targetAcc.balance + finalAmount });
+         } else {
+            await updateAccount({ ...targetAcc, balance: targetAcc.balance + amountDiff });
+         }
+      }
+    } else {
+      if (transactionType === 'transfer') {
+        // 1. Transaction 1: Deduction from Source Account
+        await addTransaction({
+          date,
+          desc: desc ? `Transfer ke ${toAccount}: ${desc}` : `Transfer Saldo ke ${toAccount}`,
+          location: 'Local',
+          amount: -Math.abs(rawAmount),
+          category: 'Transfer',
+          icon: 'swap_horiz',
+          status: 'Selesai',
+          account: account,
+          type: 'TRANSFER'
+        });
+
+        // 2. Transaction 2: Addition to Destination Account
+        await addTransaction({
+          date,
+          desc: desc ? `Transfer dari ${account}: ${desc}` : `Transfer Saldo dari ${account}`,
+          location: 'Local',
+          amount: Math.abs(rawAmount),
+          category: 'Transfer',
+          icon: 'swap_horiz',
+          status: 'Selesai',
+          account: toAccount,
+          type: 'TRANSFER'
+        });
+
+        const acc1 = accounts.find(a => a.name === account);
+        if (acc1) await updateAccount({ ...acc1, balance: acc1.balance - rawAmount });
+        const acc2 = accounts.find(a => a.name === toAccount);
+        if (acc2) await updateAccount({ ...acc2, balance: acc2.balance + rawAmount });
+
+      } else {
+        const finalAmount = transactionType === 'pengeluaran' ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+        await addTransaction({
+          date,
+          desc: desc || (transactionType === 'pengeluaran' ? 'Pengeluaran Baru' : 'Pemasukan Baru'),
+          location: 'Local',
+          amount: finalAmount,
+          category,
+          icon: currentCategories.find(c => c.name === category)?.icon || 'receipt_long',
+          status: 'Selesai',
+          account,
+          type: transactionType.toUpperCase() as TransactionType
+        });
+        
+        const targetAcc = accounts.find(a => a.name === account);
+        if (targetAcc) {
+          await updateAccount({ ...targetAcc, balance: targetAcc.balance + finalAmount });
+        }
+      }
     }
     
     setIsSaving(false);
@@ -210,7 +363,7 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
         <div>
-          <h2 className="font-headline font-extrabold text-2xl md:text-3xl tracking-tight text-primary dark:text-white">Tambah Transaksi</h2>
+          <h2 className="font-headline font-extrabold text-2xl md:text-3xl tracking-tight text-primary dark:text-white">{editingTx ? 'Edit Transaksi' : 'Tambah Transaksi'}</h2>
           <p className="text-on-surface-variant dark:text-outline text-xs md:text-sm font-medium mt-0.5">Catat detail transaksi cerdas secara presisi dan sinkron dengan basis data.</p>
         </div>
       </div>
@@ -225,7 +378,7 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
           <div className="space-y-8 z-10 relative">
             {/* Transaction Mode Toggles */}
             <div className="bg-surface-container-low dark:bg-white/5 p-1 rounded-full flex justify-between w-full shadow-inner border border-outline-variant/10 dark:border-white/10">
-              {(['pengeluaran', 'pemasukan', 'transfer'] as const).map((type) => (
+              {(editingTx ? ['pengeluaran', 'pemasukan'] : ['pengeluaran', 'pemasukan', 'transfer'] as const).map((type) => (
                 <button 
                   key={type}
                   onClick={() => setTransactionType(type)}
@@ -538,6 +691,13 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
           )}
         </div>
       </div>
+      <FinancePinModal 
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onSuccess={executeSave}
+        savedPin={savedPin}
+        title="Otorisasi Transaksi"
+      />
     </div>
   );
 };
