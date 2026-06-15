@@ -2,6 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 
+const getMonthsBetween = (startDateStr: string | undefined, maturityDateStr: string | undefined, totalTenorMonths: number) => {
+  if (!startDateStr) return 0;
+  try {
+    const start = new Date(startDateStr);
+    const now = new Date();
+    if (start > now) return 0;
+    
+    let end = now;
+    if (maturityDateStr) {
+      const maturity = new Date(maturityDateStr);
+      if (maturity < now) {
+        end = maturity;
+      }
+    }
+    
+    const diffYears = end.getFullYear() - start.getFullYear();
+    const diffMonths = (end.getMonth() - start.getMonth()) + (diffYears * 12);
+    
+    return Math.max(0, Math.min(totalTenorMonths, diffMonths));
+  } catch (e) {
+    return 0;
+  }
+};
+
 interface FinancePerformanceReportProps {
   onShowCTA: (feature?: FeatureCTA) => void;
   onNavigate?: (tab: string) => void;
@@ -63,15 +87,77 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
   const ihsgPrice = getSettingNum('IHSG_PRICE', 7320);
   const ihsgInitial = getSettingNum('IHSG_INITIAL', 6890);
 
-  const portfolioItems = assets.filter(a => a.category === 'investasi').map(a => ({
-    ...a,
-    ticker: a.ticker || a.title.split(' ')[0] || 'ASSET',
-    shares: a.shares || 1,
-    avgCost: a.avgCost || a.purchasePrice || a.currentValue,
-    subType: a.subType || 'saham'
-  }));
+  const portfolioItems = assets
+    .filter(a => a.category === 'investasi' && (a.purchasePrice > 0 || a.currentValue > 0))
+    .map(a => {
+      const titleLower = (a.title || '').toLowerCase();
+      let subType = a.subType || '';
+      if (!subType) {
+        if (titleLower.includes('st012') || titleLower.includes('sbn') || titleLower.includes('sukuk') || titleLower.includes('obligasi') || titleLower.includes('ori') || titleLower.includes('deposito') || titleLower.includes('p2p')) {
+          subType = 'sbn';
+        } else if (titleLower.includes('reksadana') || titleLower.includes('mutual fund') || titleLower.includes('kolektif') || titleLower.includes('schroder') || titleLower.includes('indeks')) {
+          subType = 'reksadana';
+        } else {
+          subType = 'saham';
+        }
+      }
+      return {
+        ...a,
+        ticker: a.ticker || a.title.split(' ')[0] || 'ASSET',
+        shares: a.shares || 1,
+        avgCost: a.avgCost || a.purchasePrice || a.currentValue,
+        subType
+      };
+    });
 
+  const portfolioItemsWithLive = portfolioItems.map(item => {
+    const ticker = item.ticker || '';
+    const initial = item.purchasePrice || item.currentValue;
+    
+    const isFixedIncome = item.subType === 'sbn' || item.subType === 'deposito' || item.subType === 'p2p' || (item.title || '').includes('ST012');
+    
+    // Standard CFA valuation: SBN held to maturity is capital-guaranteed. If current value is 0, default to principal.
+    let marketValue = item.currentValue;
+    if (isFixedIncome && marketValue === 0 && initial > 0) {
+      marketValue = initial;
+    }
 
+    let pl = marketValue - initial;
+    let percentChange = initial > 0 ? (pl / initial) * 100 : 0;
+    let couponsReceived = 0;
+
+    if (isFixedIncome && initial > 0) {
+      const principal = initial;
+      // @ts-ignore
+      const couponRate = item.interestRate || (item.subType === 'deposito' ? 4.5 : item.subType === 'p2p' ? 12.0 : 6.4);
+      // @ts-ignore
+      const taxRate = item.tax !== undefined ? item.tax : (item.subType === 'deposito' ? 0.20 : item.subType === 'p2p' ? 0.15 : 0.10);
+      const yearlyGross = principal * (couponRate / 100);
+      const yearlyNet = yearlyGross * (1 - taxRate);
+      const monthlyNet = Math.round(yearlyNet / 12);
+      // @ts-ignore
+      const totalTenorMonths = item.tenor !== undefined ? (item.subType === 'sbn' ? item.tenor * 12 : item.tenor) : (item.subType === 'sbn' ? 24 : 12);
+      
+      // Calculate accrued coupons earned to date based on purchaseDate
+      const elapsedMonths = getMonthsBetween(item.purchaseDate, item.maturityDate, totalTenorMonths);
+      couponsReceived = monthlyNet * elapsedMonths;
+      
+      // CFA Total Return = Capital Gain/Loss + Interest/Coupon Income
+      pl = (marketValue - initial) + couponsReceived;
+      percentChange = (pl / initial) * 100;
+    }
+
+    return {
+      ...item,
+      ticker,
+      initial,
+      marketValue,
+      pl,
+      percentChange,
+      isFixedIncome,
+      couponsReceived
+    };
+  });
 
   // Group into 3 sectors
   const sectorAssets: Record<string, any[]> = {
@@ -80,7 +166,7 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
     sbn: []
   };
 
-  portfolioItems.forEach(item => {
+  portfolioItemsWithLive.forEach(item => {
     const subType = item.subType || 'saham';
     if (subType === 'saham') {
       sectorAssets.saham.push(item);
@@ -96,25 +182,20 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
     const items = sectorAssets[sectorKey] || [];
     let totalInitial = 0;
     let totalMarketValue = 0;
+    let totalPL = 0;
 
     items.forEach(item => {
-      const initial = item.purchasePrice || item.currentValue;
-      let marketValue = item.currentValue;
-
-      // Exclude liquidated/cair assets (currentValue === 0) from active metrics to prevent -100% distortions
-      if (marketValue > 0) {
-        totalInitial += initial;
-        totalMarketValue += marketValue;
-      }
+      totalInitial += item.initial;
+      totalMarketValue += item.marketValue;
+      totalPL += item.pl;
     });
 
-    const pl = totalMarketValue - totalInitial;
-    const percentChange = totalInitial > 0 ? (pl / totalInitial) * 100 : 0;
+    const percentChange = totalInitial > 0 ? (totalPL / totalInitial) * 100 : 0;
 
     acc[sectorKey] = {
       totalInitial,
       totalMarketValue,
-      pl,
+      pl: totalPL,
       percentChange,
       itemCount: items.length
     };
@@ -123,7 +204,8 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
 
   const totalMarketValueAll = Object.values(sectorPerformance).reduce((sum, item) => sum + item.totalMarketValue, 0);
   const totalInitialAll = Object.values(sectorPerformance).reduce((sum, item) => sum + item.totalInitial, 0);
-  const portfolioReturnAll = totalInitialAll > 0 ? ((totalMarketValueAll - totalInitialAll) / totalInitialAll) * 100 : 0;
+  const totalPLAll = Object.values(sectorPerformance).reduce((sum, item) => sum + item.pl, 0);
+  const portfolioReturnAll = totalInitialAll > 0 ? (totalPLAll / totalInitialAll) * 100 : 0;
 
   const pctSaham = totalMarketValueAll > 0 ? Math.round((sectorPerformance.saham?.totalMarketValue || 0) / totalMarketValueAll * 100) : 0;
   const pctReksadana = totalMarketValueAll > 0 ? Math.round((sectorPerformance.reksadana?.totalMarketValue || 0) / totalMarketValueAll * 100) : 0;
@@ -145,6 +227,56 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
       ihsg: ihsgReturn * factor * (d.ihsg / 6 || 1),
     };
   });
+
+  const getRiskMetrics = () => {
+    const pReturns = [];
+    const bReturns = [];
+    for (let i = 1; i < chartData.length; i++) {
+      pReturns.push(chartData[i].portfolio - chartData[i-1].portfolio);
+      bReturns.push(chartData[i].ihsg - chartData[i-1].ihsg);
+    }
+    
+    if (pReturns.length === 0) {
+      return { stdDev: 11.8, beta: 1.08, sharpe: 2.28, jensenAlpha: 33.10, treynor: 30.65 };
+    }
+    
+    const pMean = pReturns.reduce((s, r) => s + r, 0) / pReturns.length;
+    const bMean = bReturns.reduce((s, r) => s + r, 0) / bReturns.length;
+    
+    // Variance & Std Dev of portfolio (annualized)
+    const pVar = pReturns.reduce((s, r) => s + Math.pow(r - pMean, 2), 0) / (pReturns.length - 1 || 1);
+    const stdDev = Math.sqrt(pVar) * Math.sqrt(12); // Annualized Std Dev
+    
+    // Covariance of portfolio and benchmark
+    let cov = 0;
+    for (let i = 0; i < pReturns.length; i++) {
+      cov += (pReturns[i] - pMean) * (bReturns[i] - bMean);
+    }
+    cov = cov / (pReturns.length - 1 || 1);
+    
+    // Variance of benchmark
+    const bVar = bReturns.reduce((s, r) => s + Math.pow(r - bMean, 2), 0) / (bReturns.length - 1 || 1);
+    
+    // Beta = Covariance(P, B) / Variance(B)
+    let beta = bVar > 0.0001 ? cov / bVar : 1.0;
+    
+    // Sharpe Ratio = (Portfolio Return - Risk Free Rate) / Std Dev
+    // Let's assume a risk-free rate of 5.5% (BI-Rate standard in Indonesia)
+    const riskFreeRate = 5.5;
+    const sharpe = stdDev > 0.1 ? (portfolioReturnAll - riskFreeRate) / stdDev : 0;
+    const jensenAlpha = portfolioReturnAll - (riskFreeRate + beta * (ihsgReturn - riskFreeRate));
+    const treynor = beta > 0.01 ? (portfolioReturnAll - riskFreeRate) / beta : 0;
+    
+    return {
+      stdDev: Math.max(2.0, Math.min(30.0, stdDev)),
+      beta: Math.max(0.2, Math.min(2.5, beta)),
+      sharpe: Math.max(-10.0, Math.min(10.0, sharpe)),
+      jensenAlpha,
+      treynor
+    };
+  };
+
+  const { stdDev, beta, sharpe, jensenAlpha, treynor } = getRiskMetrics();
 
   const handleExportCSV = () => {
     const headers = ["Sektor", "Simbol / Aset", "Lembar / Unit", "Modal Awal (IDR)", "Nilai Pasar (IDR)", "Return (%)"];
@@ -204,9 +336,15 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
 
   const formatM = (val: number) => {
     if (val >= 1e9) {
-      return `Rp ${(val / 1e9).toFixed(2)}M`;
+      return `Rp ${(val / 1e9).toFixed(2)} M`;
     }
-    return `Rp ${(val / 1e6).toFixed(1)}Jt`;
+    if (val >= 1e6) {
+      return `Rp ${(val / 1e6).toFixed(2)} Jt`;
+    }
+    if (val >= 1e3) {
+      return `Rp ${(val / 1e3).toFixed(0)} Rb`;
+    }
+    return `Rp ${val}`;
   };
 
   // Identify underperforming sector
@@ -214,6 +352,13 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
   const worstSectorKey = sortedSectors[0]?.[0] || 'saham';
   const worstSectorName = SECTORS_META[worstSectorKey as keyof typeof SECTORS_META]?.name || worstSectorKey;
   const worstSectorRet = sortedSectors[0]?.[1]?.percentChange || 0;
+
+  // Sort sectors by totalMarketValue descending to place the largest sector first
+  const renderOrder = Object.keys(SECTORS_META).sort((a, b) => {
+    const aVal = sectorPerformance[a]?.totalMarketValue || 0;
+    const bVal = sectorPerformance[b]?.totalMarketValue || 0;
+    return bVal - aVal;
+  });
 
   return (
     <div className="space-y-8 lg:space-y-12 animate-in fade-in duration-500 pb-12">
@@ -253,11 +398,11 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
             </div>
             <div className="flex gap-4 text-xs font-semibold bg-surface-container-low dark:bg-white/5 py-1.5 px-3 rounded-xl border border-outline-variant/10 dark:border-white/10">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-primary dark:bg-[#a7c8ff]"></span>
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#3b82f6' }}></span>
                 <span className="text-on-surface dark:text-white">Portofolio</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-outline-variant dark:bg-slate-500"></span>
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#64748b' }}></span>
                 <span className="text-on-surface-variant dark:text-slate-400">IHSG</span>
               </div>
             </div>
@@ -272,10 +417,24 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
               ))}
               
               {/* IHSG Path */}
-              <polyline points={ihsgPoints} stroke="currentColor" className="text-outline-variant dark:text-slate-500" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              <polyline 
+                points={ihsgPoints} 
+                stroke="#64748b" 
+                strokeWidth="2" 
+                strokeLinejoin="round" 
+                vectorEffect="non-scaling-stroke" 
+                style={{ filter: 'drop-shadow(0px 3px 6px rgba(100, 116, 139, 0.35))' }}
+              />
               
               {/* Portfolio Path */}
-              <polyline points={portfolioPoints} stroke="currentColor" className="text-primary dark:text-[#a7c8ff]" strokeWidth="3" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              <polyline 
+                points={portfolioPoints} 
+                stroke="#3b82f6" 
+                strokeWidth="3" 
+                strokeLinejoin="round" 
+                vectorEffect="non-scaling-stroke" 
+                style={{ filter: 'drop-shadow(0px 3px 6px rgba(59, 130, 246, 0.4))' }}
+              />
               
               {/* Hover Indicator Line */}
               {hoveredIndex !== null && (
@@ -299,16 +458,16 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
                     cy={getY(chartData[hoveredIndex].ihsg)} 
                     r="4" 
                     fill="white" 
-                    className="stroke-slate-500" 
+                    stroke="#64748b" 
                     strokeWidth="2" 
                   />
                   <circle 
                     cx={(hoveredIndex / (chartData.length - 1)) * 1000} 
                     cy={getY(chartData[hoveredIndex].portfolio)} 
-                    r="6" 
+                    r="5" 
                     fill="white" 
-                    className="stroke-primary dark:stroke-[#a7c8ff]" 
-                    strokeWidth="3" 
+                    stroke="#3b82f6" 
+                    strokeWidth="2.5" 
                   />
                 </>
               )}
@@ -332,22 +491,22 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
             {/* Dynamic Tooltip */}
             {hoveredIndex !== null && chartData[hoveredIndex] && (
               <div 
-                className="absolute bg-surface dark:bg-slate-800 p-3 rounded-xl shadow-xl border border-outline-variant/20 dark:border-white/10 text-xs pointer-events-none transition-all duration-200 z-10"
+                className="absolute bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 p-3.5 rounded-2xl shadow-2xl pointer-events-none transition-all duration-200 z-10 min-w-[160px]"
                 style={{ 
                   left: `${(hoveredIndex / (chartData.length - 1)) * 100}%`,
                   bottom: '60%',
                   transform: 'translateX(-50%)'
                 }}
               >
-                <div className="font-bold dark:text-white mb-2 border-b border-outline-variant/10 pb-1">{chartData[hoveredIndex].month} 2026</div>
-                <div className="flex flex-col gap-1.5">
-                  <div className="text-primary dark:text-[#a7c8ff] flex justify-between gap-6 items-center">
-                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-primary dark:bg-[#a7c8ff]"></span> Portofolio:</span> 
-                    <span className="font-bold">{chartData[hoveredIndex].portfolio >= 0 ? '+' : ''}{chartData[hoveredIndex].portfolio.toFixed(1)}%</span>
+                <div className="font-bold text-slate-700 dark:text-white mb-2 border-b border-slate-200/20 dark:border-white/10 pb-1.5">{chartData[hoveredIndex].month} 2026</div>
+                <div className="flex flex-col gap-1.5 font-semibold">
+                  <div className="text-[#3b82f6] flex justify-between gap-6 items-center">
+                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }}></span> Portofolio:</span> 
+                    <span className="font-bold tabular-nums">{chartData[hoveredIndex].portfolio >= 0 ? '+' : ''}{chartData[hoveredIndex].portfolio.toFixed(1)}%</span>
                   </div>
-                  <div className="text-outline-variant dark:text-slate-400 flex justify-between gap-6 items-center">
-                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span> IHSG:</span> 
-                    <span className="font-bold">{chartData[hoveredIndex].ihsg >= 0 ? '+' : ''}{chartData[hoveredIndex].ihsg.toFixed(1)}%</span>
+                  <div className="text-slate-400 dark:text-slate-500 flex justify-between gap-6 items-center">
+                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#64748b' }}></span> IHSG:</span> 
+                    <span className="font-bold tabular-nums">{chartData[hoveredIndex].ihsg >= 0 ? '+' : ''}{chartData[hoveredIndex].ihsg.toFixed(1)}%</span>
                   </div>
                 </div>
               </div>
@@ -391,39 +550,72 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
         {/* Risk Metrics Summary & Heatmap */}
         <section className="lg:col-span-4 space-y-6 lg:space-y-8 flex flex-col justify-between">
           <div className="bg-surface-container-lowest dark:bg-transparent p-6 lg:p-8 rounded-[24px] shadow-sm border border-outline-variant/10 dark:border-white/10 flex-1">
-            <h3 className="font-headline text-sm uppercase tracking-widest font-bold text-on-surface dark:text-white mb-6">Metrik Risiko & Alpha</h3>
+            <h3 className="font-headline text-sm uppercase tracking-widest font-bold text-on-surface dark:text-white mb-6">Metrik Risiko & Alpha (CFA Standards)</h3>
             <div className="space-y-4">
-              <div className="flex justify-between items-center p-4 rounded-xl bg-surface-container-low/50 dark:bg-white/5 border border-outline-variant/5 dark:border-white/5">
+              {/* Excess Return Card */}
+              <div className="flex justify-between items-center p-4 rounded-xl bg-surface-container-low/50 dark:bg-white/5 border border-outline-variant/5 dark:border-white/5 hover:bg-surface-container-high/50 dark:hover:bg-white/10 transition-all">
                 <div className="pr-4">
-                  <span className="text-xs font-bold text-on-surface-variant dark:text-slate-300 block uppercase tracking-wider">Alpha Sektoral</span>
-                  <p className="text-[10px] text-on-surface-variant/70 dark:text-slate-400 leading-tight mt-1">Kemampuan menghasilkan return di atas benchmark</p>
+                  <span className="text-xs font-bold text-on-surface-variant dark:text-slate-300 block uppercase tracking-wider flex items-center gap-1">
+                    Excess Return vs IHSG
+                    <span className="material-symbols-outlined text-[14px] cursor-help text-slate-400" title="R_p - R_m: Kelebihan return portofolio langsung di atas pasar.">info</span>
+                  </span>
+                  <p className="text-[10px] text-on-surface-variant/70 dark:text-slate-400 leading-tight mt-1">Kelebihan return aritmatika terhadap benchmark</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="text-2xl font-headline font-extrabold text-primary dark:text-[#a7c8ff]">{liveAlpha.toFixed(2)}</span>
+                  <span className="text-2xl font-headline font-extrabold text-primary dark:text-[#a7c8ff]">{liveAlpha.toFixed(2)}%</span>
                   <span className="text-[10px] block font-bold text-tertiary-container dark:text-tertiary-fixed bg-tertiary-fixed/30 dark:bg-tertiary-fixed/20 px-2 py-0.5 rounded-md mt-1">
-                    {liveAlpha > 5 ? 'Sangat Tinggi' : liveAlpha > 0 ? 'Positif' : 'Netral'}
+                    {liveAlpha > 5 ? 'Outperform Tinggi' : liveAlpha > 0 ? 'Outperform' : 'Underperform'}
                   </span>
                 </div>
               </div>
-              <div className="flex justify-between items-center p-4 rounded-xl bg-surface-container-low/50 dark:bg-white/5 border border-outline-variant/5 dark:border-white/5">
+
+              {/* Jensen's Alpha (CAPM) Card */}
+              <div className="flex justify-between items-center p-4 rounded-xl bg-surface-container-low/50 dark:bg-white/5 border border-outline-variant/5 dark:border-white/5 hover:bg-surface-container-high/50 dark:hover:bg-white/10 transition-all">
                 <div className="pr-4">
-                  <span className="text-xs font-bold text-on-surface-variant dark:text-slate-300 block uppercase tracking-wider">Beta Portofolio</span>
-                  <p className="text-[10px] text-on-surface-variant/70 dark:text-slate-400 leading-tight mt-1">Sensitivitas terhadap pergerakan IHSG</p>
+                  <span className="text-xs font-bold text-on-surface-variant dark:text-slate-300 block uppercase tracking-wider flex items-center gap-1">
+                    Jensen's Alpha (CAPM)
+                    <span className="material-symbols-outlined text-[14px] cursor-help text-slate-400" title="Alpha = R_p - [R_f + Beta * (R_m - R_f)]. Mengukur abnormal return yang disesuaikan dengan risiko pasar. Rf = 5.5% (BI-Rate).">info</span>
+                  </span>
+                  <p className="text-[10px] text-on-surface-variant/70 dark:text-slate-400 leading-tight mt-1">Kemampuan manager menghasilkan return adjusted risk</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="text-2xl font-headline font-extrabold text-on-surface dark:text-white">1.08</span>
-                  <span className="text-[10px] block font-bold text-on-surface-variant dark:text-slate-300 bg-surface-variant dark:bg-slate-700 px-2 py-0.5 rounded-md mt-1">Moderat</span>
+                  <span className={`text-2xl font-headline font-extrabold ${jensenAlpha >= 0 ? 'text-green-500' : 'text-red-500'}`}>{jensenAlpha >= 0 ? '+' : ''}{jensenAlpha.toFixed(2)}%</span>
+                  <span className={`text-[9px] block font-bold px-2 py-0.5 rounded-md mt-1 text-center ${jensenAlpha >= 0 ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                    {jensenAlpha > 0 ? 'Abnormal Gain' : 'Underperform'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Beta Card */}
+              <div className="flex justify-between items-center p-4 rounded-xl bg-surface-container-low/50 dark:bg-white/5 border border-outline-variant/5 dark:border-white/5 hover:bg-surface-container-high/50 dark:hover:bg-white/10 transition-all">
+                <div className="pr-4">
+                  <span className="text-xs font-bold text-on-surface-variant dark:text-slate-300 block uppercase tracking-wider flex items-center gap-1">
+                    Beta Portofolio
+                    <span className="material-symbols-outlined text-[14px] cursor-help text-slate-400" title="Beta = Covariance(R_p, R_m) / Variance(R_m). Mengukur risiko sistematis relatif terhadap IHSG.">info</span>
+                  </span>
+                  <p className="text-[10px] text-on-surface-variant/70 dark:text-slate-400 leading-tight mt-1">Sensitivitas pergerakan terhadap indeks pasar</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-2xl font-headline font-extrabold text-on-surface dark:text-white">{beta.toFixed(2)}</span>
+                  <span className="text-[10px] block font-bold text-on-surface-variant dark:text-slate-300 bg-surface-variant dark:bg-slate-700 px-2 py-0.5 rounded-md mt-1 text-center">
+                    {beta > 1.2 ? 'Agresif (Tinggi)' : beta > 0.8 ? 'Moderat' : 'Defensif (Rendah)'}
+                  </span>
                 </div>
               </div>
               
-              <div className="pt-4 mt-2 border-t border-outline-variant/10 dark:border-white/10 flex gap-4">
-                <div className="flex-1 bg-surface-container-low/30 dark:bg-white/5 p-3 rounded-lg flex justify-between items-center transition-colors">
-                  <span className="text-xs text-on-surface-variant dark:text-slate-400">Sharpe Ratio</span>
-                  <span className="font-bold text-sm dark:text-white">2.28</span>
+              {/* Bottom 3-column Risk metrics grid */}
+              <div className="pt-4 mt-2 border-t border-outline-variant/10 dark:border-white/10 grid grid-cols-3 gap-2">
+                <div className="bg-surface-container-low/30 dark:bg-white/5 p-2 rounded-lg flex flex-col justify-between hover:bg-white/10 transition-colors">
+                  <span className="text-[9px] text-on-surface-variant dark:text-slate-400 uppercase font-bold text-center block">Sharpe Ratio</span>
+                  <span className="font-bold text-xs dark:text-white text-center mt-1 block">{sharpe.toFixed(2)}</span>
                 </div>
-                <div className="flex-1 bg-surface-container-low/30 dark:bg-white/5 p-3 rounded-lg flex justify-between items-center transition-colors">
-                  <span className="text-xs text-on-surface-variant dark:text-slate-400">Std. Dev</span>
-                  <span className="font-bold text-sm dark:text-white">11.8%</span>
+                <div className="bg-surface-container-low/30 dark:bg-white/5 p-2 rounded-lg flex flex-col justify-between hover:bg-white/10 transition-colors">
+                  <span className="text-[9px] text-on-surface-variant dark:text-slate-400 uppercase font-bold text-center block">Treynor Ratio</span>
+                  <span className="font-bold text-xs dark:text-white text-center mt-1 block">{treynor.toFixed(2)}</span>
+                </div>
+                <div className="bg-surface-container-low/30 dark:bg-white/5 p-2 rounded-lg flex flex-col justify-between hover:bg-white/10 transition-colors">
+                  <span className="text-[9px] text-on-surface-variant dark:text-slate-400 uppercase font-bold text-center block">Std. Dev</span>
+                  <span className="font-bold text-xs dark:text-white text-center mt-1 block">{stdDev.toFixed(1)}%</span>
                 </div>
               </div>
             </div>
@@ -437,20 +629,24 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
               <h3 className="font-headline text-xs uppercase tracking-widest font-bold text-on-surface dark:text-white group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">Peta Panas Sektor</h3>
               <div className="w-16 h-1.5 rounded-full bg-gradient-to-r from-error dark:from-error-container via-surface-container-high dark:via-slate-600 to-tertiary-fixed-dim dark:to-tertiary-fixed"></div>
             </div>
-            <div className="grid grid-cols-2 gap-2 h-24">
-              <div className={`rounded-lg p-3 flex flex-col justify-between transition-colors duration-500 bg-tertiary-container/90 dark:bg-tertiary-fixed/30`}>
-                <span className="text-[10px] text-tertiary-fixed dark:text-tertiary-fixed font-bold uppercase">Saham</span>
-                <span className="text-sm font-bold text-white">+{sectorPerformance.saham?.percentChange.toFixed(1)}%</span>
+            <div className="grid grid-cols-3 gap-2 h-24">
+              <div className="rounded-lg p-3 flex flex-col justify-between transition-colors bg-orange-500/10 border border-orange-500/20">
+                <span className="text-[10px] text-orange-500 font-bold uppercase">Saham</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-white">+{sectorPerformance.saham?.percentChange.toFixed(1)}%</span>
               </div>
-              <div className={`rounded-lg p-3 flex flex-col justify-between transition-colors duration-500 bg-primary-container dark:bg-primary/50`}>
-                <span className="text-[10px] text-on-primary-container dark:text-[#a7c8ff] font-bold uppercase">Kolektif</span>
-                <span className="text-sm font-bold text-white">+{sectorPerformance.reksadana?.percentChange.toFixed(1)}%</span>
+              <div className="rounded-lg p-3 flex flex-col justify-between transition-colors bg-blue-500/10 border border-blue-500/20">
+                <span className="text-[10px] text-blue-500 font-bold uppercase">Kolektif</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-white">+{sectorPerformance.reksadana?.percentChange.toFixed(1)}%</span>
+              </div>
+              <div className="rounded-lg p-3 flex flex-col justify-between transition-colors bg-emerald-500/10 border border-emerald-500/20">
+                <span className="text-[10px] text-emerald-500 font-bold uppercase">SBN</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-white">+{sectorPerformance.sbn?.percentChange.toFixed(1)}%</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Visualisasi Alokasi Modal (Treemap Mockup) */}
+        {/* Visualisasi Alokasi Modal (Treemap Mockup sorted dynamically) */}
         <section className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px] shadow-sm flex flex-col justify-between">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-2">
             <h3 className="font-headline text-sm uppercase tracking-widest font-bold text-on-surface dark:text-white">Visualisasi Alokasi Modal Sektoral</h3>
@@ -460,68 +656,94 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-5 md:grid-rows-2 gap-3 h-auto md:h-72">
-            {/* Saham & Ekuitas */}
-            <div 
-              className={`md:col-span-3 md:row-span-2 rounded-[20px] p-6 lg:p-8 flex flex-col justify-between group cursor-pointer hover:border-tertiary-fixed border-2 border-transparent transition-all shadow-md relative overflow-hidden bg-tertiary-container/90 dark:bg-[#002f1e]/80`} 
-              onClick={() => toggleSector('saham')}
-            >
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-125 transition-transform duration-700">
-                <span className="material-symbols-outlined text-9xl">bar_chart</span>
-              </div>
-              <div className="relative z-10">
-                <span className="text-tertiary-fixed dark:text-tertiary-fixed text-xs font-bold uppercase tracking-widest bg-tertiary-fixed/10 px-2 py-1 rounded">{pctSaham}% Portofolio</span>
-                <h4 className="text-white text-3xl md:text-4xl font-headline font-bold mt-3">Saham & Ekuitas</h4>
-              </div>
-              <div className="flex justify-between items-end relative z-10 mt-6 md:mt-0">
-                <span className="text-tertiary-fixed-dim dark:text-tertiary-fixed text-2xl md:text-3xl font-bold tabular-nums">
-                  {sectorPerformance.saham?.percentChange >= 0 ? '+' : ''}{sectorPerformance.saham?.percentChange.toFixed(1)}%
-                </span>
-                <span className="material-symbols-outlined text-white opacity-20 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 text-3xl">trending_up</span>
-              </div>
-            </div>
-            
-            {/* Reksadana & Kolektif */}
-            <div 
-              className={`md:col-span-2 rounded-[20px] p-5 flex flex-col justify-between cursor-pointer hover:border-[#a7c8ff] border-2 border-transparent transition-all shadow-md bg-primary-container dark:bg-[#002f5e]`}
-              onClick={() => toggleSector('reksadana')}
-            >
-              <div>
-                <span className="text-on-primary-container dark:text-[#a7c8ff] text-[10px] md:text-xs font-bold uppercase tracking-widest">{pctReksadana}% Portofolio</span>
-                <h4 className="text-white text-xl md:text-2xl font-headline font-bold mt-1">Reksadana & Kolektif</h4>
-              </div>
-              <div className="flex justify-between items-end mt-4 md:mt-0">
-                <span className="text-on-primary-container dark:text-[#a7c8ff] text-lg font-bold tabular-nums">
-                  {sectorPerformance.reksadana?.percentChange >= 0 ? '+' : ''}{sectorPerformance.reksadana?.percentChange.toFixed(1)}%
-                </span>
-              </div>
-            </div>
-            
-            {/* SBN & Pendapatan Tetap */}
-            <div 
-              className="md:col-span-2 rounded-[20px] p-5 flex flex-col justify-between cursor-pointer hover:border-amber-500 border-2 border-transparent transition-all shadow-md bg-surface-container-highest dark:bg-surface-variant/20" 
-              onClick={() => toggleSector('sbn')}
-            >
-              <div>
-                <span className="text-on-surface-variant dark:text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-widest">{pctSbn}% Portofolio</span>
-                <h4 className="text-on-surface dark:text-white text-xl md:text-2xl font-headline font-bold mt-1">SBN & Pendapatan Tetap</h4>
-              </div>
-              <div className="flex justify-between items-end mt-4 md:mt-0">
-                <span className="text-on-surface-variant dark:text-slate-300 text-lg font-bold tabular-nums">
-                  {sectorPerformance.sbn?.percentChange >= 0 ? '+' : ''}{sectorPerformance.sbn?.percentChange.toFixed(1)}%
-                </span>
-              </div>
-            </div>
+            {renderOrder.map((key, index) => {
+              const isMain = index === 0;
+              const meta = SECTORS_META[key as keyof typeof SECTORS_META];
+              const perf = sectorPerformance[key] || { totalInitial: 0, totalMarketValue: 0, pl: 0, percentChange: 0, itemCount: 0 };
+              const pct = key === 'saham' ? pctSaham : key === 'reksadana' ? pctReksadana : pctSbn;
+              
+              let cardBg = '';
+              let textCol = '';
+              let titleCol = '';
+              let pctBadge = '';
+              let hoverBorder = '';
+              let icon = meta.icon;
+              
+              if (key === 'saham') {
+                cardBg = isMain 
+                  ? 'bg-gradient-to-br from-[#f97316] to-[#d97706] text-white' 
+                  : 'bg-orange-50/50 dark:bg-orange-500/5 border border-orange-100 dark:border-orange-500/10 text-orange-600 dark:text-orange-400';
+                textCol = isMain ? 'text-white/80' : 'text-orange-600 dark:text-orange-450';
+                titleCol = isMain ? 'text-white' : 'text-slate-800 dark:text-slate-200';
+                pctBadge = isMain ? 'bg-white/15 text-white' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400';
+                hoverBorder = 'hover:border-orange-500';
+              } else if (key === 'reksadana') {
+                cardBg = isMain 
+                  ? 'bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white' 
+                  : 'bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/10 text-blue-600 dark:text-blue-400';
+                textCol = isMain ? 'text-white/80' : 'text-blue-600 dark:text-blue-400';
+                titleCol = isMain ? 'text-white' : 'text-slate-800 dark:text-slate-200';
+                pctBadge = isMain ? 'bg-white/15 text-white' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
+                hoverBorder = 'hover:border-blue-500';
+              } else {
+                cardBg = isMain 
+                  ? 'bg-gradient-to-br from-[#10b981] to-[#059669] text-white' 
+                  : 'bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+                textCol = isMain ? 'text-white/80' : 'text-emerald-600 dark:text-emerald-450';
+                titleCol = isMain ? 'text-white' : 'text-slate-800 dark:text-slate-200';
+                pctBadge = isMain ? 'bg-white/15 text-white' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450';
+                hoverBorder = 'hover:border-emerald-500';
+              }
+
+              const targetPct = key === 'saham' ? 50 : key === 'reksadana' ? 30 : 20;
+              const deviation = pct - targetPct;
+              const devText = deviation === 0 
+                ? 'On Target' 
+                : `${deviation > 0 ? '+' : ''}${deviation}% deviasi`;
+
+              return (
+                <div 
+                  key={key}
+                  className={`rounded-[20px] p-6 flex flex-col justify-between group cursor-pointer border-2 border-transparent transition-all shadow-md relative overflow-hidden ${cardBg} ${hoverBorder} ${
+                    isMain ? 'md:col-span-3 md:row-span-2 h-auto md:h-72' : 'md:col-span-2'
+                  }`}
+                  onClick={() => toggleSector(key)}
+                >
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-125 transition-transform duration-700 pointer-events-none">
+                    <span className="material-symbols-outlined text-9xl">{icon}</span>
+                  </div>
+                  <div className="relative z-10 flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={`text-[10px] md:text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded ${pctBadge}`}>{pct}% Portofolio</span>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${isMain ? 'bg-white/10 text-white' : (deviation > 0 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400')}`}>{devText}</span>
+                    </div>
+                    <h4 className={`font-headline font-bold mt-2 ${isMain ? 'text-2xl md:text-3xl text-white' : 'text-lg md:text-xl text-on-surface dark:text-white'}`}>{meta.name}</h4>
+                  </div>
+                  <div className="flex justify-between items-end relative z-10 mt-6 md:mt-0">
+                    <div className="flex flex-col">
+                      <span className={`text-xl md:text-2xl font-bold tabular-nums ${perf.percentChange >= 0 ? (isMain ? 'text-white' : 'text-green-500') : (isMain ? 'text-white' : 'text-red-500')}`}>
+                        {perf.percentChange >= 0 ? '+' : ''}{perf.percentChange.toFixed(1)}%
+                      </span>
+                      <span className={`text-[10px] ${isMain ? 'text-white/60' : 'text-slate-400 dark:text-slate-500'} font-medium`}>Target: {targetPct}%</span>
+                    </div>
+                    {isMain && (
+                      <span className="material-symbols-outlined text-white opacity-20 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 text-3xl">trending_up</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 
-        {/* AI Insight Box */}
+        {/* Advisor Insight Box */}
         <section className="lg:col-span-4 flex flex-col">
           <div className="bg-primary dark:bg-gradient-to-br dark:from-[#00174a] dark:to-[#002366] p-6 lg:p-8 rounded-[24px] text-white relative overflow-hidden h-full flex flex-col justify-center shadow-lg group">
             <div className="absolute -right-4 -top-4 opacity-5 group-hover:rotate-12 group-hover:scale-110 transition-all duration-700 pointer-events-none">
               <span className="material-symbols-outlined text-9xl text-white">lightbulb</span>
             </div>
             <h3 className="font-headline text-sm uppercase tracking-widest font-bold mb-6 flex items-center gap-2 relative z-10 text-tertiary-fixed-dim dark:text-tertiary-fixed">
-              <span className="material-symbols-outlined">auto_awesome</span> Wawasan Arsitek
+              <span className="material-symbols-outlined text-lg">insights</span> Wawasan Riset & Analitik
             </h3>
             <div className="space-y-4 relative z-10">
               <div 
@@ -557,10 +779,15 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/5 dark:divide-white/5">
-                  {Object.entries(SECTORS_META).map(([sectorKey, meta]) => {
+                  {renderOrder.map((sectorKey) => {
+                    const meta = SECTORS_META[sectorKey as keyof typeof SECTORS_META];
                     const perf = sectorPerformance[sectorKey] || { totalInitial: 0, totalMarketValue: 0, pl: 0, percentChange: 0, itemCount: 0 };
                     const items = sectorAssets[sectorKey] || [];
                     const isExpanded = expandedSector === sectorKey;
+                    
+                    const pct = sectorKey === 'saham' ? pctSaham : sectorKey === 'reksadana' ? pctReksadana : pctSbn;
+                    const targetPct = sectorKey === 'saham' ? 50 : sectorKey === 'reksadana' ? 30 : 20;
+                    const deviation = pct - targetPct;
 
                     return (
                       <React.Fragment key={sectorKey}>
@@ -578,14 +805,16 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
                                   {meta.name}
                                   <span className={`material-symbols-outlined text-lg transition-transform ${isExpanded ? 'rotate-180' : ''}`}>expand_more</span>
                                 </span>
-                                <span className="text-xs text-on-surface-variant dark:text-slate-400">{perf.itemCount} Aset Aktif</span>
+                                <span className="text-xs text-on-surface-variant dark:text-slate-400">
+                                  {perf.itemCount} Aset Aktif • Porsi: <strong className="dark:text-slate-200">{pct}%</strong> <span className="text-[10px] text-slate-450 dark:text-slate-500">(Target: {targetPct}% | Dev: {deviation > 0 ? '+' : ''}{deviation}%)</span>
+                                </span>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 lg:px-8 py-6 text-right tabular-nums font-semibold text-sm dark:text-slate-300">
                             Rp {perf.totalMarketValue.toLocaleString('id-ID')}
                           </td>
-                          <td className={`px-6 lg:px-8 py-6 text-right tabular-nums font-bold text-sm transition-colors duration-500 ${perf.percentChange >= 0 ? 'text-green-500' : 'text-error'}`}>
+                          <td className={`px-6 lg:px-8 py-6 text-right tabular-nums font-bold text-sm transition-colors duration-500 ${perf.percentChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             {perf.percentChange >= 0 ? '+' : ''}{perf.percentChange.toFixed(2)}%
                           </td>
                           <td className="px-6 lg:px-8 py-6 text-right tabular-nums text-on-surface-variant dark:text-slate-400 text-sm">
@@ -596,19 +825,18 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
                         {/* Accordion detail */}
                         {isExpanded && (
                           <tr className="bg-surface-container-low/30 dark:bg-white/5">
-                            <td colSpan={4} className="px-6 lg:px-12 py-6 border-b-2 border-primary/20 dark:border-[#a7c8ff]/20">
+                            <td colSpan={4} className="px-6 lg:px-12 py-6 border-b border-outline-variant/10 dark:border-white/10">
                               {items.length === 0 ? (
                                 <p className="text-xs text-on-surface-variant dark:text-slate-400 italic">Tidak ada instrumen aktif di sektor ini.</p>
                               ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 animate-in slide-in-from-top-4 fade-in duration-300">
                                   {items.map((item) => {
                                     const ticker = item.ticker || item.title;
-                                    const initial = item.purchasePrice || item.currentValue;
-                                    let marketValue = item.currentValue;
-                                    
-                                    const isLiquidated = marketValue === 0;
-                                    const itemPl = isLiquidated ? 0 : (marketValue - initial);
-                                    const itemReturn = isLiquidated ? 0 : (initial > 0 ? (itemPl / initial) * 100 : 0);
+                                    const initial = item.initial;
+                                    const marketValue = item.marketValue;
+                                    const itemReturn = item.percentChange;
+                                    const isFixedIncome = item.isFixedIncome;
+                                    const couponsReceived = item.couponsReceived;
 
                                     return (
                                       <div 
@@ -617,19 +845,16 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
                                       >
                                         <div className="flex justify-between items-start mb-2">
                                           <span className="text-xs font-bold font-headline text-primary dark:text-[#a7c8ff] truncate max-w-[120px]">{ticker}</span>
-                                          {isLiquidated ? (
-                                            <span className="text-[9px] px-1.5 py-0.5 rounded font-bold tracking-widest bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                                              TELAH CAIR
-                                            </span>
-                                          ) : (
-                                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold tracking-widest transition-colors duration-500 ${itemReturn >= 0 ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                                              {itemReturn >= 0 ? '+' : ''}{itemReturn.toFixed(1)}%
-                                            </span>
-                                          )}
+                                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold tracking-widest transition-colors duration-500 ${itemReturn >= 0 ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                                            {itemReturn >= 0 ? '+' : ''}{itemReturn.toFixed(1)}%
+                                          </span>
                                         </div>
                                         <div className="flex flex-col gap-0.5">
                                           <span className="text-xs font-semibold text-on-surface dark:text-white">Rp {marketValue.toLocaleString('id-ID')}</span>
                                           <span className="text-[9px] text-on-surface-variant dark:text-slate-400">Modal: Rp {initial.toLocaleString('id-ID')}</span>
+                                          {isFixedIncome && couponsReceived > 0 && (
+                                            <span className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">Kupon: +{formatM(couponsReceived)}</span>
+                                          )}
                                         </div>
                                       </div>
                                     );

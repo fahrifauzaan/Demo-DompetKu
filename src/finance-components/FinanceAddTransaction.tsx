@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore, TransactionType } from '../store/useFinanceStore';
+import FinancePinModal from './FinancePinModal';
 
 const expenseCategories = [
   { name: 'Housing', icon: 'home' },

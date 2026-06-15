@@ -199,7 +199,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
     warningPct = Math.round(((catExpenses - (exceededCategory.allocated * periodMonths)) / (exceededCategory.allocated * periodMonths)) * 100);
   }
 
-  // --- NEW: AI CFO INSIGHTS & FIRE PREDICTOR LOGIC ---
+  // --- NEW: CFO ADVISORY INSIGHTS & FIRE PREDICTOR LOGIC ---
   const currentMonthIncome = transactions
     .filter(tx => tx.type === 'PEMASUKAN' && isTxInPeriod(tx.date))
     .reduce((acc, curr) => acc + Math.abs(curr.amount), 0);
@@ -389,13 +389,22 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
   // Expense Breakdown
   const getExpenseBreakdown = () => {
     const currentExpenses = transactions.filter(tx => tx.type === 'PENGELUARAN' && isTxInPeriod(tx.date));
+    if (currentExpenses.length === 0) {
+      return {
+        pctInvest: 0,
+        pctPokok: 0,
+        pctLifestyle: 0,
+        pctUtang: 0,
+        valLifestyle: 0,
+      };
+    }
+
     let totalInvestasi = 0;
     let totalPokok = 0;
     let totalLifestyle = 0;
     let totalUtang = 0;
 
-    const targetExpenses = currentExpenses.length > 0 ? currentExpenses : transactions.filter(tx => tx.type === 'PENGELUARAN');
-    targetExpenses.forEach(tx => {
+    currentExpenses.forEach(tx => {
       const cat = tx.category.toLowerCase();
       const amt = Math.abs(tx.amount);
       if (cat.includes('investasi') || cat.includes('saham') || cat.includes('reksadana') || cat.includes('tabungan') || cat.includes('pasar') || cat.includes('investment')) {
@@ -658,15 +667,15 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
       {/* Conditional Content Rendering */}
       {activeSubTab === 'summary' && (
         <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-300">
-              {/* --- NEW: AI CFO INSIGHT BENTO BOX --- */}
+              {/* --- NEW: CFO ADVISORY INSIGHT BENTO BOX --- */}
               <div className="bg-gradient-to-br from-primary-container/40 to-surface-container-lowest dark:from-[#a7c8ff]/10 dark:to-transparent border border-primary/20 dark:border-[#a7c8ff]/20 p-6 lg:p-8 rounded-[32px] shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                  <span className="material-symbols-outlined text-9xl">neurology</span>
+                  <span className="material-symbols-outlined text-9xl">analytics</span>
                 </div>
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 mb-6">
-                    <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] animate-pulse">smart_toy</span>
-                    <h3 className="font-extrabold text-lg text-primary dark:text-[#a7c8ff] tracking-tight">AI CFO Insight</h3>
+                    <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] animate-pulse">insights</span>
+                    <h3 className="font-extrabold text-lg text-primary dark:text-[#a7c8ff] tracking-tight">CFO Advisory Insight</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white/60 dark:bg-black/20 backdrop-blur-md border border-white/40 dark:border-white/5 rounded-2xl p-5">
@@ -1001,21 +1010,23 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={[
+                        data={currentMonthExpenses > 0 ? [
                           { name: 'Investasi', value: pctInvest, fill: '#8b5cf6' },
                           { name: 'Kebutuhan Pokok', value: pctPokok, fill: '#3b82f6' },
                           { name: 'Gaya Hidup', value: pctLifestyle, fill: '#10b981' },
                           { name: 'Cicilan/Utang', value: pctUtang, fill: '#f43f5e' }
-                        ].filter(i => i.value > 0)}
+                        ].filter(i => i.value > 0) : [
+                          { name: 'Belum Ada Transaksi', value: 100, fill: 'rgba(128,128,128,0.1)' }
+                        ]}
                         cx="50%"
                         cy="50%"
                         innerRadius={70}
                         outerRadius={82}
-                        paddingAngle={3}
+                        paddingAngle={currentMonthExpenses > 0 ? 3 : 0}
                         dataKey="value"
                         stroke="none"
                       >
-                        {
+                        {currentMonthExpenses > 0 ? (
                           [
                             { name: 'Investasi', value: pctInvest, fill: '#8b5cf6' },
                             { name: 'Kebutuhan Pokok', value: pctPokok, fill: '#3b82f6' },
@@ -1024,44 +1035,56 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
                           ].filter(i => i.value > 0).map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.fill} />
                           ))
-                        }
+                        ) : (
+                          <Cell key="cell-empty" fill="rgba(128,128,128,0.1)" />
+                        )}
                       </Pie>
-                      <Tooltip formatter={(value) => `${value}%`} contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#191c1e', color: '#fff' }} />
+                      {currentMonthExpenses > 0 && (
+                        <Tooltip formatter={(value) => `${value}%`} contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#191c1e', color: '#fff' }} />
+                      )}
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
                 
                 <div className="flex-1 space-y-3 w-full">
-                  {[
-                    { name: 'Investasi', val: pctInvest, amount: currentMonthExpenses * (pctInvest / 100), color: '#8b5cf6' },
-                    { name: 'Kebutuhan Pokok', val: pctPokok, amount: currentMonthExpenses * (pctPokok / 100), color: '#3b82f6' },
-                    { name: 'Gaya Hidup', val: pctLifestyle, amount: currentMonthExpenses * (pctLifestyle / 100), color: '#10b981' },
-                    { name: 'Cicilan/Utang', val: pctUtang, amount: currentMonthExpenses * (pctUtang / 100), color: '#f43f5e' },
-                  ]
-                    .filter(item => item.val > 0)
-                    .map((item, i) => (
-                    <div 
-                      key={i} 
-                      className="p-3 bg-white/40 dark:bg-white/[0.02] backdrop-blur-md border border-white/20 dark:border-white/5 rounded-2xl flex flex-col gap-1.5 hover:bg-white/60 dark:hover:bg-white/[0.05] transition-all group"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 group-hover:text-primary dark:group-hover:text-white transition-colors">{item.name}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 shrink-0">
-                          <span className="text-[9px] font-black text-slate-800 dark:text-white bg-slate-200/50 dark:bg-white/10 px-2 py-0.5 rounded-full">{item.val}%</span>
-                          <span className="text-xs font-black tabular-nums text-slate-800 dark:text-white whitespace-nowrap">Rp {Math.round(item.amount).toLocaleString('id-ID')}</span>
-                        </div>
-                      </div>
-                      <div className="w-full h-1 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                  {currentMonthExpenses > 0 ? (
+                    [
+                      { name: 'Investasi', val: pctInvest, amount: currentMonthExpenses * (pctInvest / 100), color: '#8b5cf6' },
+                      { name: 'Kebutuhan Pokok', val: pctPokok, amount: currentMonthExpenses * (pctPokok / 100), color: '#3b82f6' },
+                      { name: 'Gaya Hidup', val: pctLifestyle, amount: currentMonthExpenses * (pctLifestyle / 100), color: '#10b981' },
+                      { name: 'Cicilan/Utang', val: pctUtang, amount: currentMonthExpenses * (pctUtang / 100), color: '#f43f5e' },
+                    ]
+                      .filter(item => item.val > 0)
+                      .map((item, i) => (
                         <div 
-                          className="h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${item.val}%`, backgroundColor: item.color }}
-                        />
-                      </div>
+                          key={i} 
+                          className="p-3 bg-white/40 dark:bg-white/[0.02] backdrop-blur-md border border-white/20 dark:border-white/5 rounded-2xl flex flex-col gap-1.5 hover:bg-white/60 dark:hover:bg-white/[0.05] transition-all group"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 group-hover:text-primary dark:group-hover:text-white transition-colors">{item.name}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 shrink-0">
+                              <span className="text-[9px] font-black text-slate-800 dark:text-white bg-slate-200/50 dark:bg-white/10 px-2 py-0.5 rounded-full">{item.val}%</span>
+                              <span className="text-xs font-black tabular-nums text-slate-800 dark:text-white whitespace-nowrap">Rp {Math.round(item.amount).toLocaleString('id-ID')}</span>
+                            </div>
+                          </div>
+                          <div className="w-full h-1 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${item.val}%`, backgroundColor: item.color }}
+                            />
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="p-5 bg-white/40 dark:bg-white/[0.02] backdrop-blur-md border border-white/10 dark:border-white/5 rounded-2xl flex flex-col items-center justify-center text-center py-8">
+                      <span className="material-symbols-outlined text-4xl text-outline mb-2">payments</span>
+                      <p className="text-xs text-on-surface-variant dark:text-outline font-bold">Tidak ada pengeluaran</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 max-w-[200px] leading-relaxed">Belum ada transaksi pengeluaran yang tercatat untuk periode ini.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>

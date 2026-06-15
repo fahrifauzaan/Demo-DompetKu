@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 
@@ -8,6 +9,30 @@ interface FinancePortfolioReportProps {
   onNavigate?: (tab: string) => void;
   hideHeader?: boolean;
 }
+
+const getMonthsBetween = (startDateStr: string | undefined, maturityDateStr: string | undefined, totalTenorMonths: number) => {
+  if (!startDateStr) return 0;
+  try {
+    const start = new Date(startDateStr);
+    const now = new Date();
+    if (start > now) return 0;
+    
+    let end = now;
+    if (maturityDateStr) {
+      const maturity = new Date(maturityDateStr);
+      if (maturity < now) {
+        end = maturity;
+      }
+    }
+    
+    const diffYears = end.getFullYear() - start.getFullYear();
+    const diffMonths = (end.getMonth() - start.getMonth()) + (diffYears * 12);
+    
+    return Math.max(0, Math.min(totalTenorMonths, diffMonths));
+  } catch (e) {
+    return 0;
+  }
+};
 
 
 
@@ -18,28 +43,48 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
   const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
   const [timeframe, setTimeframe] = useState<'monthly' | 'yearly'>('monthly');
 
-  const portfolioItems = assets.filter(a => a.category === 'investasi').map(a => ({
-    ...a,
-    ticker: a.ticker || a.title.split(' ')[0] || 'ASSET',
-    shares: a.shares || 1,
-    avgCost: a.avgCost || a.purchasePrice || a.currentValue,
-    subType: a.subType || 'saham'
-  }));
+  // Filter out fully liquidated assets (both purchasePrice and currentValue are 0)
+  const portfolioItems = assets
+    .filter(a => a.category === 'investasi' && (a.purchasePrice > 0 || a.currentValue > 0))
+    .map(a => {
+      const titleLower = (a.title || '').toLowerCase();
+      let subType = a.subType || '';
+      if (!subType) {
+        if (titleLower.includes('st012') || titleLower.includes('sbn') || titleLower.includes('sukuk') || titleLower.includes('obligasi') || titleLower.includes('ori') || titleLower.includes('deposito') || titleLower.includes('p2p')) {
+          subType = 'sbn';
+        } else if (titleLower.includes('reksadana') || titleLower.includes('mutual fund') || titleLower.includes('kolektif') || titleLower.includes('schroder') || titleLower.includes('indeks')) {
+          subType = 'reksadana';
+        } else {
+          subType = 'saham';
+        }
+      }
+      return {
+        ...a,
+        ticker: a.ticker || a.title.split(' ')[0] || 'ASSET',
+        shares: a.shares || 1,
+        avgCost: a.avgCost || a.purchasePrice || a.currentValue,
+        subType
+      };
+    });
 
   const portfolioItemsWithLive = portfolioItems.map(item => {
     const ticker = item.ticker || '';
     const initial = item.purchasePrice || item.currentValue;
     
+    const isFixedIncome = item.subType === 'sbn' || item.subType === 'deposito' || item.subType === 'p2p' || (item.title || '').includes('ST012');
+    
+    // Standard CFA valuation: SBN held to maturity is capital-guaranteed. If current value is 0, default to principal.
     let marketValue = item.currentValue;
+    if (isFixedIncome && marketValue === 0 && initial > 0) {
+      marketValue = initial;
+    }
 
     let pl = marketValue - initial;
     let percentChange = initial > 0 ? (pl / initial) * 100 : 0;
+    let couponsReceived = 0;
 
-    const isFixedIncome = item.subType === 'sbn' || item.subType === 'deposito' || item.subType === 'p2p' || (item.title || '').includes('ST012');
-    const isLiquidated = marketValue === 0;
-
-    if (isLiquidated && isFixedIncome) {
-      const principal = item.purchasePrice || initial;
+    if (isFixedIncome && initial > 0) {
+      const principal = initial;
       // @ts-ignore
       const couponRate = item.interestRate || (item.subType === 'deposito' ? 4.5 : item.subType === 'p2p' ? 12.0 : 6.4);
       // @ts-ignore
@@ -49,8 +94,14 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
       const monthlyNet = Math.round(yearlyNet / 12);
       // @ts-ignore
       const totalTenorMonths = item.tenor !== undefined ? (item.subType === 'sbn' ? item.tenor * 12 : item.tenor) : (item.subType === 'sbn' ? 24 : 12);
-      pl = monthlyNet * totalTenorMonths;
-      percentChange = principal > 0 ? (pl / principal * 100) : 0;
+      
+      // Calculate accrued coupons earned to date based on purchaseDate
+      const elapsedMonths = getMonthsBetween(item.purchaseDate, item.maturityDate, totalTenorMonths);
+      couponsReceived = monthlyNet * elapsedMonths;
+      
+      // CFA Total Return = Capital Gain/Loss + Interest/Coupon Income
+      pl = (marketValue - initial) + couponsReceived;
+      percentChange = (pl / initial) * 100;
     }
     
     let color = 'bg-blue-500';
@@ -70,7 +121,10 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
       marketValue,
       percentChange,
       color,
-      flash: null
+      flash: null,
+      isFixedIncome,
+      couponsReceived,
+      pl
     };
   });
 
@@ -371,91 +425,64 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
               <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] text-xl opacity-50">account_tree</span>
             </div>
             
-            <div className="w-full h-48 mb-8 flex gap-2">
-              {pctInvest + pctCash > 0 && (
-                <div className="flex flex-col gap-2 transition-all duration-500" style={{ flex: `${pctInvest + pctCash} ${pctInvest + pctCash} 0%`, minWidth: 0 }}>
-                   {pctInvest > 0 && (
-                      <div className="bg-primary-container dark:bg-[#a7c8ff] rounded-xl flex flex-col items-center justify-center p-2 relative group transition-all hover:scale-[1.02] cursor-default shadow-sm border border-primary/10 dark:border-[#a7c8ff]/20" style={{ flex: `${pctInvest} ${pctInvest} 0%`, minHeight: 0 }}>
-                        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors rounded-xl"></div>
-                        {pctInvest >= 15 ? (
-                          <>
-                            <span className="text-primary dark:text-[#001b3c] font-extrabold text-xl lg:text-2xl tracking-tighter">{pctInvest}%</span>
-                            <span className="text-[10px] text-primary/70 dark:text-[#001b3c]/70 font-bold uppercase tracking-widest hidden sm:block mt-0.5">Investasi</span>
-                          </>
-                        ) : pctInvest >= 5 ? (
-                          <span className="text-primary dark:text-[#001b3c] font-extrabold text-sm tracking-tighter">{pctInvest}%</span>
-                        ) : null}
-                        {/* Tooltip */}
-                        <div className="bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2.5 rounded-xl shadow-xl whitespace-nowrap z-30 pointer-events-none absolute bottom-[105%] left-1/2 -translate-x-1/2 opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Investasi Berjalan</div>
-                          <div className="text-sm font-extrabold text-primary dark:text-[#a7c8ff]">{formatM(totalInvestments)} ({pctInvest}%)</div>
-                        </div>
-                      </div>
-                   )}
-                   {pctCash > 0 && (
-                      <div className="bg-tertiary-container dark:bg-tertiary-fixed rounded-xl flex flex-col items-center justify-center p-2 relative group transition-all hover:scale-[1.02] cursor-default shadow-sm border border-tertiary/10 dark:border-tertiary-fixed/20" style={{ flex: `${pctCash} ${pctCash} 0%`, minHeight: 0 }}>
-                        <div className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors rounded-xl"></div>
-                        {pctCash >= 15 ? (
-                          <>
-                            <span className="text-tertiary dark:text-[#31111d] font-extrabold text-lg lg:text-xl tracking-tighter">{pctCash}%</span>
-                            <span className="text-[10px] text-tertiary/70 dark:text-[#31111d]/70 font-bold uppercase tracking-widest hidden sm:block mt-0.5">Lancar</span>
-                          </>
-                        ) : pctCash >= 5 ? (
-                          <span className="text-tertiary dark:text-[#31111d] font-extrabold text-sm tracking-tighter">{pctCash}%</span>
-                        ) : null}
-                        {/* Tooltip */}
-                        <div className="bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2.5 rounded-xl shadow-xl whitespace-nowrap z-30 pointer-events-none absolute bottom-[105%] left-1/2 -translate-x-1/2 opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Aset Lancar (Kas)</div>
-                          <div className="text-sm font-extrabold text-tertiary dark:text-tertiary-fixed">{formatM(totalCashClass)} ({pctCash}%)</div>
-                        </div>
-                      </div>
-                   )}
-                </div>
-              )}
-              {pctPhysical > 0 && (
-                 <div className="bg-primary-fixed dark:bg-slate-600 rounded-xl flex flex-col items-center justify-center p-2 relative group transition-all hover:scale-[1.02] cursor-default shadow-sm border border-primary-fixed/20 dark:border-white/10" style={{ flex: `${pctPhysical} ${pctPhysical} 0%`, minWidth: 0 }}>
-                    <div className="absolute inset-0 bg-white/0 group-hover:bg-white/20 transition-colors rounded-xl"></div>
-                    {pctPhysical >= 15 ? (
-                      <>
-                        <span className="text-on-primary-fixed dark:text-white font-extrabold text-lg lg:text-xl tracking-tighter">{pctPhysical}%</span>
-                        <span className="text-[10px] text-on-primary-fixed/70 dark:text-white/70 font-bold uppercase tracking-widest hidden sm:block mt-0.5">Fisik</span>
-                      </>
-                    ) : pctPhysical >= 5 ? (
-                      <span className="text-on-primary-fixed dark:text-white font-extrabold text-sm tracking-tighter">{pctPhysical}%</span>
-                    ) : null}
-                    {/* Tooltip */}
-                    <div className="bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-2.5 rounded-xl shadow-xl whitespace-nowrap z-30 pointer-events-none absolute bottom-[105%] left-1/2 -translate-x-1/2 opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Aset Fisik/Tetap</div>
-                      <div className="text-sm font-extrabold text-on-primary-fixed dark:text-white">{formatM(totalPhysical)} ({pctPhysical}%)</div>
-                    </div>
-                 </div>
-              )}
-            </div>
-            
-            <div className="text-center mb-6 border-b border-outline-variant/10 dark:border-white/10 pb-6">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-slate-400">Total Kekayaan</span>
-              <p className="text-2xl font-extrabold font-headline dark:text-white mt-1 tabular-nums tracking-tight text-primary dark:text-[#a7c8ff]">{formatM(totalCash + totalInvestments + totalPhysical)}</p>
+            <div className="w-full h-52 mb-6 relative flex items-center justify-center">
+              <div className="absolute flex flex-col items-center justify-center text-center pointer-events-none z-20">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-widest uppercase">Total Kekayaan</span>
+                <span className="text-sm lg:text-base font-black text-slate-800 dark:text-white mt-1 tabular-nums tracking-tight whitespace-nowrap">
+                  {formatM(totalCash + totalInvestments + totalPhysical)}
+                </span>
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Investasi Berjalan', value: pctInvest, fill: '#3b82f6' },
+                      { name: 'Aset Lancar (Kas)', value: pctCash, fill: '#f97316' },
+                      { name: 'Aset Fisik/Tetap', value: pctPhysical, fill: '#64748b' }
+                    ].filter(i => i.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={72}
+                    outerRadius={85}
+                    paddingAngle={3}
+                    cornerRadius={4}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {
+                      [
+                        { name: 'Investasi Berjalan', value: pctInvest, fill: '#3b82f6' },
+                        { name: 'Aset Lancar (Kas)', value: pctCash, fill: '#f97316' },
+                        { name: 'Aset Fisik/Tetap', value: pctPhysical, fill: '#64748b' }
+                      ].filter(i => i.value > 0).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))
+                    }
+                  </Pie>
+                  <Tooltip formatter={(value) => `${value}%`} contentStyle={{ borderRadius: '8px', border: 'none', backgroundColor: '#191c1e', color: '#fff' }} />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
           </div>
           
           <div className="space-y-3 font-semibold">
             <div className="flex items-center justify-between group">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-primary-container dark:bg-[#a7c8ff]"></div>
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#3b82f6' }}></div>
                 <span className="text-xs font-semibold text-on-surface dark:text-slate-300 uppercase tracking-wider group-hover:text-primary transition-colors">Investasi Berjalan</span>
               </div>
               <span className="text-sm font-bold dark:text-white">{pctInvest}%</span>
             </div>
             <div className="flex items-center justify-between group">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-tertiary-container dark:bg-tertiary-fixed"></div>
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#f97316' }}></div>
                 <span className="text-xs font-semibold text-on-surface dark:text-slate-300 uppercase tracking-wider group-hover:text-tertiary transition-colors">Aset Lancar (Kas)</span>
               </div>
               <span className="text-sm font-bold dark:text-white">{pctCash}%</span>
             </div>
             <div className="flex items-center justify-between group">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-primary-fixed dark:bg-slate-600"></div>
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#64748b' }}></div>
                 <span className="text-xs font-semibold text-on-surface dark:text-slate-300 uppercase tracking-wider group-hover:text-primary-fixed transition-colors">Aset Fisik/Tetap</span>
               </div>
               <span className="text-sm font-bold dark:text-white">{pctPhysical}%</span>
@@ -488,6 +515,15 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                   const marketValue = item.marketValue;
                   const hasFlash = item.flash;
                   
+                  const getSubtypeLabel = (sub: string) => {
+                    if (sub === 'sbn') return 'SBN (Obligasi)';
+                    if (sub === 'reksadana') return 'Reksa Dana';
+                    if (sub === 'saham') return 'Saham';
+                    if (sub === 'deposito') return 'Deposito';
+                    if (sub === 'p2p') return 'P2P Lending';
+                    return sub.toUpperCase();
+                  };
+                  
                   return (
                     <tr 
                       key={idx} 
@@ -504,7 +540,12 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                           </div>
                           <div>
                             <div className="font-bold text-sm text-on-surface dark:text-white group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">{item.name}</div>
-                            <div className="text-[10px] text-on-surface-variant dark:text-slate-500 mt-0.5 font-medium">{item.symbol}</div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] text-on-surface-variant dark:text-slate-500 font-medium">{item.symbol}</span>
+                              <span className="text-[9px] bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10 px-1.5 py-0.2 rounded font-bold uppercase tracking-wide">
+                                {getSubtypeLabel(item.subType)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -512,8 +553,25 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                       <td className={`px-8 py-5 text-right font-bold text-sm tabular-nums transition-colors duration-500 ${hasFlash === 'up' ? 'text-green-500' : hasFlash === 'down' ? 'text-red-500' : 'text-on-surface dark:text-white'}`}>
                         Rp {marketValue.toLocaleString('id-ID')}
                       </td>
-                      <td className={`px-8 py-5 text-right font-bold text-sm tabular-nums transition-colors duration-500 ${percentChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(2)}%
+                      <td className="px-8 py-5 text-right font-bold text-sm tabular-nums">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className={`flex items-center gap-1 font-bold text-sm transition-colors duration-500 ${percentChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            <span className="material-symbols-outlined text-xs font-black">
+                              {percentChange >= 0 ? 'trending_up' : 'trending_down'}
+                            </span>
+                            {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(2)}%
+                          </span>
+                          {item.isFixedIncome && item.couponsReceived > 0 && (
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500/70 font-semibold">
+                              Kupon: +{formatM(item.couponsReceived)}
+                            </span>
+                          )}
+                          {!item.isFixedIncome && item.pl !== 0 && (
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500/70 font-semibold">
+                              Gain: {item.pl >= 0 ? '+' : ''}{formatM(item.pl)}
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -591,7 +649,7 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
           <div className="flex flex-col h-full justify-between">
             <div>
               <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-[#a7c8ff] mb-6 relative z-10 flex items-center gap-2">
-                <span className="material-symbols-outlined">lightbulb</span> Rekomendasi Rebalancing AI
+                <span className="material-symbols-outlined">lightbulb</span> Rekomendasi Rebalancing Portofolio
               </h3>
               <div className="space-y-3 relative z-10">
                 {finalRecs.map((rec, i) => (
@@ -601,13 +659,57 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                       <span className="text-xs font-bold text-white shadow-sm leading-snug">{rec.act}</span>
                     </div>
                     <div className="text-right font-semibold shrink-0">
-                      <span className="text-[9px] opacity-75 block mb-1 uppercase tracking-widest">Porsi Likuid</span>
+                      <span className="text-[9px] opacity-75 block mb-1 uppercase tracking-widest">Penyesuaian</span>
                       <span className={`text-xs font-bold ${rec.color} bg-black/20 px-2 py-0.5 rounded`}>{rec.target}</span>
                     </div>
                   </div>
                 ))}
               </div>
+              
+              {/* Target vs Actual Asset Allocation Progress */}
+              <div className="mt-6 pt-5 border-t border-white/15 relative z-10">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#a7c8ff] mb-3">Target vs Aktual (Aset Likuid)</h4>
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div className="bg-white/5 border border-white/5 p-2 rounded-lg">
+                    <div className="flex justify-between font-bold text-white mb-1.5">
+                      <span className="opacity-90">Kas</span>
+                      <span className="tabular-nums">{Math.round(wCashLiquid * 100)}% <span className="opacity-50">/ {targetCash}%</span></span>
+                    </div>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-orange-450 rounded-full" style={{ width: `${Math.min(100, (wCashLiquid * 100 / targetCash) * 100)}%`, backgroundColor: '#f97316' }}></div>
+                    </div>
+                  </div>
+                  <div className="bg-white/5 border border-white/5 p-2 rounded-lg">
+                    <div className="flex justify-between font-bold text-white mb-1.5">
+                      <span className="opacity-90">Pend. Tetap</span>
+                      <span className="tabular-nums">{Math.round(wFixedLiquid * 100)}% <span className="opacity-50">/ {targetFixed}%</span></span>
+                    </div>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-450 rounded-full" style={{ width: `${Math.min(100, (wFixedLiquid * 100 / targetFixed) * 100)}%`, backgroundColor: '#f59e0b' }}></div>
+                    </div>
+                  </div>
+                  <div className="bg-white/5 border border-white/5 p-2 rounded-lg">
+                    <div className="flex justify-between font-bold text-white mb-1.5">
+                      <span className="opacity-90">Saham & RD</span>
+                      <span className="tabular-nums">{Math.round(wEquitiesLiquid * 100)}% <span className="opacity-50">/ {targetEquities}%</span></span>
+                    </div>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-450 rounded-full" style={{ width: `${Math.min(100, (wEquitiesLiquid * 100 / targetEquities) * 100)}%`, backgroundColor: '#3b82f6' }}></div>
+                    </div>
+                  </div>
+                  <div className="bg-white/5 border border-white/5 p-2 rounded-lg">
+                    <div className="flex justify-between font-bold text-white mb-1.5">
+                      <span className="opacity-90">Kripto</span>
+                      <span className="tabular-nums">{Math.round(wCryptoLiquid * 100)}% <span className="opacity-50">/ {targetCrypto}%</span></span>
+                    </div>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-purple-450 rounded-full" style={{ width: `${Math.min(100, (wCryptoLiquid * 100 / targetCrypto) * 100)}%`, backgroundColor: '#a855f7' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+            
             <p className="text-[9px] opacity-75 mt-6 relative z-10 leading-tight">
               * Rekomendasi dihitung berdasarkan perbandingan alokasi likuid Anda saat ini dengan target ideal profil risiko <strong>{riskProfileName}</strong>.
             </p>
@@ -646,32 +748,32 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="absolute z-20 bg-white/90 dark:bg-[#191c1e]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 p-4 rounded-2xl shadow-2xl pointer-events-none min-w-[200px]"
+                  className="absolute z-20 bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 p-4 rounded-2xl shadow-2xl pointer-events-none min-w-[200px]"
                   style={{ 
                     left: `calc(${(activePointIndex / (currentData.length - 1)) * 100}% + ${activePointIndex > currentData.length / 2 ? '-220px' : '20px'})`,
                     top: '10%'
                   }}
                 >
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-200 dark:border-white/10 pb-2">{currentData[activePointIndex].label}</div>
+                  <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-200/20 dark:border-white/10 pb-2">{currentData[activePointIndex].label}</div>
                   <div className="space-y-3 font-semibold">
                     <div className="flex justify-between items-center gap-4">
                       <div className="flex items-center gap-2 shrink-0">
-                        <div className="w-2 h-2 rounded-full bg-primary dark:bg-[#a7c8ff]"></div>
-                        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Investasi</span>
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#3b82f6' }}></div>
+                        <span className="text-xs font-medium text-slate-650 dark:text-slate-300">Investasi</span>
                       </div>
                       <span className="text-sm font-bold dark:text-white tabular-nums text-right whitespace-nowrap">{formatM(currentData[activePointIndex].invest)}</span>
                     </div>
                     <div className="flex justify-between items-center gap-4">
                       <div className="flex items-center gap-2 shrink-0">
-                         <div className="w-2 h-2 rounded-full bg-tertiary-container dark:bg-tertiary-fixed"></div>
-                         <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Stabilitas Kas</span>
+                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#f97316' }}></div>
+                         <span className="text-xs font-medium text-slate-650 dark:text-slate-300">Stabilitas Kas</span>
                       </div>
                       <span className="text-sm font-bold dark:text-white tabular-nums text-right whitespace-nowrap">{formatM(currentData[activePointIndex].cash)}</span>
                     </div>
                     <div className="flex justify-between items-center gap-4">
                       <div className="flex items-center gap-2 shrink-0">
-                        <div className="w-2 h-2 rounded-full bg-primary-fixed-dim dark:bg-slate-400"></div>
-                        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Aset Fisik</span>
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#64748b' }}></div>
+                        <span className="text-xs font-medium text-slate-650 dark:text-slate-300">Aset Fisik</span>
                       </div>
                       <span className="text-sm font-bold dark:text-white tabular-nums text-right whitespace-nowrap">{formatM(currentData[activePointIndex].physical)}</span>
                     </div>
@@ -725,10 +827,10 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                       transition={{ duration: 0.8, ease: "easeInOut" }}
                       d={generatePath('yInvest')} 
                       fill="none" 
-                      stroke="currentColor" 
-                      className="text-primary dark:text-[#a7c8ff]" 
+                      stroke="#3b82f6" 
                       strokeWidth="3" 
                       vectorEffect="non-scaling-stroke"
+                      style={{ filter: 'drop-shadow(0px 3px 6px rgba(59, 130, 246, 0.4))' }}
                      />
                      <motion.path 
                       initial={false} 
@@ -736,10 +838,10 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                       transition={{ duration: 0.8, ease: "easeInOut" }}
                       d={generatePath('yCash')} 
                       fill="none" 
-                      stroke="currentColor" 
-                      className="text-tertiary-container dark:text-tertiary-fixed" 
+                      stroke="#f97316" 
                       strokeWidth="2" 
                       vectorEffect="non-scaling-stroke"
+                      style={{ filter: 'drop-shadow(0px 3px 6px rgba(249, 115, 22, 0.4))' }}
                      />
                      <motion.path 
                       initial={false} 
@@ -747,10 +849,10 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                       transition={{ duration: 0.8, ease: "easeInOut" }}
                       d={generatePath('yPhysical')} 
                       fill="none" 
-                      stroke="currentColor" 
-                      className="text-primary-fixed dark:text-slate-400" 
+                      stroke="#64748b" 
                       strokeWidth="2" 
                       vectorEffect="non-scaling-stroke"
+                      style={{ filter: 'drop-shadow(0px 3px 6px rgba(100, 116, 139, 0.4))' }}
                      />
 
                      {/* Vertical Scanner Line */}
@@ -770,9 +872,9 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
                      {/* Points/Markers */}
                      {activePointIndex !== null && (
                        <>
-                          <circle cx={points[activePointIndex].x} cy={points[activePointIndex].yInvest} r="5" fill="white" stroke="currentColor" className="text-primary dark:text-[#a7c8ff]" strokeWidth="2" />
-                          <circle cx={points[activePointIndex].x} cy={points[activePointIndex].yCash} r="4" fill="white" stroke="currentColor" className="text-tertiary-container dark:text-tertiary-fixed" strokeWidth="2" />
-                          <circle cx={points[activePointIndex].x} cy={points[activePointIndex].yPhysical} r="4" fill="white" stroke="currentColor" className="text-primary-fixed dark:text-slate-400" strokeWidth="2" />
+                          <circle cx={points[activePointIndex].x} cy={points[activePointIndex].yInvest} r="5" fill="white" stroke="#3b82f6" strokeWidth="2" />
+                          <circle cx={points[activePointIndex].x} cy={points[activePointIndex].yCash} r="4" fill="white" stroke="#f97316" strokeWidth="2" />
+                          <circle cx={points[activePointIndex].x} cy={points[activePointIndex].yPhysical} r="4" fill="white" stroke="#64748b" strokeWidth="2" />
                        </>
                      )}
 
@@ -810,15 +912,15 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
         
         <div className="mt-10 pt-6 border-t border-outline-variant/10 dark:border-white/10 flex flex-wrap gap-4 md:gap-8 justify-center font-semibold">
           <div className="flex items-center gap-2 group">
-            <span className="w-4 h-1 rounded-full bg-primary dark:bg-[#a7c8ff]"></span>
+            <span className="w-4 h-1 rounded-full" style={{ backgroundColor: '#3b82f6' }}></span>
             <span className="text-xs text-on-surface-variant dark:text-slate-300 transition-colors">Pertumbuhan Investasi</span>
           </div>
           <div className="flex items-center gap-2 group">
-            <span className="w-4 h-1 rounded-full bg-tertiary-container dark:bg-tertiary-fixed"></span>
+            <span className="w-4 h-1 rounded-full" style={{ backgroundColor: '#f97316' }}></span>
             <span className="text-xs text-on-surface-variant dark:text-slate-300 transition-colors">Stabilitas Kas</span>
           </div>
           <div className="flex items-center gap-2 group">
-            <span className="w-4 h-1 rounded-full bg-primary-fixed-dim dark:bg-slate-400"></span>
+            <span className="w-4 h-1 rounded-full" style={{ backgroundColor: '#64748b' }}></span>
             <span className="text-xs text-on-surface-variant dark:text-slate-300 transition-colors">Aset Fisik</span>
           </div>
         </div>

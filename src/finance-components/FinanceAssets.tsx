@@ -10,6 +10,30 @@ interface FinanceAssetsProps {
   onNavigate?: (tab: string) => void;
 }
 
+const getMonthsBetween = (startDateStr: string | undefined, maturityDateStr: string | undefined, totalTenorMonths: number) => {
+  if (!startDateStr) return 0;
+  try {
+    const start = new Date(startDateStr);
+    const now = new Date();
+    if (start > now) return 0;
+    
+    let end = now;
+    if (maturityDateStr) {
+      const maturity = new Date(maturityDateStr);
+      if (maturity < now) {
+        end = maturity;
+      }
+    }
+    
+    const diffYears = end.getFullYear() - start.getFullYear();
+    const diffMonths = (end.getMonth() - start.getMonth()) + (diffYears * 12);
+    
+    return Math.max(0, Math.min(totalTenorMonths, diffMonths));
+  } catch (e) {
+    return 0;
+  }
+};
+
 const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'ikhtisar' | 'real-estat' | 'ekuitas' | 'koleksi'>('ikhtisar');
   const [subTab, setSubTab] = useState<'saham-reksa' | 'sbn-deposito' | 'analisis'>('saham-reksa');
@@ -96,21 +120,64 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
   const pctFisikKoleksi = totalCombinedAssets > 0 ? (fisikKoleksiValue / totalCombinedAssets * 100) : 0;
 
   // Investment-specific performance calculations
-  const activeInvestments = investmentAssets.filter(a => a.currentValue > 0);
-  const liquidatedInvestments = investmentAssets.filter(a => a.currentValue === 0);
+  const activeInvestments = investmentAssets.filter(a => {
+    const isFixedIncome = a.subType === 'sbn' || a.subType === 'deposito' || a.subType === 'p2p' || (a.title || '').includes('ST012');
+    const isMatured = a.maturityDate ? new Date(a.maturityDate) < new Date() : false;
+    const isLiquidated = a.currentValue === 0 && (isMatured || a.purchasePrice === 0);
+    return !isLiquidated && (a.currentValue > 0 || a.purchasePrice > 0);
+  });
+
+  const liquidatedInvestments = investmentAssets.filter(a => {
+    const isFixedIncome = a.subType === 'sbn' || a.subType === 'deposito' || a.subType === 'p2p' || (a.title || '').includes('ST012');
+    const isMatured = a.maturityDate ? new Date(a.maturityDate) < new Date() : false;
+    const isLiquidated = a.currentValue === 0 && (isMatured || a.purchasePrice === 0);
+    return isLiquidated;
+  });
 
   const totalInvestedPrincipal = investmentAssets.reduce((sum, a) => sum + a.purchasePrice, 0);
-  const activeMarketValue = activeInvestments.reduce((sum, a) => sum + a.currentValue, 0);
+  
+  // Calculate active market value defaulting SBN to principal if currentValue is 0
+  const activeMarketValue = activeInvestments.reduce((sum, a) => {
+    const isFixedIncome = a.subType === 'sbn' || a.subType === 'deposito' || a.subType === 'p2p' || (a.title || '').includes('ST012');
+    const val = a.currentValue === 0 && isFixedIncome ? a.purchasePrice : a.currentValue;
+    return sum + val;
+  }, 0);
 
-  // Unrealized P/L for active holdings
-  const totalUnrealizedPL = activeInvestments.reduce((sum, a) => sum + (a.currentValue - a.purchasePrice), 0);
+  // Unrealized P/L for active holdings including coupon interest earned to date for SBN
+  const totalUnrealizedPL = activeInvestments.reduce((sum, a) => {
+    const isFixedIncome = a.subType === 'sbn' || a.subType === 'deposito' || a.subType === 'p2p' || (a.title || '').includes('ST012');
+    const initial = a.purchasePrice;
+    let marketValue = a.currentValue;
+    if (isFixedIncome && marketValue === 0 && initial > 0) {
+      marketValue = initial;
+    }
+    
+    if (isFixedIncome && initial > 0) {
+      const couponRate = a.interestRate || (a.subType === 'deposito' ? 4.5 : a.subType === 'p2p' ? 12.0 : 6.4);
+      // @ts-ignore
+      const taxRate = a.tax !== undefined ? a.tax : (a.subType === 'deposito' ? 0.20 : a.subType === 'p2p' ? 0.15 : 0.10);
+      const yearlyGross = initial * (couponRate / 100);
+      const yearlyNet = yearlyGross * (1 - taxRate);
+      const monthlyNet = Math.round(yearlyNet / 12);
+      // @ts-ignore
+      const totalTenorMonths = a.tenor !== undefined ? (a.subType === 'sbn' ? a.tenor * 12 : a.tenor) : (a.subType === 'sbn' ? 24 : 12);
+      
+      const elapsedMonths = getMonthsBetween(a.purchaseDate, a.maturityDate, totalTenorMonths);
+      const couponsReceived = monthlyNet * elapsedMonths;
+      
+      return sum + (marketValue - initial) + couponsReceived;
+    } else {
+      return sum + (marketValue - initial);
+    }
+  }, 0);
   const unrealizedPLPercent = totalInvestedPrincipal > 0 ? (totalUnrealizedPL / totalInvestedPrincipal * 100) : 0;
 
-  // Realized P/L (Coupon/Interest earned for liquidated fixed income assets)
+  // Realized P/L (Coupon/Interest earned for liquidated/matured fixed income assets)
   const totalRealizedPL = liquidatedInvestments.reduce((sum, a) => {
     const isFixedIncome = a.subType === 'sbn' || a.subType === 'deposito' || a.subType === 'p2p' || (a.title || '').includes('ST012');
     if (isFixedIncome) {
-      const principal = a.purchasePrice;
+      const principal = a.purchasePrice || 0;
+      if (principal === 0) return sum;
       const couponRate = a.interestRate || (a.subType === 'deposito' ? 4.5 : a.subType === 'p2p' ? 12.0 : 6.4);
       // @ts-ignore
       const taxRate = a.tax !== undefined ? a.tax : (a.subType === 'deposito' ? 0.20 : a.subType === 'p2p' ? 0.15 : 0.10);
@@ -185,10 +252,11 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
     investmentAssets.forEach(asset => {
       const isFixedIncome = asset.subType === 'sbn' || asset.subType === 'deposito' || asset.subType === 'p2p' || (asset.title || '').includes('ST012');
-      const isLiquidated = asset.currentValue === 0;
+      const isMatured = asset.maturityDate ? new Date(asset.maturityDate) < new Date() : false;
+      const isLiquidated = asset.currentValue === 0 && (isMatured || asset.purchasePrice === 0);
 
       let pl = 0;
-      if (isLiquidated && isFixedIncome) {
+      if (isFixedIncome && asset.purchasePrice > 0) {
         const principal = asset.purchasePrice;
         const couponRate = asset.interestRate || (asset.subType === 'deposito' ? 4.5 : asset.subType === 'p2p' ? 12.0 : 6.4);
         const taxRate = asset.tax !== undefined ? asset.tax : (asset.subType === 'deposito' ? 0.20 : asset.subType === 'p2p' ? 0.15 : 0.10);
@@ -196,7 +264,12 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
         const yearlyNet = yearlyGross * (1 - taxRate);
         const monthlyNet = Math.round(yearlyNet / 12);
         const totalTenorMonths = asset.tenor !== undefined ? (asset.subType === 'sbn' ? asset.tenor * 12 : asset.tenor) : (asset.subType === 'sbn' ? 24 : 12);
-        pl = monthlyNet * totalTenorMonths;
+        
+        const elapsedMonths = isLiquidated ? totalTenorMonths : getMonthsBetween(asset.purchaseDate, asset.maturityDate, totalTenorMonths);
+        const couponsReceived = monthlyNet * elapsedMonths;
+        const marketValue = (asset.currentValue === 0 && !isMatured) ? principal : asset.currentValue;
+        
+        pl = (marketValue - principal) + couponsReceived;
       } else {
         pl = (asset.currentValue || 0) - (asset.purchasePrice || 0);
       }
@@ -929,13 +1002,17 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                     <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
                       {investmentAssets.map(asset => {
                         const isFixedIncome = asset.subType === 'sbn' || asset.subType === 'deposito' || asset.subType === 'p2p' || (asset.title || '').includes('ST012');
-                        const isLiquidated = asset.currentValue === 0;
+                        const isMatured = asset.maturityDate ? new Date(asset.maturityDate) < new Date() : false;
+                        const isLiquidated = asset.currentValue === 0 && (isMatured || asset.purchasePrice === 0);
 
                         let pl = 0;
                         let plPercent = 0;
+                        let marketValue = asset.currentValue;
+                        if (isFixedIncome && marketValue === 0 && asset.purchasePrice > 0 && !isMatured) {
+                          marketValue = asset.purchasePrice;
+                        }
 
-                        if (isLiquidated && isFixedIncome) {
-                          // Realized coupon calculations for completed fixed income
+                        if (isFixedIncome && asset.purchasePrice > 0) {
                           const principal = asset.purchasePrice;
                           const couponRate = asset.interestRate || (asset.subType === 'deposito' ? 4.5 : asset.subType === 'p2p' ? 12.0 : 6.4);
                           // @ts-ignore
@@ -945,10 +1022,13 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                           const monthlyNet = Math.round(yearlyNet / 12);
                           // @ts-ignore
                           const totalTenorMonths = asset.tenor !== undefined ? (asset.subType === 'sbn' ? asset.tenor * 12 : asset.tenor) : (asset.subType === 'sbn' ? 24 : 12);
-                          pl = monthlyNet * totalTenorMonths;
+                          
+                          const elapsedMonths = isLiquidated ? totalTenorMonths : getMonthsBetween(asset.purchaseDate, asset.maturityDate, totalTenorMonths);
+                          const couponsReceived = monthlyNet * elapsedMonths;
+                          pl = (marketValue - principal) + couponsReceived;
                           plPercent = principal > 0 ? (pl / principal * 100) : 0;
                         } else {
-                          pl = asset.currentValue - asset.purchasePrice;
+                          pl = marketValue - asset.purchasePrice;
                           plPercent = asset.purchasePrice > 0 ? (pl / asset.purchasePrice * 100) : 0;
                         }
 
@@ -1007,7 +1087,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                                   <span className="text-[9px] font-semibold text-outline-variant uppercase">Sudah Likuid</span>
                                 </div>
                               ) : (
-                                `Rp ${asset.currentValue.toLocaleString('id-ID')}`
+                                `Rp ${marketValue.toLocaleString('id-ID')}`
                               )}
                             </td>
                             <td className="px-6 lg:px-8 py-4 lg:py-5 text-right tabular-nums">
@@ -1281,7 +1361,8 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                       {fixedIncomeAssets.map(asset => {
-                        const isLiquidated = asset.currentValue === 0;
+                        const isMatured = asset.maturityDate ? new Date(asset.maturityDate) < new Date() : false;
+                        const isLiquidated = asset.currentValue === 0 && (isMatured || asset.purchasePrice === 0);
 
                         // Kupon calculations
                         const principal = asset.purchasePrice;
@@ -1291,7 +1372,10 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                         const yearlyNet = yearlyGross * (1 - taxRate);
                         const monthlyNet = Math.round(yearlyNet / 12);
                         const totalTenorMonths = asset.tenor !== undefined ? (asset.subType === 'sbn' ? asset.tenor * 12 : asset.tenor) : (asset.subType === 'sbn' ? 24 : 12);
-                        const totalReceivedNet = monthlyNet * totalTenorMonths;
+                        
+                        const elapsedMonths = isLiquidated ? totalTenorMonths : getMonthsBetween(asset.purchaseDate, asset.maturityDate, totalTenorMonths);
+                        const progressPercent = Math.round((elapsedMonths / totalTenorMonths) * 100);
+                        const totalReceivedNet = monthlyNet * elapsedMonths;
 
                         let tagText = 'Surat Berharga Negara';
                         let iconName = 'account_balance';
@@ -1303,17 +1387,17 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                         if (asset.subType === 'deposito') {
                           tagText = 'Deposito Berjangka';
                           iconName = 'savings';
-                          subDesc = `Bank ${asset.location} • Deposito Terjamin LPS`;
+                          subDesc = `Penempatan via ${asset.location} • Jaminan LPS`;
                           payoutLabel = 'Bunga Bulanan';
-                          iconClass = 'bg-emerald-500/10 dark:bg-[#a7c8ff]/10 border-emerald-500/20 text-emerald-600 dark:text-[#a7c8ff]';
-                          tagClass = 'text-emerald-600 dark:text-[#a7c8ff] bg-emerald-500/10 dark:bg-[#a7c8ff]/10 border border-emerald-500/20';
+                          iconClass = 'bg-blue-500/10 dark:bg-blue-400/10 border-blue-500/20 text-blue-600 dark:text-blue-400';
+                          tagClass = 'text-blue-600 dark:text-blue-400 bg-blue-500/10 dark:bg-blue-400/10 border border-blue-500/20';
                         } else if (asset.subType === 'p2p') {
                           tagText = 'P2P Lending';
-                          iconName = 'trending_up';
-                          subDesc = `Penyaluran via ${asset.location} • Peer-to-Peer Lending`;
-                          payoutLabel = 'Imbal Hasil Bulanan';
-                          iconClass = 'bg-sky-500/10 dark:bg-sky-400/10 border-sky-500/20 text-sky-600 dark:text-sky-400';
-                          tagClass = 'text-sky-600 dark:text-sky-400 bg-sky-500/10 dark:bg-sky-400/10 border border-sky-500/20';
+                          iconName = 'group';
+                          subDesc = `Pendanaan via ${asset.location} • Proteksi Asuransi`;
+                          payoutLabel = 'Imbal Hasil';
+                          iconClass = 'bg-green-500/10 dark:bg-green-400/10 border-green-500/20 text-green-600 dark:text-green-400';
+                          tagClass = 'text-green-600 dark:text-green-400 bg-green-500/10 dark:bg-green-400/10 border border-green-500/20';
                         }
 
                         return (
@@ -1368,11 +1452,11 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                               {/* Progress and Tenure details */}
                               <div className="space-y-3">
                                 <div className="flex justify-between text-xs font-bold text-on-surface-variant dark:text-outline">
-                                  <span>Progres Tenor: {totalTenorMonths}/{totalTenorMonths} Bulan (100% Selesai)</span>
+                                  <span>Progres Tenor: {elapsedMonths}/{totalTenorMonths} Bulan ({progressPercent}% Selesai)</span>
                                   <span className="text-amber-600 dark:text-amber-400 font-extrabold">Jatuh Tempo: {asset.maturityDate ? new Date(asset.maturityDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Selesai'}</span>
                                 </div>
                                 <div className="w-full h-2.5 bg-surface-container-high dark:bg-white/10 rounded-full overflow-hidden border border-outline-variant/10 dark:border-white/5">
-                                  <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 dark:from-amber-400 dark:to-amber-300 rounded-full relative animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.4)]" style={{ width: '100%' }}></div>
+                                  <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 dark:from-amber-400 dark:to-amber-300 rounded-full relative transition-all duration-500 shadow-[0_0_8px_rgba(245,158,11,0.2)]" style={{ width: `${progressPercent}%` }}></div>
                                 </div>
                                 <p className="text-[10px] text-tertiary-container dark:text-tertiary-fixed font-bold uppercase tracking-wider flex items-center gap-1.5 mt-2">
                                   <span className="material-symbols-outlined text-[14px]">monetization_on</span>
@@ -1393,7 +1477,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                                     </p>
                                   </div>
                                 </div>
-                              ) : (
+                              ) : isMatured ? (
                                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                   <div className="space-y-1 flex-1">
                                     <h5 className="text-sm font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
@@ -1413,15 +1497,24 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                                       const defaultAcc = accounts.find(a => a.name.toLowerCase().includes('bca')) || accounts[0];
                                       if (defaultAcc) {
                                         setSelectedAccountIdForLiquidation(defaultAcc.id);
+                                        setSelectedAssetForLiquidation(asset);
+                                        setIsLiquidationOpen(true);
                                       }
-                                      setSelectedAssetForLiquidation(asset);
-                                      setIsLiquidationOpen(true);
                                     }}
-                                    className="w-full md:w-auto shrink-0 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-extrabold px-6 py-3 rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all text-xs lg:text-sm uppercase tracking-wider flex items-center justify-center gap-2 border border-amber-400/20 cursor-pointer"
+                                    className="bg-amber-500 dark:bg-amber-400 text-white dark:text-black font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-amber-600 dark:hover:bg-amber-300 shadow-sm active:scale-95 transition-all shrink-0 cursor-pointer"
                                   >
-                                    <span className="material-symbols-outlined text-lg">local_atm</span>
-                                    Cairkan Pokok
+                                    Cairkan Sekarang
                                   </button>
+                                </div>
+                              ) : (
+                                <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-5 flex items-start gap-4">
+                                  <span className="material-symbols-outlined text-blue-600 dark:text-[#a7c8ff] text-3xl font-bold">shield_with_heart</span>
+                                  <div className="space-y-1">
+                                    <h5 className="text-sm font-extrabold text-blue-600 dark:text-[#a7c8ff]">Investasi Aktif &amp; Berjalan</h5>
+                                    <p className="text-xs text-on-surface-variant dark:text-slate-300 leading-relaxed font-medium font-semibold">
+                                      Instrumen ini aktif menghasilkan kupon bersih sebesar <strong className="dark:text-white">Rp {monthlyNet.toLocaleString('id-ID')}/bulan</strong>. Nilai pokok dijamin penuh dan akan jatuh tempo pada tanggal <strong className="dark:text-white">{asset.maturityDate ? new Date(asset.maturityDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</strong>.
+                                    </p>
+                                  </div>
                                 </div>
                               )}
                             </div>
