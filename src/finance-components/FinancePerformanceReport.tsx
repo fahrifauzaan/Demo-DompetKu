@@ -523,6 +523,43 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
     return bVal - aVal;
   });
 
+  const getSectorStyles = (key: string, isMain: boolean) => {
+    let cardBg = '';
+    let textCol = '';
+    let titleCol = '';
+    let pctBadge = '';
+    let hoverBorder = '';
+    const meta = SECTORS_META[key as keyof typeof SECTORS_META];
+    const icon = meta.icon;
+
+    if (key === 'saham') {
+      cardBg = isMain 
+        ? 'bg-gradient-to-br from-[#f97316] to-[#d97706] text-white' 
+        : 'bg-orange-50/50 dark:bg-orange-500/5 border border-orange-100 dark:border-orange-500/10 text-orange-600 dark:text-orange-400';
+      textCol = isMain ? 'text-white/80' : 'text-orange-600 dark:text-orange-450';
+      titleCol = isMain ? 'text-white' : 'text-slate-800 dark:text-slate-200';
+      pctBadge = isMain ? 'bg-white/15 text-white' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400';
+      hoverBorder = 'hover:border-orange-500';
+    } else if (key === 'reksadana') {
+      cardBg = isMain 
+        ? 'bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white' 
+        : 'bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/10 text-blue-600 dark:text-blue-400';
+      textCol = isMain ? 'text-white/80' : 'text-blue-600 dark:text-blue-400';
+      titleCol = isMain ? 'text-white' : 'text-slate-800 dark:text-slate-200';
+      pctBadge = isMain ? 'bg-white/15 text-white' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
+      hoverBorder = 'hover:border-blue-500';
+    } else {
+      cardBg = isMain 
+        ? 'bg-gradient-to-br from-[#10b981] to-[#059669] text-white' 
+        : 'bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 text-emerald-600 dark:text-emerald-400';
+      textCol = isMain ? 'text-white/80' : 'text-emerald-600 dark:text-emerald-450';
+      titleCol = isMain ? 'text-white' : 'text-slate-800 dark:text-slate-200';
+      pctBadge = isMain ? 'bg-white/15 text-white' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450';
+      hoverBorder = 'hover:border-emerald-500';
+    }
+    return { cardBg, textCol, titleCol, pctBadge, hoverBorder, icon };
+  };
+
   return (
     <div className="space-y-8 lg:space-y-12 animate-in fade-in duration-500 pb-12">
       
@@ -572,7 +609,7 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
           </div>
 
           {/* Interactive SVG Line Chart */}
-          <div className="h-56 relative flex items-end justify-between gap-1 px-2 border-b border-outline-variant/20 dark:border-white/10 mb-4 cursor-crosshair group">
+          <div className="flex-1 min-h-[300px] md:min-h-[380px] relative flex items-end justify-between gap-1 px-2 border-b border-outline-variant/20 dark:border-white/10 mb-8 cursor-crosshair group">
             <svg className="absolute inset-0 w-full h-full preserve-3d" fill="none" preserveAspectRatio="none" viewBox="0 0 1000 200">
               {/* Grid Lines */}
               {[40, 80, 120, 160].map((y) => (
@@ -683,7 +720,7 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 md:gap-6 mt-12">
+          <div className="grid grid-cols-3 gap-3 md:gap-6 mt-auto pt-6">
             <div className="bg-surface-container-low/50 dark:bg-white/5 p-3 md:p-4 rounded-xl border border-outline-variant/10 dark:border-white/10 transition-colors duration-500">
               <span className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 uppercase tracking-widest block mb-1">Return Portofolio</span>
               <div className="flex items-baseline gap-1">
@@ -810,7 +847,7 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
         </section>
 
         {/* Visualisasi Alokasi Modal (Treemap Mockup sorted dynamically) */}
-        <section className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px] shadow-sm flex flex-col justify-between">
+        <section className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px] shadow-sm flex flex-col">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-2">
             <h3 className="font-headline text-sm uppercase tracking-widest font-bold text-on-surface dark:text-white">Visualisasi Alokasi Modal Sektoral</h3>
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant dark:text-slate-400 bg-surface-container-low dark:bg-white/5 py-1 px-2.5 rounded shadow-sm">
@@ -818,58 +855,22 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-5 md:grid-rows-2 gap-3 h-auto md:h-72">
-            {renderOrder.map((key, index) => {
-              const isMain = index === 0;
+          <div className="flex flex-col md:flex-row gap-3 flex-1 min-h-[280px] w-full">
+            {/* Main Card (Left) */}
+            {(() => {
+              const key = renderOrder[0];
+              if (!key) return null;
               const meta = SECTORS_META[key as keyof typeof SECTORS_META];
               const perf = sectorPerformance[key] || { totalInitial: 0, totalMarketValue: 0, pl: 0, percentChange: 0, itemCount: 0 };
               const pct = key === 'saham' ? pctSaham : key === 'reksadana' ? pctReksadana : pctSbn;
-              
-              let cardBg = '';
-              let textCol = '';
-              let titleCol = '';
-              let pctBadge = '';
-              let hoverBorder = '';
-              let icon = meta.icon;
-              
-              if (key === 'saham') {
-                cardBg = isMain 
-                  ? 'bg-gradient-to-br from-[#f97316] to-[#d97706] text-white' 
-                  : 'bg-orange-50/50 dark:bg-orange-500/5 border border-orange-100 dark:border-orange-500/10 text-orange-600 dark:text-orange-400';
-                textCol = isMain ? 'text-white/80' : 'text-orange-600 dark:text-orange-450';
-                titleCol = isMain ? 'text-white' : 'text-slate-800 dark:text-slate-200';
-                pctBadge = isMain ? 'bg-white/15 text-white' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400';
-                hoverBorder = 'hover:border-orange-500';
-              } else if (key === 'reksadana') {
-                cardBg = isMain 
-                  ? 'bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white' 
-                  : 'bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/10 text-blue-600 dark:text-blue-400';
-                textCol = isMain ? 'text-white/80' : 'text-blue-600 dark:text-blue-400';
-                titleCol = isMain ? 'text-white' : 'text-slate-800 dark:text-slate-200';
-                pctBadge = isMain ? 'bg-white/15 text-white' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400';
-                hoverBorder = 'hover:border-blue-500';
-              } else {
-                cardBg = isMain 
-                  ? 'bg-gradient-to-br from-[#10b981] to-[#059669] text-white' 
-                  : 'bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-100 dark:border-emerald-500/10 text-emerald-600 dark:text-emerald-400';
-                textCol = isMain ? 'text-white/80' : 'text-emerald-600 dark:text-emerald-450';
-                titleCol = isMain ? 'text-white' : 'text-slate-800 dark:text-slate-200';
-                pctBadge = isMain ? 'bg-white/15 text-white' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450';
-                hoverBorder = 'hover:border-emerald-500';
-              }
-
+              const { cardBg, titleCol, pctBadge, hoverBorder, icon } = getSectorStyles(key, true);
               const targetPct = key === 'saham' ? 50 : key === 'reksadana' ? 30 : 20;
               const deviation = pct - targetPct;
-              const devText = deviation === 0 
-                ? 'On Target' 
-                : `${deviation > 0 ? '+' : ''}${deviation}% deviasi`;
+              const devText = deviation === 0 ? 'On Target' : `${deviation > 0 ? '+' : ''}${deviation}% deviasi`;
 
               return (
                 <div 
-                  key={key}
-                  className={`rounded-[20px] p-6 flex flex-col justify-between group cursor-pointer border-2 border-transparent transition-all shadow-md relative overflow-hidden ${cardBg} ${hoverBorder} ${
-                    isMain ? 'md:col-span-3 md:row-span-2 h-auto md:h-72' : 'md:col-span-2'
-                  }`}
+                  className={`rounded-[20px] p-6 flex flex-col justify-between group cursor-pointer border-2 border-transparent transition-all shadow-md relative overflow-hidden w-full md:w-3/5 h-64 md:h-full ${cardBg} ${hoverBorder}`}
                   onClick={() => toggleSector(key)}
                 >
                   <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-125 transition-transform duration-700 pointer-events-none">
@@ -878,24 +879,63 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
                   <div className="relative z-10 flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className={`text-[10px] md:text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded ${pctBadge}`}>{pct}% Portofolio</span>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${isMain ? 'bg-white/10 text-white' : (deviation > 0 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400')}`}>{devText}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-white/10 text-white">{devText}</span>
                     </div>
-                    <h4 className={`font-headline font-bold mt-2 ${isMain ? 'text-2xl md:text-3xl text-white' : 'text-lg md:text-xl text-on-surface dark:text-white'}`}>{meta.name}</h4>
+                    <h4 className="font-headline font-bold mt-2 text-2xl md:text-3xl text-white">{meta.name}</h4>
                   </div>
                   <div className="flex justify-between items-end relative z-10 mt-6 md:mt-0">
                     <div className="flex flex-col">
-                      <span className={`text-xl md:text-2xl font-bold tabular-nums ${perf.percentChange >= 0 ? (isMain ? 'text-white' : 'text-green-500') : (isMain ? 'text-white' : 'text-red-500')}`}>
+                      <span className="text-xl md:text-2xl font-bold tabular-nums text-white">
                         {perf.percentChange >= 0 ? '+' : ''}{perf.percentChange.toFixed(1)}%
                       </span>
-                      <span className={`text-[10px] ${isMain ? 'text-white/60' : 'text-slate-400 dark:text-slate-500'} font-medium`}>Target: {targetPct}%</span>
+                      <span className="text-[10px] text-white/60 font-medium">Target: {targetPct}%</span>
                     </div>
-                    {isMain && (
-                      <span className="material-symbols-outlined text-white opacity-20 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 text-3xl">trending_up</span>
-                    )}
+                    <span className="material-symbols-outlined text-white opacity-20 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 text-3xl">trending_up</span>
                   </div>
                 </div>
               );
-            })}
+            })()}
+
+            {/* Right Column Stack */}
+            <div className="w-full md:w-2/5 flex flex-col gap-3 h-full justify-between">
+              {[renderOrder[1], renderOrder[2]].map((key) => {
+                if (!key) return null;
+                const meta = SECTORS_META[key as keyof typeof SECTORS_META];
+                const perf = sectorPerformance[key] || { totalInitial: 0, totalMarketValue: 0, pl: 0, percentChange: 0, itemCount: 0 };
+                const pct = key === 'saham' ? pctSaham : key === 'reksadana' ? pctReksadana : pctSbn;
+                const { cardBg, titleCol, pctBadge, hoverBorder, icon } = getSectorStyles(key, false);
+                const targetPct = key === 'saham' ? 50 : key === 'reksadana' ? 30 : 20;
+                const deviation = pct - targetPct;
+                const devText = deviation === 0 ? 'On Target' : `${deviation > 0 ? '+' : ''}${deviation}% deviasi`;
+
+                return (
+                  <div 
+                    key={key}
+                    className={`rounded-[20px] p-5 flex flex-col justify-between group cursor-pointer border-2 border-transparent transition-all shadow-md relative overflow-hidden flex-1 ${cardBg} ${hoverBorder}`}
+                    onClick={() => toggleSector(key)}
+                  >
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-700 pointer-events-none">
+                      <span className="material-symbols-outlined text-5xl">{icon}</span>
+                    </div>
+                    <div className="relative z-10 flex flex-col gap-0.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${pctBadge}`}>{pct}% Portofolio</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${deviation > 0 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'}`}>{devText}</span>
+                      </div>
+                      <h4 className={`font-headline font-bold mt-1 text-sm md:text-base ${titleCol}`}>{meta.name}</h4>
+                    </div>
+                    <div className="flex justify-between items-end relative z-10 mt-2">
+                      <div className="flex flex-col">
+                        <span className={`text-base md:text-lg font-bold tabular-nums ${perf.percentChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {perf.percentChange >= 0 ? '+' : ''}{perf.percentChange.toFixed(1)}%
+                        </span>
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">Target: {targetPct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </section>
 
