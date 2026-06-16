@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useGoogleLogin } from '@react-oauth/google';
-import { copyTemplateSpreadsheet, findAppSpreadsheet } from '../services/googleApiService';
+import { copyTemplateSpreadsheet } from '../services/googleApiService';
 import { useFinanceStore } from '../store/useFinanceStore';
 
 interface Toast {
@@ -80,9 +80,6 @@ const FinanceLogin: React.FC = () => {
   } | null>(null);
   const [isCopying, setIsCopying] = useState(false);
 
-  // Custom DB State
-  const [customDbName, setCustomDbName] = useState('');
-  const [showCustomDbInput, setShowCustomDbInput] = useState(false);
 
   // Show Toast Helper
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -522,34 +519,6 @@ const FinanceLogin: React.FC = () => {
                         <span>Masuk dengan Akun Google</span>
                       </button>
 
-                      {/* Custom DB Name Toggle & Input */}
-                      <div className="mt-4">
-                        <button
-                          type="button"
-                          onClick={() => setShowCustomDbInput(!showCustomDbInput)}
-                          className="text-[10px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 w-full text-center hover:underline cursor-pointer transition-colors"
-                        >
-                          {showCustomDbInput ? 'Sembunyikan Opsi Pencarian Kustom' : 'Saya punya nama file database sendiri'}
-                        </button>
-
-                        {showCustomDbInput && (
-                          <div className="mt-3 bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10 animate-fade-in">
-                            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">
-                              Nama File Google Sheets Anda
-                            </label>
-                            <input
-                              type="text"
-                              value={customDbName}
-                              onChange={(e) => setCustomDbName(e.target.value)}
-                              placeholder="Misal: Data Keuangan Marcelena dan Fakhri"
-                              className="apple-input py-2.5 px-3 text-xs w-full mb-1.5"
-                            />
-                            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-tight">
-                              Isi jika nama file database di Google Drive Anda bukan "DompetKu Database". Pastikan namanya persis sama.
-                            </p>
-                          </div>
-                        )}
-                      </div>
 
                       {/* Demo Account Quick Pickers */}
                       <div className="mt-8">
