@@ -3,6 +3,51 @@ import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore, TransactionType } from '../store/useFinanceStore';
 import FinancePinModal from './FinancePinModal';
 
+const categoryTranslations: Record<string, string> = {
+  // Expense
+  'Housing': 'Tempat Tinggal / KPR',
+  'Food': 'Makanan & Minuman',
+  'Utilities': 'Tagihan Listrik & Air',
+  'Healthcare': 'Kesehatan & Obat',
+  'Transportation': 'Transportasi & Bensin',
+  'Debt': 'Cicilan & Pelunasan Utang',
+  'Personal Care': 'Perawatan Diri',
+  'Education': 'Pendidikan & Kursus',
+  'Childcare': 'Kebutuhan Anak',
+  'Household': 'Perabotan Rumah Tangga',
+  'Pets': 'Hewan Peliharaan',
+  'Clothing and Accessories': 'Pakaian & Aksesoris',
+  'Insurance': 'Premi Asuransi',
+  'Work Expenses': 'Pengeluaran Kerja/Bisnis',
+  'Entertainment': 'Hiburan & Hobi',
+  'Gift': 'Kado & Donasi',
+  'Travel': 'Travel & Liburan',
+  'Subscription': 'Layanan Berlangganan',
+  'Bills': 'Tagihan Bulanan',
+  
+  // Income
+  'Salary': 'Gaji Pokok',
+  'Partner Salary': 'Gaji Pasangan',
+  'Side Hustle / Freelance': 'Pekerjaan Sampingan',
+  'Business Income': 'Pendapatan Bisnis',
+  'Investments Income / Dividends / Capital Gains': 'Dividen & Investasi',
+  'Rental Income': 'Uang Sewa / Kost',
+  'Commissions': 'Komisi & Insentif',
+  'Bonuses': 'Bonus & THR',
+  'Pension Income': 'Uang Pensiun',
+  'Scholarships / Grants': 'Beasiswa & Hibah',
+  'Inheritance': 'Warisan',
+  'Lottery / Gambling Winnings': 'Undian & Hadiah',
+  'Gifts': 'Pemberian / Angpao',
+  'Refunds / Reimbursements': 'Reimbursement Kerja',
+  'Others': 'Pendapatan Lainnya',
+};
+
+const translateCategory = (catName: string, isIndonesian: boolean): string => {
+  if (!isIndonesian) return catName;
+  return categoryTranslations[catName] || catName;
+};
+
 const expenseCategories = [
   { name: 'Housing', icon: 'home' },
   { name: 'Food', icon: 'restaurant' },
@@ -71,6 +116,15 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
   const settings = useFinanceStore(state => state.settings);
   const isPinActive = settings.find(s => s.key === 'security_pinActive')?.value === 'true';
   const savedPin = settings.find(s => s.key === 'security_pin')?.value || '';
+  const currentLanguage = settings.find(s => s.key === 'language')?.value || 'Bahasa Indonesia';
+  const isIndo = currentLanguage === 'Bahasa Indonesia';
+
+  const getFontSizeClass = (len: number) => {
+    if (len > 15) return 'text-2xl md:text-3xl';
+    if (len > 12) return 'text-3xl md:text-4xl';
+    if (len > 9) return 'text-4xl md:text-5xl';
+    return 'text-5xl';
+  };
 
   const currentCategories = transactionType === 'pemasukan' 
     ? incomeCategories 
@@ -400,7 +454,7 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
               <div className="flex items-baseline justify-center gap-2 border-b-2 border-primary-container/10 dark:border-white/10 pb-4 focus-within:border-primary dark:focus-within:border-[#a7c8ff] transition-all group max-w-md mx-auto">
                 <span className="font-headline text-2xl font-bold text-on-surface-variant dark:text-slate-400 group-focus-within:text-primary dark:group-focus-within:text-[#a7c8ff] transition-colors">Rp</span>
                 <input 
-                  className="w-full bg-transparent border-none p-0 font-headline text-5xl font-extrabold text-primary dark:text-[#a7c8ff] text-center tabular-nums focus:ring-0 placeholder:text-surface-container-high dark:placeholder:text-white/20 transition-colors" 
+                  className={`w-full bg-transparent border-none p-0 font-headline font-extrabold text-primary dark:text-[#a7c8ff] text-center tabular-nums focus:ring-0 placeholder:text-surface-container-high dark:placeholder:text-white/20 transition-all duration-200 ${getFontSizeClass(amount.length)}`} 
                   placeholder="0" 
                   type="text" 
                   value={amount}
@@ -452,7 +506,9 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
                     <div className="relative group">
                       <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-surface-container-low dark:bg-white/5 border-none rounded-xl py-3.5 px-4 text-on-surface dark:text-white font-medium appearance-none focus:ring-2 focus:ring-primary-container/20 dark:focus:ring-white/20 transition-all cursor-pointer">
                         {currentCategories.map(cat => (
-                          <option key={cat.name} value={cat.name} className="bg-surface-container dark:bg-slate-900 text-on-surface dark:text-white">{cat.name}</option>
+                          <option key={cat.name} value={cat.name} className="bg-surface-container dark:bg-slate-900 text-on-surface dark:text-white">
+                            {translateCategory(cat.name, isIndo)}
+                          </option>
                         ))}
                       </select>
                       <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant dark:text-outline">keyboard_arrow_down</span>
@@ -549,12 +605,18 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
               
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-wider">Estimasi Jumlah</span>
-                <h3 className={`font-headline text-3xl font-extrabold tabular-nums transition-colors duration-300 ${
+                <h3 className={`font-headline font-extrabold tabular-nums transition-all duration-300 ${
                   transactionType === 'pengeluaran' 
                     ? 'text-error dark:text-[#ffb4ab]' 
                     : transactionType === 'pemasukan' 
                       ? 'text-emerald-500 dark:text-emerald-400' 
                       : 'text-primary dark:text-[#a7c8ff]'
+                } ${
+                  amount.length > 15 
+                    ? 'text-xl' 
+                    : amount.length > 12 
+                      ? 'text-2xl' 
+                      : 'text-3xl'
                 }`}>
                   {transactionType === 'pengeluaran' ? '-' : transactionType === 'pemasukan' ? '+' : ''}Rp {rawAmount.toLocaleString('id-ID')}
                 </h3>
@@ -586,7 +648,7 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
                   <span className="material-symbols-outlined text-sm">
                     {transactionType === 'transfer' ? 'swap_horiz' : (currentCategories.find(c => c.name === category)?.icon || 'receipt_long')}
                   </span>
-                  {transactionType === 'transfer' ? 'Transfer Saldo' : category}
+                  {transactionType === 'transfer' ? 'Transfer Saldo' : translateCategory(category, isIndo)}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
@@ -677,7 +739,7 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
               {transactionType === 'pengeluaran' && (
                 <div className="pt-3 border-t border-outline-variant/10 dark:border-white/5">
                   <div className="flex justify-between items-center text-[10px] uppercase tracking-wider text-on-surface-variant dark:text-outline font-bold mb-1.5">
-                    <span>Anggaran Kategori: {category}</span>
+                    <span>Anggaran Kategori: {translateCategory(category, isIndo)}</span>
                     <span>{usagePercent}% terpakai</span>
                   </div>
                   <div className="h-2 w-full bg-surface-container-high dark:bg-white/10 rounded-full overflow-hidden">
