@@ -134,27 +134,25 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
       }
     };
 
-    upsertSetting('userName', profileName);
-    upsertSetting('email', profileEmail);
-    upsertSetting('phone', profilePhone);
-    upsertSetting('currency', currency);
-    upsertSetting('language', language);
-    upsertSetting('pekerjaan', profileJob);
+    if (activeSection === 'profil') {
+      upsertSetting('userName', profileName);
+      upsertSetting('email', profileEmail);
+      upsertSetting('phone', profilePhone);
+      upsertSetting('pekerjaan', profileJob);
+    } else if (activeSection === 'preferensi') {
+      upsertSetting('currency', currency);
+      upsertSetting('language', language);
+    } else if (activeSection === 'notifikasi') {
+      upsertSetting('notification_budgetAlert', String(notifications.budgetAlert));
+      upsertSetting('notification_billReminder', String(notifications.billReminder));
+      upsertSetting('notification_marketing', String(notifications.marketing));
+      upsertSetting('notification_security', String(notifications.security));
+    }
 
-    // Save notification toggles
-    upsertSetting('notification_budgetAlert', String(notifications.budgetAlert));
-    upsertSetting('notification_billReminder', String(notifications.billReminder));
-    upsertSetting('notification_marketing', String(notifications.marketing));
-    upsertSetting('notification_security', String(notifications.security));
-
-    // Save security toggles
-    upsertSetting('security_pinActive', String(securitySettings.pinActive));
-    upsertSetting('security_twoFactorActive', String(securitySettings.twoFactorActive));
-
-    // Save password
-    const passToSave = typeof overridePassword === 'string' ? overridePassword : profilePassword;
-    upsertSetting('last_password', passToSave);
+    // Save password ONLY when explicitly updating password (e.g. from the change password modal)
+    const passToSave = typeof overridePassword === 'string' ? overridePassword : getSetting('last_password', 'password123');
     if (typeof overridePassword === 'string') {
+      upsertSetting('last_password', overridePassword);
       upsertSetting('last_password_updated', new Date().toISOString());
       setLastPasswordUpdated(new Date().toISOString());
     }
@@ -162,9 +160,11 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
     // Save to Finance Store settings
     await updateSettings(updatedSettings);
 
-    // Sync back to Auth Store
-    if (user) {
-      signup(profileEmail, passToSave, profileName, user.photoURL);
+    // Sync back to Auth Store if profile or password changed
+    if (user && (activeSection === 'profil' || typeof overridePassword === 'string')) {
+      const nameToSave = activeSection === 'profil' ? profileName : getSetting('userName', 'Admin Demo User');
+      const emailToSave = activeSection === 'profil' ? profileEmail : getSetting('email', '');
+      signup(emailToSave, passToSave, nameToSave, user.photoURL);
     }
     
     // Auto sync if user is logged in with Google (in case spreadsheet ID changed)
