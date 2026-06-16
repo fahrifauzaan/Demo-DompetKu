@@ -198,7 +198,13 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ success: true, data: result }))
+    var activeSS = SpreadsheetApp.getActiveSpreadsheet();
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: true, 
+      spreadsheetId: activeSS.getId(),
+      spreadsheetUrl: activeSS.getUrl(),
+      data: result 
+    }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {

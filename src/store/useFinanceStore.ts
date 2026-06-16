@@ -645,6 +645,20 @@ export const useFinanceStore = create<FinanceState>()(
           if (result && result.success && result.data) {
             const updates: Partial<FinanceState> = {};
 
+            if (result.spreadsheetId && !get().spreadsheetId) {
+              updates.spreadsheetId = result.spreadsheetId;
+              try {
+                import('./useAuthStore').then(module => {
+                  const state = module.useAuthStore.getState();
+                  if (state.user && state.user.email !== (import.meta.env.VITE_DEMO_EMAIL || 'demo@dompetku.com')) {
+                    state.updateUserSpreadsheetId(state.user.email, result.spreadsheetId);
+                  }
+                });
+              } catch (e) {
+                console.error(e);
+              }
+            }
+
             const getVal = (obj: any, keys: string[]) => {
               if (!obj) return undefined;
               for (const k of keys) {
