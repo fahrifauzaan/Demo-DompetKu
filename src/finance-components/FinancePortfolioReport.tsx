@@ -8,6 +8,7 @@ interface FinancePortfolioReportProps {
   onShowCTA: (feature?: FeatureCTA) => void;
   onNavigate?: (tab: string) => void;
   hideHeader?: boolean;
+  selectedPeriod?: string;
 }
 
 const getMonthsBetween = (startDateStr: string | undefined, maturityDateStr: string | undefined, totalTenorMonths: number) => {
@@ -34,11 +35,74 @@ const getMonthsBetween = (startDateStr: string | undefined, maturityDateStr: str
   }
 };
 
+const getPeriodStartAndEnd = (period: string) => {
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth();
+
+  let start: Date;
+  let end: Date = now;
+
+  if (period === 'this_month') {
+    start = new Date(curYear, curMonth, 1);
+  } else if (period === '3_months') {
+    start = new Date(curYear, curMonth - 2, 1);
+  } else if (period === '12_months') {
+    start = new Date(curYear, curMonth - 11, 1);
+  } else if (period === 'ytd') {
+    start = new Date(curYear, 0, 1);
+  } else if (period.includes('-')) {
+    const parts = period.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1;
+    start = new Date(year, month, 1);
+    end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  } else {
+    start = new Date(curYear, curMonth, 1);
+  }
+  return { start, end };
+};
+
+const getPeriodMonthsBetween = (
+  startDateStr: string | undefined,
+  maturityDateStr: string | undefined,
+  totalTenorMonths: number,
+  periodStart: Date,
+  periodEnd: Date
+) => {
+  if (!startDateStr) return 0;
+  try {
+    const earnStart = new Date(startDateStr);
+    let earnEnd = new Date();
+    if (maturityDateStr) {
+      const maturity = new Date(maturityDateStr);
+      if (maturity < earnEnd) {
+        earnEnd = maturity;
+      }
+    }
+
+    // Intersection
+    const overlapStart = earnStart > periodStart ? earnStart : periodStart;
+    const overlapEnd = earnEnd < periodEnd ? earnEnd : periodEnd;
+
+    if (overlapStart >= overlapEnd) return 0;
+
+    const dayDiff = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24);
+    const months = dayDiff / 30.44;
+
+    return Math.max(0, Math.min(totalTenorMonths, parseFloat(months.toFixed(2))));
+  } catch (e) {
+    return 0;
+  }
+};
 
 
-const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowCTA, hideHeader }) => {
+
+const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowCTA, hideHeader, selectedPeriod = 'this_month' }) => {
   const accounts = useFinanceStore((state) => state.accounts);
   const assets = useFinanceStore((state) => state.assets);
+
+  const { start: periodStart, end: periodEnd } = getPeriodStartAndEnd(selectedPeriod);
 
   const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
   const [timeframe, setTimeframe] = useState<'monthly' | 'yearly'>('monthly');
@@ -95,9 +159,9 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
       // @ts-ignore
       const totalTenorMonths = item.tenor !== undefined ? (item.subType === 'sbn' ? item.tenor * 12 : item.tenor) : (item.subType === 'sbn' ? 24 : 12);
       
-      // Calculate accrued coupons earned to date based on purchaseDate
-      const elapsedMonths = getMonthsBetween(item.purchaseDate, item.maturityDate, totalTenorMonths);
-      couponsReceived = monthlyNet * elapsedMonths;
+      // Calculate accrued coupons earned within the selected period range
+      const elapsedMonths = getPeriodMonthsBetween(item.purchaseDate, item.maturityDate, totalTenorMonths, periodStart, periodEnd);
+      couponsReceived = Math.round(monthlyNet * elapsedMonths);
       
       // CFA Total Return = Capital Gain/Loss + Interest/Coupon Income
       pl = (marketValue - initial) + couponsReceived;
@@ -335,6 +399,73 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
 
   const getDynamicTrend = () => {
     const now = new Date();
+    if (selectedPeriod === 'this_month') {
+      return Array.from({ length: 4 }).map((_, idx) => {
+        const label = `M ${idx + 1}`;
+        const factor = idx / 3;
+        return {
+          label,
+          invest: totalInvestments * (0.9 + factor * 0.1),
+          cash: totalCash * (0.95 + factor * 0.05),
+          physical: totalPhysical * (0.98 + factor * 0.02),
+        };
+      });
+    }
+    if (selectedPeriod === '3_months') {
+      return Array.from({ length: 3 }).map((_, idx) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (2 - idx), 1);
+        const label = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+        const factor = idx / 2;
+        return {
+          label,
+          invest: totalInvestments * (0.85 + factor * 0.15),
+          cash: totalCash * (0.9 + factor * 0.1),
+          physical: totalPhysical * (0.97 + factor * 0.03),
+        };
+      });
+    }
+    if (selectedPeriod === '12_months') {
+      return Array.from({ length: 12 }).map((_, idx) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (11 - idx), 1);
+        const label = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+        const factor = idx / 11;
+        return {
+          label,
+          invest: totalInvestments * (0.8 + factor * 0.2),
+          cash: totalCash * (0.9 + factor * 0.1),
+          physical: totalPhysical * (0.95 + factor * 0.05),
+        };
+      });
+    }
+    if (selectedPeriod === 'ytd') {
+      const currentMonthIndex = now.getMonth();
+      const length = Math.max(2, currentMonthIndex + 1);
+      return Array.from({ length }).map((_, idx) => {
+        const d = new Date(now.getFullYear(), idx, 1);
+        const label = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+        const factor = idx / (length - 1);
+        return {
+          label,
+          invest: totalInvestments * (0.75 + factor * 0.25),
+          cash: totalCash * (0.85 + factor * 0.15),
+          physical: totalPhysical * (0.95 + factor * 0.05),
+        };
+      });
+    }
+    if (selectedPeriod.includes('-')) {
+      const parts = selectedPeriod.split('-');
+      return Array.from({ length: 4 }).map((_, idx) => {
+        const label = `M ${idx + 1}`;
+        const factor = idx / 3;
+        return {
+          label,
+          invest: totalInvestments * (0.9 + factor * 0.1),
+          cash: totalCash * (0.95 + factor * 0.05),
+          physical: totalPhysical * (0.98 + factor * 0.02),
+        };
+      });
+    }
+
     return Array.from({ length: 12 }).map((_, idx) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (11 - idx), 1);
       const label = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
@@ -427,7 +558,7 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
             
             <div className="w-full h-52 mb-6 relative flex items-center justify-center">
               <div className="absolute flex flex-col items-center justify-center text-center pointer-events-none z-20">
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-widest uppercase">Total Kekayaan</span>
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-widest uppercase">Total Kekayaan (Saat Ini)</span>
                 <span className="text-sm lg:text-base font-black text-slate-800 dark:text-white mt-1 tabular-nums tracking-tight whitespace-nowrap">
                   {formatM(totalCash + totalInvestments + totalPhysical)}
                 </span>

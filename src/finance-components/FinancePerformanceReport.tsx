@@ -30,7 +30,69 @@ interface FinancePerformanceReportProps {
   onShowCTA: (feature?: FeatureCTA) => void;
   onNavigate?: (tab: string) => void;
   hideHeader?: boolean;
+  selectedPeriod?: string;
 }
+
+const getPeriodStartAndEnd = (period: string) => {
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth();
+
+  let start: Date;
+  let end: Date = now;
+
+  if (period === 'this_month') {
+    start = new Date(curYear, curMonth, 1);
+  } else if (period === '3_months') {
+    start = new Date(curYear, curMonth - 2, 1);
+  } else if (period === '12_months') {
+    start = new Date(curYear, curMonth - 11, 1);
+  } else if (period === 'ytd') {
+    start = new Date(curYear, 0, 1);
+  } else if (period.includes('-')) {
+    const parts = period.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1;
+    start = new Date(year, month, 1);
+    end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  } else {
+    start = new Date(curYear, curMonth, 1);
+  }
+  return { start, end };
+};
+
+const getPeriodMonthsBetween = (
+  startDateStr: string | undefined,
+  maturityDateStr: string | undefined,
+  totalTenorMonths: number,
+  periodStart: Date,
+  periodEnd: Date
+) => {
+  if (!startDateStr) return 0;
+  try {
+    const earnStart = new Date(startDateStr);
+    let earnEnd = new Date();
+    if (maturityDateStr) {
+      const maturity = new Date(maturityDateStr);
+      if (maturity < earnEnd) {
+        earnEnd = maturity;
+      }
+    }
+
+    // Intersection
+    const overlapStart = earnStart > periodStart ? earnStart : periodStart;
+    const overlapEnd = earnEnd < periodEnd ? earnEnd : periodEnd;
+
+    if (overlapStart >= overlapEnd) return 0;
+
+    const dayDiff = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24);
+    const months = dayDiff / 30.44;
+
+    return Math.max(0, Math.min(totalTenorMonths, parseFloat(months.toFixed(2))));
+  } catch (e) {
+    return 0;
+  }
+};
 
 const SECTORS_META = {
   saham: {
@@ -71,8 +133,10 @@ const BASE_CHART_TREND = [
   { month: 'Des', portfolio: 32, ihsg: 6 },
 ];
 
-const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onShowCTA, hideHeader }) => {
+const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onShowCTA, hideHeader, selectedPeriod = 'this_month' }) => {
   const assets = useFinanceStore((state) => state.assets);
+
+  const { start: periodStart, end: periodEnd } = getPeriodStartAndEnd(selectedPeriod);
 
   const [expandedSector, setExpandedSector] = useState<string | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -138,9 +202,9 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
       // @ts-ignore
       const totalTenorMonths = item.tenor !== undefined ? (item.subType === 'sbn' ? item.tenor * 12 : item.tenor) : (item.subType === 'sbn' ? 24 : 12);
       
-      // Calculate accrued coupons earned to date based on purchaseDate
-      const elapsedMonths = getMonthsBetween(item.purchaseDate, item.maturityDate, totalTenorMonths);
-      couponsReceived = monthlyNet * elapsedMonths;
+      // Calculate accrued coupons earned within the selected period range
+      const elapsedMonths = getPeriodMonthsBetween(item.purchaseDate, item.maturityDate, totalTenorMonths, periodStart, periodEnd);
+      couponsReceived = Math.round(monthlyNet * elapsedMonths);
       
       // CFA Total Return = Capital Gain/Loss + Interest/Coupon Income
       pl = (marketValue - initial) + couponsReceived;
@@ -211,22 +275,121 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
   const pctReksadana = totalMarketValueAll > 0 ? Math.round((sectorPerformance.reksadana?.totalMarketValue || 0) / totalMarketValueAll * 100) : 0;
   const pctSbn = totalMarketValueAll > 0 ? Math.max(0, 100 - pctSaham - pctReksadana) : 0;
 
-  // IHSG baseline return
-  const ihsgReturn = ihsgInitial > 0 ? ((ihsgPrice - ihsgInitial) / ihsgInitial) * 100 : 6.2;
+  // IHSG baseline return (dynamic based on selectedPeriod)
+  const ytdReturn = ihsgInitial > 0 ? ((ihsgPrice - ihsgInitial) / ihsgInitial) * 100 : 6.2;
+  let ihsgReturn = ytdReturn;
+  if (selectedPeriod === 'this_month') {
+    ihsgReturn = ytdReturn / 12;
+  } else if (selectedPeriod === '3_months') {
+    ihsgReturn = ytdReturn / 4;
+  } else if (selectedPeriod === '12_months') {
+    ihsgReturn = ytdReturn;
+  } else if (selectedPeriod === 'ytd') {
+    ihsgReturn = ytdReturn;
+  } else if (selectedPeriod.includes('-')) {
+    ihsgReturn = ytdReturn / 12;
+  }
+
   const liveAlpha = portfolioReturnAll - ihsgReturn;
 
-  // Scale chart data to end exactly at live calculated values
-  const chartData = BASE_CHART_TREND.map((d, i) => {
-    const factor = i / (BASE_CHART_TREND.length - 1);
-    const date = new Date();
-    date.setMonth(date.getMonth() - (11 - i));
-    const dynamicMonth = date.toLocaleDateString('id-ID', { month: 'short' });
-    return {
-      month: dynamicMonth,
-      portfolio: portfolioReturnAll * factor * (d.portfolio / 32 || 1),
-      ihsg: ihsgReturn * factor * (d.ihsg / 6 || 1),
-    };
-  });
+  // Generate dynamic chart data based on selectedPeriod
+  const getDynamicPerformanceTrend = () => {
+    const now = new Date();
+    
+    if (selectedPeriod === 'this_month') {
+      return Array.from({ length: 4 }).map((_, idx) => {
+        const label = `M ${idx + 1}`;
+        const factor = idx / 3;
+        const baseVal = BASE_CHART_TREND[idx + 8] || { portfolio: 20, ihsg: 5 };
+        return {
+          month: label,
+          portfolio: portfolioReturnAll * factor * (baseVal.portfolio / 32 || 1),
+          ihsg: ihsgReturn * factor * (baseVal.ihsg / 6 || 1),
+        };
+      });
+    }
+    
+    if (selectedPeriod === '3_months') {
+      const months = [];
+      for (let i = 2; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(d.toLocaleDateString('id-ID', { month: 'short' }));
+      }
+      return Array.from({ length: 3 }).map((_, idx) => {
+        const factor = idx / 2;
+        const baseVal = BASE_CHART_TREND[idx + 9] || { portfolio: 25, ihsg: 5 };
+        return {
+          month: months[idx],
+          portfolio: portfolioReturnAll * factor * (baseVal.portfolio / 32 || 1),
+          ihsg: ihsgReturn * factor * (baseVal.ihsg / 6 || 1),
+        };
+      });
+    }
+    
+    if (selectedPeriod === '12_months') {
+      const months = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(d.toLocaleDateString('id-ID', { month: 'short' }));
+      }
+      return BASE_CHART_TREND.map((d, i) => {
+        const factor = i / (BASE_CHART_TREND.length - 1);
+        return {
+          month: months[i],
+          portfolio: portfolioReturnAll * factor * (d.portfolio / 32 || 1),
+          ihsg: ihsgReturn * factor * (d.ihsg / 6 || 1),
+        };
+      });
+    }
+    
+    if (selectedPeriod === 'ytd') {
+      const currentMonthIndex = now.getMonth();
+      const length = Math.max(2, currentMonthIndex + 1);
+      const trend = [];
+      for (let idx = 0; idx < length; idx++) {
+        const d = new Date(now.getFullYear(), idx, 1);
+        const monthName = d.toLocaleDateString('id-ID', { month: 'short' });
+        const factor = idx / (length - 1);
+        const baseVal = BASE_CHART_TREND[idx % 12];
+        trend.push({
+          month: monthName,
+          portfolio: portfolioReturnAll * factor * ((baseVal?.portfolio || 10) / 32 || 1),
+          ihsg: ihsgReturn * factor * ((baseVal?.ihsg || 2) / 6 || 1),
+        });
+      }
+      return trend;
+    }
+    
+    if (selectedPeriod.includes('-')) {
+      return Array.from({ length: 4 }).map((_, idx) => {
+        const label = `M ${idx + 1}`;
+        const factor = idx / 3;
+        const baseVal = BASE_CHART_TREND[idx + 8] || { portfolio: 20, ihsg: 5 };
+        return {
+          month: label,
+          portfolio: portfolioReturnAll * factor * (baseVal.portfolio / 32 || 1),
+          ihsg: ihsgReturn * factor * (baseVal.ihsg / 6 || 1),
+        };
+      });
+    }
+
+    // Default 12 months
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(d.toLocaleDateString('id-ID', { month: 'short' }));
+    }
+    return BASE_CHART_TREND.map((d, i) => {
+      const factor = i / (BASE_CHART_TREND.length - 1);
+      return {
+        month: months[i],
+        portfolio: portfolioReturnAll * factor * (d.portfolio / 32 || 1),
+        ihsg: ihsgReturn * factor * (d.ihsg / 6 || 1),
+      };
+    });
+  };
+
+  const chartData = getDynamicPerformanceTrend();
 
   const getRiskMetrics = () => {
     const pReturns = [];

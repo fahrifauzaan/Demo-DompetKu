@@ -1280,13 +1280,13 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
 
       {activeSubTab === 'diversification' && (
         <div className="animate-in slide-in-from-right-4 duration-500">
-           <FinancePortfolioReport onShowCTA={onShowCTA} onNavigate={onNavigate} hideHeader />
+           <FinancePortfolioReport onShowCTA={onShowCTA} onNavigate={onNavigate} hideHeader selectedPeriod={selectedPeriod} />
         </div>
       )}
 
       {activeSubTab === 'sector' && (
         <div className="animate-in slide-in-from-right-4 duration-500">
-          <FinancePerformanceReport onShowCTA={onShowCTA} onNavigate={onNavigate} hideHeader />
+          <FinancePerformanceReport onShowCTA={onShowCTA} onNavigate={onNavigate} hideHeader selectedPeriod={selectedPeriod} />
         </div>
       )}
 
