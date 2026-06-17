@@ -219,17 +219,23 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
       
       {/* SideNavBar (Desktop) */}
       <aside className="h-screen w-64 fixed left-0 top-0 hidden lg:flex flex-col bg-slate-50 dark:bg-[#0a0f18] border-r border-slate-200/20 z-40 no-print">
-        <div className="px-4 py-8 border-b border-slate-200/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-blue-600/20">
-              <img src="/Image/logo/Logo NAM-TECH New.png" className="w-full h-full object-contain" alt="Logo" />
+        <div className="px-4 py-6 border-b border-slate-200/20">
+          <div className="flex flex-col items-start gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-xl shadow-blue-600/20 bg-white dark:bg-white/10 backdrop-blur-xl border border-white/40 dark:border-white/5 flex items-center justify-center relative group shrink-0">
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 dark:from-white/0 dark:via-white/10 dark:to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10"></div>
+                <img src="/Image/logo/DompetKu-2.svg" className="w-full h-full object-cover relative z-0" alt="Logo" />
+              </div>
+              <div className="text-2xl font-extrabold font-headline tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-slate-800 via-slate-600 to-slate-800 dark:from-white dark:via-slate-200 dark:to-slate-400 drop-shadow-sm truncate pb-0.5">
+                {import.meta.env.VITE_APP_NAME || 'DompetKu'}
+              </div>
             </div>
-            <div className="text-lg font-extrabold text-blue-950 dark:text-white font-headline tracking-tight leading-none">
-              {import.meta.env.VITE_APP_NAME || 'DompetKu'}
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 shadow-sm ml-1">
+              <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
+              <p className="text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-[0.15em] font-['Inter'] leading-none pt-0.5 truncate">
+                {import.meta.env.VITE_APP_TAGLINE || 'Premium Finance Tracker'}
+              </p>
             </div>
-          </div>
-          <div className="text-[10px] font-medium text-slate-400 mt-1.5 uppercase tracking-[0.15em] font-['Inter']">
-            {import.meta.env.VITE_APP_TAGLINE || 'Your Finance Tracker'}
           </div>
         </div>
         <nav className="flex flex-col gap-2 p-4 flex-grow">
@@ -385,7 +391,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
 
           {activeTab === 'dashboard' && <FinanceDashboard onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
           {activeTab === 'transactions' && <FinanceTransactions onShowCTA={handleShowCTA} onNavigate={handleNavigate} onEditTransaction={(id) => { setEditingTransactionId(id); setActiveTab('add-transaction'); }} />}
-          {activeTab === 'budget' && <FinanceBudget onShowCTA={handleShowCTA} />}
+          {activeTab === 'budget' && <FinanceBudget onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
           {activeTab === 'assets' && <FinanceAssets onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
           {activeTab === 'debts' && <FinanceDebts onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
           {activeTab === 'analytics' && <FinanceAnalytics onShowCTA={handleShowCTA} onNavigate={handleNavigate} />}
@@ -413,10 +419,20 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
         </div>
         
         {/* Global Watermark - shown at the bottom of the content area */}
-        <div className="w-full text-center pb-8 no-print opacity-50 hover:opacity-100 transition-opacity">
-          <p className="text-[10px] lg:text-xs text-on-surface-variant dark:text-outline font-medium tracking-widest uppercase">
-            Dikembangkan oleh NAMTECH
-          </p>
+        <div className="w-full flex justify-center pb-8 no-print mt-8">
+          <div className="flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-slate-200/50 dark:bg-slate-800/50 backdrop-blur-2xl border border-slate-300/50 dark:border-slate-700/50 shadow-[0_8px_32px_0_rgba(0,0,0,0.05)] overflow-hidden whitespace-nowrap w-max transition-all hover:bg-white/60 dark:hover:bg-slate-800/80 hover:shadow-[0_8px_32px_0_rgba(0,0,0,0.1)] hover:scale-105 cursor-default">
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 tracking-widest uppercase drop-shadow-sm whitespace-nowrap">
+              Powered by
+            </span>
+            <motion.span 
+              animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              className="text-xs font-black tracking-[0.2em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-600 dark:from-blue-400 dark:via-cyan-300 dark:to-blue-400 drop-shadow-sm whitespace-nowrap"
+              style={{ backgroundSize: "200% auto" }}
+            >
+              NAMTECH
+            </motion.span>
+          </div>
         </div>
 
         {/* Corporate-grade Printable Report canvas (only active in print mode) */}
@@ -435,17 +451,23 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
               exit={{ x: '-100%' }}
               className="absolute left-0 top-0 bottom-0 w-64 bg-slate-50 dark:bg-[#0a0f18] shadow-2xl flex flex-col"
             >
-              <div className="px-4 py-8 border-b border-slate-200/20">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-blue-600/20">
-                    <img src="/Image/logo/Logo NAM-TECH New.png" className="w-full h-full object-contain" alt="Logo" />
+              <div className="px-4 py-6 border-b border-slate-200/20">
+                <div className="flex flex-col items-start gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl overflow-hidden shadow-xl shadow-blue-600/20 bg-white dark:bg-white/10 backdrop-blur-xl border border-white/40 dark:border-white/5 flex items-center justify-center relative group shrink-0">
+                      <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 dark:from-white/0 dark:via-white/10 dark:to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10"></div>
+                      <img src="/Image/logo/DompetKu-2.svg" className="w-full h-full object-cover relative z-0" alt="Logo" />
+                    </div>
+                    <div className="text-2xl font-extrabold font-headline tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-slate-800 via-slate-600 to-slate-800 dark:from-white dark:via-slate-200 dark:to-slate-400 drop-shadow-sm truncate pb-0.5">
+                      {import.meta.env.VITE_APP_NAME || 'DompetKu'}
+                    </div>
                   </div>
-                  <div className="text-lg font-extrabold text-blue-950 dark:text-white font-headline tracking-tight leading-none">
-                    {import.meta.env.VITE_APP_NAME || 'DompetKu'}
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 shadow-sm ml-1">
+                    <span className="w-1 h-1 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
+                    <p className="text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-[0.15em] font-['Inter'] leading-none pt-0.5 truncate">
+                      {import.meta.env.VITE_APP_TAGLINE || 'Premium Finance Tracker'}
+                    </p>
                   </div>
-                </div>
-                <div className="text-[10px] font-medium text-slate-400 mt-1.5 uppercase tracking-[0.15em] font-['Inter']">
-                  {import.meta.env.VITE_APP_TAGLINE || 'Your Finance Tracker'}
                 </div>
               </div>
               <nav className="flex flex-col gap-2 p-4 flex-grow overflow-y-auto">
@@ -458,11 +480,14 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
                 <NavItem id="settings" icon="settings" label="Pengaturan" />
               </nav>
               <div className="p-4 border-t border-slate-200/20 flex flex-col gap-2">
-                <a onClick={logout} className="text-error hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex items-center gap-3 px-4 py-3 font-['Inter'] font-medium text-sm cursor-pointer">
+                <a onClick={toggleDark} className="text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg flex items-center gap-3 px-4 py-3 font-['Inter'] font-medium text-sm cursor-pointer">
+                  <span className="material-symbols-outlined">{isDark ? 'light_mode' : 'dark_mode'}</span>
+                  Tema {isDark ? 'Terang' : 'Gelap'}
+                </a>
+                <a onClick={logout} className="text-error hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex items-center gap-3 px-4 py-3 font-['Inter'] font-medium text-sm cursor-pointer border-t border-slate-200/10 lg:border-t-0 pt-3 lg:pt-0">
                   <span className="material-symbols-outlined">logout</span>
                   Keluar Akun
                 </a>
-
               </div>
             </motion.div>
           </div>

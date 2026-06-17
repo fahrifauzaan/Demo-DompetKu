@@ -216,7 +216,6 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
   const [institution, setInstitution] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [currency, setCurrency] = useState('Rupiah (IDR)');
-  const [autoSync, setAutoSync] = useState(false);
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -1394,37 +1393,9 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
                     </div>
                   </div>
 
-                  {/* Integration Toggle */}
-                  <div className="p-6 bg-primary/5 dark:bg-[#a7c8ff]/10 rounded-2xl border border-primary/10 dark:border-[#a7c8ff]/20 flex flex-col sm:flex-row justify-between items-center gap-6">
-                    <div className="flex gap-4">
-                      <div className="w-12 h-12 bg-primary dark:bg-[#a7c8ff] rounded-full flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined text-white dark:text-[#001b3c]">sync_alt</span>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-primary dark:text-[#a7c8ff] text-sm">Hubungkan Bank Otomatis</h4>
-                        <p className="text-[11px] text-on-surface-variant dark:text-outline mt-1 leading-relaxed max-w-sm">Sinkronisasi transaksi dan saldo secara real-time dengan keamanan standar perbankan.</p>
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input type="checkbox" className="sr-only peer" checked={autoSync} onChange={() => setAutoSync(!autoSync)} />
-                      <div className="w-12 h-6 bg-surface-container-high dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary dark:peer-checked:bg-[#a7c8ff]"></div>
-                    </label>
-                  </div>
                 </div>
               )}
             </section>
-
-              {/* Smart Addon specific to asset type */}
-              {assetType === 'liquid' && (
-                <div className="p-5 bg-primary/5 dark:bg-[#a7c8ff]/10 rounded-2xl flex items-start gap-4 border border-primary/10 dark:border-[#a7c8ff]/20">
-                  <span className="material-symbols-outlined text-primary-container dark:text-[#a7c8ff] mt-0.5">info</span>
-                  <div>
-                    <p className="text-sm font-bold text-primary-container dark:text-[#a7c8ff]">Integrasi Otomatis Tersedia</p>
-                    <p className="text-sm text-on-surface-variant dark:text-outline mt-1 leading-relaxed">Anda dapat menghubungkan akun bank ini melalui Open Banking untuk pembaruan mutasi real-time tanpa input manual lagi.</p>
-                    <button onClick={() => onShowCTA()} className="mt-3 text-sm font-bold text-primary dark:text-[#a7c8ff] underline underline-offset-4 hover:opacity-80 transition-opacity">Hubungkan Cerdas Sekarang</button>
-                  </div>
-                </div>
-              )}
 
 
 

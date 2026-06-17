@@ -125,6 +125,15 @@ const FinanceLogin: React.FC = () => {
     scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
     onSuccess: async (tokenResponse) => {
       try {
+        // 0. Validate Scope
+        const grantedScopes = tokenResponse.scope || '';
+        const hasSheetsScope = grantedScopes.includes('https://www.googleapis.com/auth/spreadsheets') || grantedScopes.includes('https://www.googleapis.com/auth/drive');
+        
+        if (!hasSheetsScope) {
+          showToast('Akses Ditolak: Anda harus mencentang kotak izin akses Google Sheets saat login.', 'error');
+          return;
+        }
+
         showToast('Berhasil otorisasi Google. Memverifikasi...', 'info');
         
         // 1. Fetch user info
@@ -300,12 +309,12 @@ const FinanceLogin: React.FC = () => {
   const selectDemoAccount = (email: string, name: string) => {
     const hostname = window.location.hostname;
     // Redirect if NOT on the demo domain or localhost
-    const isDemoHost = hostname === 'demo-dompetku.vercel.app' || hostname.includes('localhost');
+    const isDemoHost = hostname === 'demo-dompetku.vercel.app';
     
     if (!isDemoHost) {
-      showToast('Mengarahkan ke Website Demo DompetKu...', 'info');
+      showToast('Membuka Website Demo DompetKu di tab baru...', 'info');
       setTimeout(() => {
-        window.location.href = 'https://demo-dompetku.vercel.app';
+        window.open('https://demo-dompetku.vercel.app', '_blank');
       }, 1200);
       return;
     }
@@ -332,17 +341,23 @@ const FinanceLogin: React.FC = () => {
         
         {/* Info/Branding Section - Desktop Only (5 columns) */}
         <div className="hidden lg:flex lg:col-span-5 flex-col text-left space-y-6 pr-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg shadow-blue-600/20 bg-white p-1">
-              <img src="/Image/logo/Logo NAM-TECH New.png" className="w-full h-full object-contain" alt="Logo" />
+          <div className="flex flex-col items-start gap-4 mb-2">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-2xl shadow-blue-600/20 bg-white dark:bg-white/10 backdrop-blur-xl border border-white/40 dark:border-white/5 flex items-center justify-center relative group">
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 dark:from-white/0 dark:via-white/10 dark:to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10"></div>
+                <img src="/Image/logo/DompetKu-2.svg" className="w-full h-full object-cover relative z-0" alt="Logo" />
+              </div>
+              <span className="text-4xl font-extrabold font-headline tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-slate-800 via-slate-600 to-slate-800 dark:from-white dark:via-slate-200 dark:to-slate-400 drop-shadow-sm pb-1">
+                {import.meta.env.VITE_APP_NAME || 'DompetKu'}
+              </span>
             </div>
-            <span className="text-2xl font-black text-blue-950 dark:text-white font-headline tracking-tight leading-none">
-              {import.meta.env.VITE_APP_NAME || 'DompetKu'}
-            </span>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+              <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-[0.25em] font-['Inter'] leading-none pt-0.5">
+                Premium Finance Tracker
+              </p>
+            </div>
           </div>
-          <p className="text-[11px] font-semibold text-blue-600 dark:text-[#a7c8ff] uppercase tracking-[0.2em] font-['Inter']">
-            Your Premium Finance Tracker
-          </p>
           
           <h2 className="text-3xl font-black text-slate-800 dark:text-slate-100 font-headline leading-snug">
             Kelola Kekayaan dengan Presisi Maksimal
@@ -387,11 +402,19 @@ const FinanceLogin: React.FC = () => {
             
             {/* Header for Mobile display */}
             <div className="flex flex-col items-center mb-8 lg:hidden">
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-white p-1 mb-3 shadow">
-                <img src="/Image/logo/Logo NAM-TECH New.png" className="w-full h-full object-contain" alt="Logo" />
+              <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-2xl shadow-blue-600/20 bg-white dark:bg-white/10 backdrop-blur-xl border border-white/40 dark:border-white/5 flex items-center justify-center mb-4 relative group">
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/40 to-white/0 dark:from-white/0 dark:via-white/10 dark:to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10"></div>
+                <img src="/Image/logo/DompetKu-2.svg" className="w-full h-full object-cover relative z-0" alt="Logo" />
               </div>
-              <h1 className="text-xl font-bold text-blue-950 dark:text-white font-headline">{import.meta.env.VITE_APP_NAME || 'DompetKu'}</h1>
-              <p className="text-[9px] font-semibold text-blue-600 dark:text-[#a7c8ff] uppercase tracking-wider mt-1">Premium Finance Tracker</p>
+              <h1 className="text-2xl font-extrabold font-headline tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-slate-800 via-slate-600 to-slate-800 dark:from-white dark:via-slate-200 dark:to-slate-400 drop-shadow-sm mb-3 pb-0.5">
+                {import.meta.env.VITE_APP_NAME || 'DompetKu'}
+              </h1>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                <p className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em] font-['Inter'] leading-none pt-0.5">
+                  Premium Finance Tracker
+                </p>
+              </div>
             </div>
 
             <AnimatePresence mode="wait">
@@ -935,6 +958,26 @@ const FinanceLogin: React.FC = () => {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Powered by NAMTECH Watermark */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8, duration: 1, ease: "easeOut" }}
+        className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-white/40 dark:bg-black/20 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.1)] z-50 pointer-events-none overflow-hidden whitespace-nowrap w-max"
+      >
+        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 tracking-widest uppercase drop-shadow-sm whitespace-nowrap">
+          Powered by
+        </span>
+        <motion.span 
+          animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          className="text-xs font-black tracking-[0.2em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-600 dark:from-blue-400 dark:via-cyan-300 dark:to-blue-400 drop-shadow-sm whitespace-nowrap"
+          style={{ backgroundSize: "200% auto" }}
+        >
+          NAMTECH
+        </motion.span>
+      </motion.div>
 
     </div>
   );

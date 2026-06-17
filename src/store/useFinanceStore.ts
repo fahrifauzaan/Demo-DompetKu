@@ -84,6 +84,7 @@ export interface BudgetCategory {
   allocated: number;
   includeInTotal: boolean;
   alertAt: number;
+  classification?: 'NEEDS' | 'WANTS' | 'SAVINGS' | 'INVESTMENT';
 }
 
 export interface Debt {
@@ -257,11 +258,17 @@ function generateId(): string {
 async function postToSheet(url: string, token: string | null, spreadsheetId: string | null, sheet: string, action: string, data: Record<string, unknown>) {
   try {
     if (token && spreadsheetId) {
-      if (action === 'add') await addRowToSheet(token, spreadsheetId, sheet, data);
-      else if (action === 'update') await updateRowInSheet(token, spreadsheetId, sheet, data);
-      else if (action === 'delete') await deleteRowFromSheet(token, spreadsheetId, sheet, String(data.id || data.key));
-      console.log(`[FinanceStore] ✅ ${action} → ${sheet} synced via API`);
-      return;
+      try {
+        if (action === 'add') await addRowToSheet(token, spreadsheetId, sheet, data);
+        else if (action === 'update') await updateRowInSheet(token, spreadsheetId, sheet, data);
+        else if (action === 'delete') await deleteRowFromSheet(token, spreadsheetId, sheet, String(data.id || data.key));
+        console.log(`[FinanceStore] ✅ ${action} → ${sheet} synced via API`);
+        return;
+      } catch (apiError: any) {
+        console.warn(`[FinanceStore] Direct API sync failed for ${sheet}, trying Web App URL fallback:`, apiError);
+        if (!url) throw apiError;
+        // Fall through to try Web App URL macro sync below
+      }
     }
 
     if (!url) return;
@@ -636,8 +643,18 @@ export const useFinanceStore = create<FinanceState>()(
         try {
           let result;
           if (googleAccessToken && spreadsheetId) {
-            result = await fetchAllDataFromSheets(googleAccessToken, spreadsheetId);
-          } else {
+            try {
+              result = await fetchAllDataFromSheets(googleAccessToken, spreadsheetId);
+            } catch (apiError: any) {
+              console.warn('[FinanceStore] Direct Sheets API sync failed, trying Web App URL fallback:', apiError);
+              if (googleSheetUrl) {
+                const response = await fetch(`${googleSheetUrl}?sheet=all`);
+                result = await response.json();
+              } else {
+                throw apiError;
+              }
+            }
+          } else if (googleSheetUrl) {
             const response = await fetch(`${googleSheetUrl}?sheet=all`);
             result = await response.json();
           }

@@ -19,14 +19,16 @@ const COLORS = [
 ];
 
 const SUGGESTIONS = [
-  { name: 'Belanja Mingguan', type: 'Pengeluaran', icon: 'shopping_cart' },
-  { name: 'Langganan Digital', type: 'Pengeluaran', icon: 'movie' },
-  { name: 'Dana Darurat', type: 'Simpanan', icon: 'savings' },
+  { name: 'Belanja Mingguan', type: 'Pengeluaran (Needs)', icon: 'shopping_cart', classification: 'NEEDS' as const },
+  { name: 'Langganan Digital', type: 'Pengeluaran (Wants)', icon: 'movie', classification: 'WANTS' as const },
+  { name: 'Dana Darurat', type: 'Tabungan (Savings)', icon: 'savings', classification: 'SAVINGS' as const },
+  { name: 'Investasi Saham', type: 'Investasi (Investment)', icon: 'show_chart', classification: 'INVESTMENT' as const },
 ];
 
 const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBack }) => {
   const [categoryName, setCategoryName] = useState('Kopi & Hiburan');
   const [type, setType] = useState<'Pengeluaran' | 'Pemasukan'>('Pengeluaran');
+  const [classification, setClassification] = useState<'NEEDS' | 'WANTS' | 'SAVINGS' | 'INVESTMENT'>('WANTS');
   const [selectedIcon, setSelectedIcon] = useState('local_cafe');
   const [selectedColor, setSelectedColor] = useState('#00113a');
   const [limit, setLimit] = useState('2.500.000');
@@ -60,7 +62,8 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
       type,
       allocated: parsedLimit,
       includeInTotal,
-      alertAt: alertAt80 ? 80 : 100
+      alertAt: alertAt80 ? 80 : 100,
+      classification: type === 'Pengeluaran' ? classification : undefined
     });
 
     setIsSaving(false);
@@ -125,6 +128,95 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
               </div>
             </div>
           </section>
+
+          {/* Klasifikasi CFP 50/30/20 Section */}
+          {type === 'Pengeluaran' && (
+            <section className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-6 bg-primary dark:bg-[#a7c8ff] rounded-full"></span>
+                <h3 className="text-lg font-headline font-bold text-on-surface dark:text-white">Klasifikasi Anggaran (CFP® 50/30/20)</h3>
+              </div>
+              <p className="text-xs text-on-surface-variant dark:text-slate-400 font-medium">Sesuai saran Financial Planner, poskan pengeluaran Anda ke salah satu kategori alokasi ideal di bawah ini:</p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Needs Card */}
+                <button
+                  type="button"
+                  onClick={() => setClassification('NEEDS')}
+                  className={`flex flex-col text-left p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                    classification === 'NEEDS'
+                      ? 'bg-[#007aff]/5 dark:bg-[#0a84ff]/10 border-[#007aff] dark:border-[#0a84ff] ring-1 ring-[#007aff] dark:ring-[#0a84ff]'
+                      : 'bg-surface-container-lowest dark:bg-white/5 border-outline-variant/10 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#007aff]"></span>
+                    <span className="font-extrabold text-xs lg:text-sm text-[#007aff] dark:text-[#0a84ff]">Needs (Kebutuhan - 50%)</span>
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant dark:text-slate-400 leading-relaxed font-medium">
+                    Pengeluaran krusial dan wajib dipenuhi. Contoh: sewa, listrik/air, belanja dapur bulanan, cicilan hutang minimum, asuransi, &amp; biaya medis pokok.
+                  </p>
+                </button>
+
+                {/* Wants Card */}
+                <button
+                  type="button"
+                  onClick={() => setClassification('WANTS')}
+                  className={`flex flex-col text-left p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                    classification === 'WANTS'
+                      ? 'bg-[#ff9500]/5 dark:bg-[#ff9f0a]/10 border-[#ff9500] dark:border-[#ff9f0a] ring-1 ring-[#ff9500] dark:ring-[#ff9f0a]'
+                      : 'bg-surface-container-lowest dark:bg-white/5 border-outline-variant/10 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff9500]"></span>
+                    <span className="font-extrabold text-xs lg:text-sm text-[#ff9500] dark:text-[#ff9f0a]">Wants (Keinginan - 30%)</span>
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant dark:text-slate-400 leading-relaxed font-medium">
+                    Gaya hidup dan pengeluaran diskresioner. Contoh: makan di restoran, kopi kafe, langganan film/musik, tiket konser, belanja hobi, &amp; liburan.
+                  </p>
+                </button>
+
+                {/* Savings Card */}
+                <button
+                  type="button"
+                  onClick={() => setClassification('SAVINGS')}
+                  className={`flex flex-col text-left p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                    classification === 'SAVINGS'
+                      ? 'bg-[#28cd41]/5 dark:bg-[#30d158]/10 border-[#28cd41] dark:border-[#30d158] ring-1 ring-[#28cd41] dark:ring-[#30d158]'
+                      : 'bg-surface-container-lowest dark:bg-white/5 border-outline-variant/10 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#28cd41]"></span>
+                    <span className="font-extrabold text-xs lg:text-sm text-[#28cd41] dark:text-[#30d158]">Savings (Tabungan - 20%)</span>
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant dark:text-slate-400 leading-relaxed font-medium">
+                    Simpanan aman jangka pendek &amp; proteksi keuangan. Contoh: Dana darurat (Emergency Fund), tabungan rencana beli barang, &amp; sinking fund.
+                  </p>
+                </button>
+
+                {/* Investment Card */}
+                <button
+                  type="button"
+                  onClick={() => setClassification('INVESTMENT')}
+                  className={`flex flex-col text-left p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                    classification === 'INVESTMENT'
+                      ? 'bg-indigo-500/5 dark:bg-indigo-500/10 border-indigo-500 dark:border-indigo-400 ring-1 ring-indigo-500 dark:ring-indigo-400'
+                      : 'bg-surface-container-lowest dark:bg-white/5 border-outline-variant/10 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                    <span className="font-extrabold text-xs lg:text-sm text-indigo-500 dark:text-indigo-400">Investment (Investasi - 20%)</span>
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant dark:text-slate-400 leading-relaxed font-medium">
+                    Aset produktif jangka panjang berorientasi pertumbuhan. Contoh: investasi saham, reksadana, emas, obligasi negara (SBN), &amp; aset kripto.
+                  </p>
+                </button>
+              </div>
+            </section>
+          )}
 
           {/* Icon & Color Picker */}
           <section className="space-y-6">
@@ -214,6 +306,19 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
               </div>
             </div>
           </section>
+
+          {/* CFA / CFP Advisor Tips Banner */}
+          <div className="bg-slate-100/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] p-6 rounded-3xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                <span className="material-symbols-outlined text-lg">school</span>
+              </div>
+              <h4 className="font-bold text-xs uppercase tracking-widest text-slate-700 dark:text-slate-200">Tips Perencanaan Keuangan (CFP® &amp; CFA®)</h4>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Sesuai standar perencanaan keuangan CFP® (Certified Financial Planner) dan prinsip alokasi 50/30/20, kategorikan setiap pengeluaran Anda secara disiplin. Batasi Kebutuhan Pokok hingga 50% dan Keinginan hingga 30% dari total pendapatan bersih. Sisa 20% dialokasikan untuk Tabungan Protektif (Dana Darurat) dan Investasi Produktif guna akumulasi kekayaan jangka panjang sesuai prinsip CFA®.
+            </p>
+          </div>
         </div>
 
         {/* Right Column: Sticky Preview & Suggestions */}
@@ -236,7 +341,9 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
                     <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>{selectedIcon}</span>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] uppercase font-bold tracking-[0.2em] opacity-60 mb-1">Status Limit</p>
+                    <p className="text-[10px] uppercase font-bold tracking-[0.2em] opacity-60 mb-1">
+                      {type === 'Pengeluaran' ? `Alokasi ${classification}` : 'Pendapatan'}
+                    </p>
                     <span className="px-3 py-1 bg-white/20 text-white font-bold text-[10px] rounded-full uppercase tracking-wider backdrop-blur-md">Aman</span>
                   </div>
                 </div>
@@ -271,6 +378,10 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
                     onClick={() => {
                       setCategoryName(sug.name);
                       setSelectedIcon(sug.icon);
+                      if (sug.classification) {
+                        setClassification(sug.classification);
+                        setType('Pengeluaran');
+                      }
                     }}
                     className="group bg-surface-container-low dark:bg-white/5 p-4 rounded-2xl flex items-center justify-between hover:bg-white dark:hover:bg-white/10 hover:shadow-md transition-all cursor-pointer border-l-4 border-transparent hover:border-primary dark:hover:border-[#a7c8ff]"
                   >

@@ -557,8 +557,8 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
             </div>
             
             <div className="w-full h-52 mb-6 relative flex items-center justify-center">
-              <div className="absolute flex flex-col items-center justify-center text-center pointer-events-none z-20">
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-widest uppercase">Total Kekayaan (Saat Ini)</span>
+              <div className="absolute flex flex-col items-center justify-center text-center pointer-events-none z-20 max-w-[120px]">
+                <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase leading-tight">Total Kekayaan<br/>(Saat Ini)</span>
                 <span className="text-sm lg:text-base font-black text-slate-800 dark:text-white mt-1 tabular-nums tracking-tight whitespace-nowrap">
                   {formatM(totalCash + totalInvestments + totalPhysical)}
                 </span>

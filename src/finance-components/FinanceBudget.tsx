@@ -34,9 +34,16 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
   };
 
   // CFP Classification Keyword Helper (Needs vs Wants vs Savings)
-  const getCFPClassification = (catName: string, type?: string): 'NEEDS' | 'WANTS' | 'SAVINGS' => {
+  const getCFPClassification = (catName: string, type?: string, catId?: string): 'NEEDS' | 'WANTS' | 'SAVINGS' => {
     const isPemasukan = type ? type.toLowerCase() === 'pemasukan' : false;
     if (isPemasukan) return 'SAVINGS'; // Income contributes to potential savings
+
+    // Try finding explicit classification first
+    const cat = budgetCategories.find(c => c.id === catId || (c.name.toLowerCase() === catName.toLowerCase() && c.type === type));
+    if (cat?.classification) {
+      if (cat.classification === 'INVESTMENT') return 'SAVINGS'; // Investment grouped as savings in 50/30/20
+      return cat.classification as 'NEEDS' | 'WANTS' | 'SAVINGS';
+    }
 
     const norm = (catName || '').toLowerCase();
     
@@ -103,11 +110,20 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
   };
 
   // Group Category Helper for Tab Layout
-  const getCategoryGroup = (catName: string, type?: string) => {
+  const getCategoryGroup = (catName: string, type?: string, catId?: string) => {
     const isPemasukan = type ? type.toLowerCase() === 'pemasukan' : false;
     if (isPemasukan) return 'INCOME';
     
-    const classification = getCFPClassification(catName, type);
+    // Try finding explicit classification first
+    const cat = budgetCategories.find(c => c.id === catId || (c.name.toLowerCase() === catName.toLowerCase() && c.type === type));
+    if (cat?.classification) {
+      if (cat.classification === 'NEEDS' || cat.classification === 'WANTS') {
+        return 'EXPENSES';
+      }
+      return cat.classification; // 'SAVINGS' or 'INVESTMENT'
+    }
+    
+    const classification = getCFPClassification(catName, type, catId);
     if (classification === 'SAVINGS') {
       const norm = (catName || '').toLowerCase();
       if (
@@ -164,7 +180,7 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
 
   // Process data for the active month
   const processGroupData = (group: 'INCOME' | 'EXPENSES' | 'SAVINGS' | 'INVESTMENT') => {
-    const list = budgetCategories.filter(c => getCategoryGroup(c.name, c.type) === group);
+    const list = budgetCategories.filter(c => getCategoryGroup(c.name, c.type, c.id) === group);
     
     return list.map(cat => {
       const budget = getBudgetAmount(cat.id, cat.name);
@@ -233,7 +249,7 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
       const budget = getBudgetAmount(cat.id, cat.name);
       const isPengeluaran = cat.type ? cat.type.toLowerCase() === 'pengeluaran' : true;
       if (isPengeluaran) {
-        const classification = getCFPClassification(cat.name, cat.type);
+        const classification = getCFPClassification(cat.name, cat.type, cat.id);
         if (classification === 'NEEDS') needsBudget += budget;
         else if (classification === 'WANTS') wantsBudget += budget;
         else if (classification === 'SAVINGS') savingsBudget += budget;
