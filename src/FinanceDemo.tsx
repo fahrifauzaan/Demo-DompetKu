@@ -191,6 +191,9 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
   };
 
   const handleNavigate = (tab: string) => {
+    if (tab === 'add-transaction') {
+      setEditingTransactionId(null);
+    }
     setActiveTab(tab as FinanceTab);
   };
 
@@ -250,12 +253,11 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
         
         <div className="p-4 border-t border-slate-200/20">
           <button 
-            onClick={() => handleShowCTA({
-              title: "Smart Transaction AI",
-              description: "Kategorisasi otomatis berbasis Machine Learning untuk ribuan transaksi secara instan.",
-              icon: "add"
-            })}
-            className="w-full bg-gradient-to-r from-primary to-primary-container text-white py-3 rounded-md font-label font-semibold text-sm mb-6 flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition-opacity"
+            onClick={() => {
+              setActiveTab('add-transaction');
+              setEditingTransactionId(null);
+            }}
+            className="w-full bg-gradient-to-r from-primary to-primary-container text-white py-3 rounded-md font-label font-semibold text-sm mb-6 flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
           >
             <span className="material-symbols-outlined text-sm">add</span>
             Tambah Transaksi
@@ -354,7 +356,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
         </header>
 
         {/* Dynamic Content Area */}
-        <div className="pt-24 px-4 lg:px-12 pb-24 lg:pb-12 w-full mx-auto space-y-12 no-print">
+        <div className="pt-24 px-4 lg:px-12 pb-6 w-full mx-auto space-y-12 no-print">
           
           {/* Demo Warning Banner */}
           {user?.email.toLowerCase() === 'demo@dompetku.com' ? (
@@ -419,7 +421,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
         </div>
         
         {/* Global Watermark - shown at the bottom of the content area */}
-        <div className="w-full flex justify-center pb-8 no-print mt-8">
+        <div className="w-full flex justify-center pb-6 no-print mt-4">
           <div className="flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-slate-200/50 dark:bg-slate-800/50 backdrop-blur-2xl border border-slate-300/50 dark:border-slate-700/50 shadow-[0_8px_32px_0_rgba(0,0,0,0.05)] overflow-hidden whitespace-nowrap w-max transition-all hover:bg-white/60 dark:hover:bg-slate-800/80 hover:shadow-[0_8px_32px_0_rgba(0,0,0,0.1)] hover:scale-105 cursor-default">
             <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 tracking-widest uppercase drop-shadow-sm whitespace-nowrap">
               Powered by

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore, formatDateString } from '../store/useFinanceStore';
 
@@ -9,12 +9,82 @@ interface FinanceAddAssetProps {
 
 type AssetType = 'liquid' | 'physical' | 'investment';
 
+const POPULAR_ASSETS: Record<string, { name: string; ticker: string }[]> = {
+  Saham: [
+    { name: 'Bank Central Asia', ticker: 'BBCA' },
+    { name: 'Bank Rakyat Indonesia', ticker: 'BBRI' },
+    { name: 'Bank Mandiri', ticker: 'BMRI' },
+    { name: 'Bank Negara Indonesia', ticker: 'BBNI' },
+    { name: 'Telkom Indonesia', ticker: 'TLKM' },
+    { name: 'Astra International', ticker: 'ASII' },
+    { name: 'GoTo Gojek Tokopedia', ticker: 'GOTO' },
+    { name: 'Unilever Indonesia', ticker: 'UNVR' },
+    { name: 'Aneka Tambang', ticker: 'ANTM' },
+    { name: 'Adaro Energy', ticker: 'ADRO' },
+    { name: 'Barito Pacific', ticker: 'BRPT' },
+    { name: 'Kalbe Farma', ticker: 'KLBF' },
+    { name: 'Perusahaan Gas Negara', ticker: 'PGAS' },
+    { name: 'Semen Indonesia', ticker: 'SMGR' },
+    { name: 'Indofood Sukses Makmur', ticker: 'INDF' }
+  ],
+  Crypto: [
+    { name: 'Bitcoin', ticker: 'BTC' },
+    { name: 'Ethereum', ticker: 'ETH' },
+    { name: 'Solana', ticker: 'SOL' },
+    { name: 'Binance Coin', ticker: 'BNB' },
+    { name: 'Cardano', ticker: 'ADA' },
+    { name: 'Ripple', ticker: 'XRP' },
+    { name: 'Dogecoin', ticker: 'DOGE' },
+    { name: 'Polkadot', ticker: 'DOT' },
+    { name: 'Avalanche', ticker: 'AVAX' },
+    { name: 'Chainlink', ticker: 'LINK' }
+  ],
+  Reksadana: [
+    { name: 'Sucorinvest Money Market Fund', ticker: 'SMMF' },
+    { name: 'Sucorinvest Sharia Money Market Fund', ticker: 'SSMMF' },
+    { name: 'Batavia Dana Kas Maxima', ticker: 'BDKM' },
+    { name: 'Mandiri Investa Pasar Uang', ticker: 'MIPU' },
+    { name: 'Schroder Dana Prestasi Plus', ticker: 'SDPP' },
+    { name: 'Schroder Dana Terpadu II', ticker: 'SDT2' },
+    { name: 'Manulife Saham Syariah Asia Pasifik Dollar', ticker: 'MANAS' },
+    { name: 'BNP Paribas Ekuitas', ticker: 'BNPPE' },
+    { name: 'Vanguard Total Stock Market Index (VTI)', ticker: 'VTI' },
+    { name: 'SPDR S&P 500 ETF Trust (SPY)', ticker: 'SPY' }
+  ]
+};
+
+const INSTITUTION_OPTIONS = [
+  {
+    category: 'Bank Nasional',
+    options: ['BCA', 'Mandiri', 'BRI', 'BNI', 'CIMB Niaga', 'Permata Bank', 'Danamon', 'BTN', 'BTPN', 'Bank Syariah Indonesia (BSI)', 'BCA Syariah']
+  },
+  {
+    category: 'Bank Digital',
+    options: ['Jago', 'Blu BCA', 'Neobank', 'Jenius', 'Seabank', 'Allo Bank', 'Motion Banking']
+  },
+  {
+    category: 'E-Wallet',
+    options: ['GoPay', 'OVO', 'Dana', 'LinkAja', 'ShopeePay', 'Flip']
+  },
+  {
+    category: 'Sekuritas & Investasi',
+    options: ['Ajaib', 'Bibit', 'Pluang', 'Stockbit', 'IPOT', 'Bareksa', 'RHB Sekuritas', 'Mandiri Sekuritas']
+  },
+  {
+    category: 'Lainnya',
+    options: ['Tunai', 'PayPal', 'Wise', 'Lainnya']
+  }
+];
+
 const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) => {
   const [assetType, setAssetType] = useState<AssetType>('liquid');
   const [assetName, setAssetName] = useState('');
   const [assetValue, setAssetValue] = useState('0');
   const [valuationReminder, setValuationReminder] = useState(true);
   const [documentLink, setDocumentLink] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isInstitutionDropdownOpen, setIsInstitutionDropdownOpen] = useState(false);
+  const [institutionSearchQuery, setInstitutionSearchQuery] = useState('');
   
   // Investment Specific State
   const [ticker, setTicker] = useState('');
@@ -119,6 +189,31 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
       setPaymentDateInput('10');
       setInterestPeriod('Monthly');
     }
+  };
+
+  const handleUnitsChange = (val: string) => {
+    if (investmentCategory === 'Saham') {
+      const clean = val.replace(/\D/g, '');
+      setUnits(clean);
+    } else {
+      setUnits(val);
+    }
+  };
+
+  const suggestions = useMemo(() => {
+    if (!assetName || ['Bonds', 'Time Deposit', 'P2P'].includes(investmentCategory)) return [];
+    const list = POPULAR_ASSETS[investmentCategory] || [];
+    const query = assetName.toLowerCase();
+    return list.filter(item => 
+      item.name.toLowerCase().includes(query) || 
+      item.ticker.toLowerCase().includes(query)
+    );
+  }, [assetName, investmentCategory]);
+
+  const selectSuggestion = (item: { name: string; ticker: string }) => {
+    setAssetName(`${item.name} (${item.ticker})`);
+    setTicker(item.ticker);
+    setShowSuggestions(false);
   };
 
   // Computed values for real-time calculations
@@ -435,7 +530,7 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
   };
 
   return (
-    <div className="w-full animate-in slide-in-from-bottom-4 duration-500 pb-24">
+    <div className="w-full animate-in slide-in-from-bottom-4 duration-500 pb-6">
       {/* Header with Back Button */}
       <div className="flex items-center gap-4 mb-10">
         <button 
@@ -553,9 +648,35 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
                               }
                               type="text"
                               value={assetName}
-                              onChange={(e) => setAssetName(e.target.value)}
+                              onChange={(e) => {
+                                setAssetName(e.target.value);
+                                setShowSuggestions(true);
+                              }}
+                              onFocus={() => setShowSuggestions(true)}
                             />
                           </div>
+
+                          {showSuggestions && suggestions.length > 0 && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setShowSuggestions(false)}></div>
+                              <div className="absolute left-0 right-0 mt-2 bg-surface-container-highest dark:bg-[#1e293b] border border-outline-variant/10 dark:border-white/10 rounded-2xl shadow-xl z-20 overflow-hidden divide-y divide-outline-variant/10 dark:divide-white/5 animate-in fade-in slide-in-from-top-1 duration-150">
+                                {suggestions.slice(0, 5).map((item, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => selectSuggestion(item)}
+                                    className="w-full text-left px-5 py-3 hover:bg-surface-container dark:hover:bg-white/5 transition-colors flex items-center justify-between group relative z-30 cursor-pointer"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-bold text-on-surface dark:text-white group-hover:text-primary dark:group-hover:text-[#a7c8ff]">{item.name}</span>
+                                      <span className="text-[10px] text-on-surface-variant dark:text-outline">{investmentCategory}</span>
+                                    </div>
+                                    <span className="text-xs font-extrabold bg-primary/10 dark:bg-[#a7c8ff]/10 text-primary dark:text-[#a7c8ff] px-2 py-0.5 rounded">{item.ticker}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
                         {!['Bonds', 'Time Deposit', 'P2P'].includes(investmentCategory) && (
                           <div className="relative w-1/3">
@@ -567,7 +688,7 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
                                 placeholder="BBCA" 
                                 type="text"
                                 value={ticker}
-                                onChange={(e) => setTicker(e.target.value)}
+                                onChange={(e) => setTicker(e.target.value.toUpperCase())}
                               />
                             </div>
                           </div>
@@ -605,11 +726,12 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
                         </label>
                         <input 
                           className="w-full bg-surface-container-lowest dark:bg-white/5 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary-container dark:focus:ring-white/20 text-on-surface dark:text-white font-bold tabular-nums" 
-                          type="number" 
+                          type={investmentCategory === 'Saham' ? 'text' : 'number'}
+                          pattern={investmentCategory === 'Saham' ? '\\d*' : undefined}
                           step={investmentCategory === 'Saham' ? '1' : '0.0001'}
                           placeholder={investmentCategory === 'Saham' ? '10' : investmentCategory === 'Crypto' ? '0.05' : '1'}
                           value={units}
-                          onChange={(e) => setUnits(e.target.value)}
+                          onChange={(e) => handleUnitsChange(e.target.value)}
                         />
                         {investmentCategory === 'Saham' && (
                           <p className="text-[10px] text-on-surface-variant dark:text-outline italic">
@@ -1284,79 +1406,115 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
               {assetType === 'liquid' && (
                 /* DETAILED LIQUID ASSET LAYOUT */
                 <div className="space-y-10 animate-in fade-in slide-in-from-top-2 duration-500">
-                  {/* Stepper (Simplified) */}
-                  <div className="flex items-center gap-4 px-2 overflow-x-auto pb-4 scrollbar-hide">
-                    {[1, 2, 3].map((s) => (
-                      <React.Fragment key={s}>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${step >= s ? 'bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c]' : 'bg-surface-container-high dark:bg-white/10 text-on-surface-variant dark:text-outline'}`}>
-                            {s}
-                          </div>
-                          <span className={`text-xs font-bold tracking-tight ${step >= s ? 'text-primary dark:text-white' : 'text-on-surface-variant dark:text-outline'}`}>
-                            {s === 1 ? 'Informasi Akun' : s === 2 ? 'Verifikasi' : 'Selesai'}
-                          </span>
-                        </div>
-                        {s < 3 && <div className="h-px w-8 bg-outline-variant/20 shrink-0"></div>}
-                      </React.Fragment>
-                    ))}
-                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-widest block">Nama Institusi</label>
-                      <select 
-                        className="w-full bg-surface-container-lowest dark:bg-white/5 border-none rounded-xl p-4 text-sm focus:ring-2 focus:ring-primary-container dark:focus:ring-white/20 text-on-surface dark:text-white font-medium"
-                        value={institution}
-                        onChange={(e) => setInstitution(e.target.value)}
-                      >
-                        <option value="">Pilih Bank / e-Wallet</option>
-                        <optgroup label="── Bank Nasional">
-                          <option>BCA</option>
-                          <option>Mandiri</option>
-                          <option>BRI</option>
-                          <option>BNI</option>
-                          <option>CIMB Niaga</option>
-                          <option>Permata Bank</option>
-                          <option>Danamon</option>
-                          <option>BTN</option>
-                          <option>BTPN</option>
-                          <option>Bank Syariah Indonesia (BSI)</option>
-                          <option>BCA Syariah</option>
-                        </optgroup>
-                        <optgroup label="── Bank Digital">
-                          <option>Jago</option>
-                          <option>Blu BCA</option>
-                          <option>Neobank</option>
-                          <option>Jenius</option>
-                          <option>Seabank</option>
-                          <option>Allo Bank</option>
-                          <option>Motion Banking</option>
-                        </optgroup>
-                        <optgroup label="── E-Wallet">
-                          <option>GoPay</option>
-                          <option>OVO</option>
-                          <option>Dana</option>
-                          <option>LinkAja</option>
-                          <option>ShopeePay</option>
-                          <option>Flip</option>
-                        </optgroup>
-                        <optgroup label="── Sekuritas & Investasi">
-                          <option>Ajaib</option>
-                          <option>Bibit</option>
-                          <option>Pluang</option>
-                          <option>Stockbit</option>
-                          <option>IPOT</option>
-                          <option>Bareksa</option>
-                          <option>RHB Sekuritas</option>
-                          <option>Mandiri Sekuritas</option>
-                        </optgroup>
-                        <optgroup label="── Lainnya">
-                          <option>Tunai</option>
-                          <option>PayPal</option>
-                          <option>Wise</option>
-                          <option>Lainnya</option>
-                        </optgroup>
-                      </select>
+                      <div className="relative">
+                        {/* Trigger Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsInstitutionDropdownOpen(!isInstitutionDropdownOpen);
+                            setInstitutionSearchQuery(''); // reset query
+                          }}
+                          className="w-full bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-xl p-4 text-sm text-left text-on-surface dark:text-white font-medium flex items-center justify-between focus:ring-2 focus:ring-primary-container dark:focus:ring-white/20 transition-all cursor-pointer"
+                        >
+                          <span className={institution ? "font-bold text-on-surface dark:text-white" : "text-outline-variant/60 font-normal"}>
+                            {institution || 'Pilih Bank / e-Wallet'}
+                          </span>
+                          <span className="material-symbols-outlined text-outline-variant text-base select-none">
+                            {isInstitutionDropdownOpen ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
+                          </span>
+                        </button>
+
+                        {isInstitutionDropdownOpen && (
+                          <>
+                            {/* Close backdrop */}
+                            <div className="fixed inset-0 z-20" onClick={() => setIsInstitutionDropdownOpen(false)}></div>
+                            
+                            {/* Dropdown container */}
+                            <div className="absolute left-0 right-0 mt-2 bg-surface-container-highest dark:bg-[#1e293b] border border-outline-variant/10 dark:border-white/10 rounded-2xl shadow-xl z-30 py-3 flex flex-col max-h-80 animate-in fade-in slide-in-from-top-2 duration-150 text-left">
+                              
+                              {/* Search bar inside dropdown */}
+                              <div className="px-3 pb-2.5 border-b border-outline-variant/10 dark:border-white/5 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-outline-variant text-lg">search</span>
+                                <input
+                                  type="text"
+                                  placeholder="Cari bank, e-wallet, atau sekuritas..."
+                                  value={institutionSearchQuery}
+                                  onChange={(e) => setInstitutionSearchQuery(e.target.value)}
+                                  className="w-full bg-transparent border-none text-xs lg:text-sm text-on-surface dark:text-white focus:ring-0 placeholder:text-outline-variant/50 font-medium"
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                {institutionSearchQuery && (
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); setInstitutionSearchQuery(''); }}
+                                    className="text-outline-variant hover:text-primary dark:hover:text-[#a7c8ff]"
+                                  >
+                                    <span className="material-symbols-outlined text-xs lg:text-sm">close</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Scrollable list options */}
+                              <div className="overflow-y-auto flex-1 mt-1.5 scrollbar-thin">
+                                {(() => {
+                                  // Filter options based on query
+                                  const query = institutionSearchQuery.toLowerCase().trim();
+                                  let totalCount = 0;
+                                  
+                                  const filteredOptions = INSTITUTION_OPTIONS.map(group => {
+                                    const matching = group.options.filter(opt => 
+                                      opt.toLowerCase().includes(query)
+                                    );
+                                    totalCount += matching.length;
+                                    return { ...group, options: matching };
+                                  }).filter(group => group.options.length > 0);
+
+                                  if (totalCount === 0) {
+                                    return (
+                                      <div className="text-center py-6 text-xs text-on-surface-variant dark:text-outline font-medium">
+                                        Tidak menemukan hasil untuk "{institutionSearchQuery}"
+                                      </div>
+                                    );
+                                  }
+
+                                  return filteredOptions.map((group, groupIdx) => (
+                                    <div key={groupIdx} className="space-y-0.5">
+                                      <div className="px-4 py-1.5 text-[9px] font-extrabold uppercase tracking-widest text-primary dark:text-[#a7c8ff] bg-surface-container-high/20 dark:bg-white/[0.02]">
+                                        {group.category}
+                                      </div>
+                                      {group.options.map((opt, optIdx) => (
+                                        <button
+                                          key={optIdx}
+                                          type="button"
+                                          onClick={() => {
+                                            setInstitution(opt);
+                                            setIsInstitutionDropdownOpen(false);
+                                          }}
+                                          className={`w-full text-left px-5 py-2 text-xs lg:text-sm font-bold flex items-center justify-between hover:bg-surface-container dark:hover:bg-white/5 transition-colors cursor-pointer ${
+                                            institution === opt 
+                                              ? 'text-primary dark:text-[#a7c8ff] bg-primary/5 dark:bg-[#a7c8ff]/5' 
+                                              : 'text-on-surface-variant dark:text-slate-300'
+                                          }`}
+                                        >
+                                          <span>{opt}</span>
+                                          {institution === opt && (
+                                            <span className="material-symbols-outlined text-xs lg:text-sm shrink-0">check</span>
+                                          )}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ));
+                                })()
+                                }
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-widest block">Nomor Rekening / ID</label>
@@ -1566,20 +1724,6 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
                   </div>
                 </div>
 
-                {/* Recently Added Mockup */}
-                <div className="space-y-3 px-2">
-                  <h4 className="text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-widest">Terakhir Ditambahkan</h4>
-                  <div className="flex gap-2">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="w-14 h-14 rounded-xl bg-surface-container-high dark:bg-white/10 overflow-hidden relative group">
-                        <div className="w-full h-full bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
-                      </div>
-                    ))}
-                    <div className="w-14 h-14 rounded-xl border border-dashed border-outline-variant/30 dark:border-white/20 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-outline text-lg">add</span>
-                    </div>
-                  </div>
-                </div>
               </section>
             )}
 

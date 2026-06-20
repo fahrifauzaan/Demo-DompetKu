@@ -38,7 +38,7 @@ const FinanceIntegration: React.FC<FinanceIntegrationProps> = ({ onShowCTA, onBa
   };
 
   return (
-    <div className="w-full animate-in slide-in-from-bottom-4 duration-500 pb-24">
+    <div className="w-full animate-in slide-in-from-bottom-4 duration-500 pb-6">
       {/* Header with Back Button */}
       <div className="flex items-center gap-4 mb-8">
         <button 

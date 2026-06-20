@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { FeatureCTA } from './MarketingCTAModal';
 import FinancePerformanceReport from './FinancePerformanceReport';
@@ -34,9 +34,55 @@ const getMonthsBetween = (startDateStr: string | undefined, maturityDateStr: str
   }
 };
 
+const getAssetAbbreviation = (title: string) => {
+  const safeTitle = title || '';
+  const tickerMatch = safeTitle.match(/\(([^)]+)\)/);
+  if (tickerMatch) {
+    const ticker = tickerMatch[1].trim();
+    if (ticker.length <= 4) {
+      return ticker.toUpperCase();
+    }
+  }
+  
+  // Get initials from title
+  const cleanTitle = safeTitle.replace(/\([^)]+\)/g, '').trim();
+  const words = cleanTitle.split(/\s+/).filter(w => w.length > 0 && !/^(dan|di|ke|dari|dengan|atau|&|and|or|of|in|on|at|by|for)$/i.test(w));
+  
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+  return 'AS';
+};
+
+const getAssetGradient = (text: string) => {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = text.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const gradients = [
+    'from-blue-500/10 to-indigo-500/10 text-blue-600 dark:text-blue-400 border border-blue-200/20',
+    'from-emerald-500/10 to-teal-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200/20',
+    'from-purple-500/10 to-pink-500/10 text-purple-600 dark:text-purple-400 border border-purple-200/20',
+    'from-amber-500/10 to-orange-500/10 text-amber-600 dark:text-amber-400 border border-amber-200/20',
+    'from-rose-500/10 to-red-500/10 text-rose-600 dark:text-rose-400 border border-rose-200/20',
+    'from-cyan-500/10 to-sky-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-200/20'
+  ];
+  const index = Math.abs(hash) % gradients.length;
+  return gradients[index];
+};
+
 const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'ikhtisar' | 'real-estat' | 'ekuitas' | 'koleksi'>('ikhtisar');
   const [subTab, setSubTab] = useState<'saham-reksa' | 'sbn-deposito' | 'analisis'>('saham-reksa');
+
+  // Search & Filter states for Portofolio Investasi
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
   // Liquidation Modal states
   const [isLiquidationOpen, setIsLiquidationOpen] = useState(false);
@@ -83,6 +129,8 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
   const accounts = useFinanceStore((state) => state.accounts);
   const assets = useFinanceStore((state) => state.assets);
   const debts = useFinanceStore((state) => state.debts);
+  const transactions = useFinanceStore((state) => state.transactions);
+  const settings = useFinanceStore((state) => state.settings);
 
   // Store actions
   const addTransaction = useFinanceStore((state) => state.addTransaction);
@@ -107,6 +155,54 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
   const investmentAssets = assets.filter(a => a.category === 'investasi');
 
+  // Filtered assets for the "Portofolio Investasi" section on Ikhtisar tab
+  const filteredInvestmentAssets = useMemo(() => {
+    return investmentAssets.filter(asset => {
+      // 1. Filter by Asset Type / status
+      const isFixedIncome = asset.subType === 'sbn' || asset.subType === 'deposito' || asset.subType === 'p2p' || (asset.title || '').includes('ST012');
+      const isMatured = asset.maturityDate ? new Date(asset.maturityDate) < new Date() : false;
+      const isLiquidated = asset.currentValue === 0 && (isMatured || asset.purchasePrice === 0);
+      const isSaham = asset.subType === 'saham';
+      const isReksadana = asset.subType === 'reksadana';
+      const safeTitle = asset.title || '';
+      const isSbn = asset.subType === 'sbn' || safeTitle.toLowerCase().includes('st012') || safeTitle.toLowerCase().includes('sukuk');
+
+      if (selectedFilter !== 'all') {
+        if (selectedFilter === 'dicairkan') {
+          if (!isLiquidated) return false;
+        } else {
+          if (isLiquidated) return false;
+          if (selectedFilter === 'saham' && !isSaham) return false;
+          if (selectedFilter === 'reksadana' && !isReksadana) return false;
+          if (selectedFilter === 'sbn' && !isSbn) return false;
+          if (selectedFilter === 'deposito' && asset.subType !== 'deposito') return false;
+          if (selectedFilter === 'p2p' && asset.subType !== 'p2p') return false;
+          if (selectedFilter === 'kripto' && asset.subType !== 'kripto') return false;
+        }
+      }
+
+      // 2. Filter by Search Query
+      if (searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase().trim();
+        const titleMatch = (asset.title || '').toLowerCase().includes(query);
+        const notesMatch = (asset.notes || '').toLowerCase().includes(query);
+        const tickerMatch = (asset.ticker || '').toLowerCase().includes(query);
+        const subTypeMatch = (asset.subType || '').toLowerCase().includes(query);
+        
+        // extract ticker from title parenthesized like "Aset (TICKER)"
+        const match = (asset.title || '').match(/\(([^)]+)\)/);
+        const extractedTicker = match ? match[1].toLowerCase() : '';
+        const extractedTickerMatch = extractedTicker.includes(query);
+
+        if (!titleMatch && !notesMatch && !tickerMatch && !subTypeMatch && !extractedTickerMatch) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [investmentAssets, selectedFilter, searchQuery]);
+
   // Asset allocation values
   const lancarValue = totalAccounts;
   const propertiValue = assets.filter(a => a.category === 'real-estat').reduce((sum, a) => sum + a.currentValue, 0);
@@ -118,6 +214,209 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
   const pctProperti = totalCombinedAssets > 0 ? (propertiValue / totalCombinedAssets * 100) : 0;
   const pctInvestasi = totalCombinedAssets > 0 ? (investasiValue / totalCombinedAssets * 100) : 0;
   const pctFisikKoleksi = totalCombinedAssets > 0 ? (fisikKoleksiValue / totalCombinedAssets * 100) : 0;
+
+  // ===================== CFA/CFP REBALANCING CALCULATIONS =====================
+  // Classify assets into 6 standard asset classes (CFA Investment Classification)
+  const cashAccounts = accounts.filter(a => a.type !== 'investment');
+  const investmentAccounts = accounts.filter(a => a.type === 'investment');
+
+  let rbTotalCashFromAccounts = cashAccounts.reduce((sum, a) => sum + a.balance, 0);
+  let rbTotalCryptoFromAccounts = 0;
+  let rbTotalEquitiesFromAccounts = 0;
+
+  investmentAccounts.forEach(a => {
+    const nameLower = a.name.toLowerCase();
+    if (nameLower.includes('kripto') || nameLower.includes('crypto') || nameLower.includes('btc') || nameLower.includes('eth') || nameLower.includes('binance') || nameLower.includes('indodax')) {
+      rbTotalCryptoFromAccounts += a.balance;
+    } else {
+      rbTotalEquitiesFromAccounts += a.balance;
+    }
+  });
+
+  let rbFixedIncomeClass = 0;
+  let rbEquitiesClass = rbTotalEquitiesFromAccounts;
+  let rbCryptoClass = rbTotalCryptoFromAccounts;
+  let rbCashAssetsVal = 0;
+
+  const portfolioItems = assets.filter(a => a.category === 'investasi' && (a.purchasePrice > 0 || a.currentValue > 0));
+  portfolioItems.forEach(item => {
+    const subType = item.subType || '';
+    const title = item.title || '';
+    const isFixedIncome = subType === 'sbn' || subType === 'deposito' || subType === 'p2p' || subType === 'obligasi' || title.includes('ST012');
+    let val = item.currentValue;
+    if (isFixedIncome && val === 0 && item.purchasePrice > 0) val = item.purchasePrice;
+
+    if (subType === 'deposito') {
+      rbCashAssetsVal += val;
+    } else if (subType === 'sbn' || subType === 'obligasi' || subType === 'p2p' || title.includes('ST012')) {
+      rbFixedIncomeClass += val;
+    } else if (subType === 'kripto') {
+      rbCryptoClass += val;
+    } else {
+      rbEquitiesClass += val;
+    }
+  });
+
+  const rbCashClass = rbTotalCashFromAccounts + rbCashAssetsVal;
+  const rbRealEstateClass = assets.filter(a => a.category === 'real-estat').reduce((sum, a) => sum + a.currentValue, 0);
+  const rbOthersClass = assets.filter(a => a.category === 'kendaraan' || a.category === 'koleksi').reduce((sum, a) => sum + a.currentValue, 0);
+  const rbGrandTotal = rbCashClass + rbFixedIncomeClass + rbEquitiesClass + rbCryptoClass + rbRealEstateClass + rbOthersClass || 1;
+
+  // CFA Weighted Risk Score (1.0-5.0 scale)
+  const rbWeightedRisk = (rbCashClass * 1.0 + rbFixedIncomeClass * 2.0 + (rbRealEstateClass + rbOthersClass) * 3.0 + rbEquitiesClass * 4.0 + rbCryptoClass * 5.0) / rbGrandTotal;
+
+  // Risk Profile Determination
+  let rbRiskProfileName = '';
+  let rbRiskProfileDesc = '';
+  if (rbWeightedRisk < 1.8) {
+    rbRiskProfileName = 'Konservatif';
+    rbRiskProfileDesc = 'Portofolio Anda didominasi oleh kas. Sangat stabil namun rentan terhadap gerusan inflasi.';
+  } else if (rbWeightedRisk < 2.6) {
+    rbRiskProfileName = 'Moderat Konservatif';
+    rbRiskProfileDesc = 'Alokasi condong ke perlindungan modal dengan sedikit eksposur pada aset pertumbuhan.';
+  } else if (rbWeightedRisk < 3.4) {
+    rbRiskProfileName = 'Moderat';
+    rbRiskProfileDesc = 'Portofolio seimbang antara likuiditas, properti riil, dan aset pertumbuhan.';
+  } else if (rbWeightedRisk < 4.2) {
+    rbRiskProfileName = 'Moderat Agresif';
+    rbRiskProfileDesc = 'Didominasi instrumen pertumbuhan. Baik untuk akumulasi kekayaan jangka panjang.';
+  } else {
+    rbRiskProfileName = 'Agresif';
+    rbRiskProfileDesc = 'Porsi ekuitas/kripto sangat tinggi. Potensi tinggi dengan volatilitas tinggi.';
+  }
+
+  // CFP Standard Target Allocations per Risk Profile (liquid assets only)
+  let rbTargetCash = 20, rbTargetFixed = 30, rbTargetEquities = 45, rbTargetCrypto = 5;
+  if (rbRiskProfileName === 'Konservatif') {
+    rbTargetCash = 50; rbTargetFixed = 40; rbTargetEquities = 10; rbTargetCrypto = 0;
+  } else if (rbRiskProfileName === 'Moderat Konservatif') {
+    rbTargetCash = 35; rbTargetFixed = 45; rbTargetEquities = 20; rbTargetCrypto = 0;
+  } else if (rbRiskProfileName === 'Moderat') {
+    rbTargetCash = 20; rbTargetFixed = 30; rbTargetEquities = 45; rbTargetCrypto = 5;
+  } else if (rbRiskProfileName === 'Moderat Agresif') {
+    rbTargetCash = 15; rbTargetFixed = 20; rbTargetEquities = 60; rbTargetCrypto = 5;
+  } else if (rbRiskProfileName === 'Agresif') {
+    rbTargetCash = 5; rbTargetFixed = 15; rbTargetEquities = 70; rbTargetCrypto = 10;
+  }
+
+  // Deviation Analysis (actual vs target for liquid assets)
+  const rbLiquidTotal = rbCashClass + rbFixedIncomeClass + rbEquitiesClass + rbCryptoClass || 1;
+  const rbActCash = Math.round((rbCashClass / rbLiquidTotal) * 100);
+  const rbActFixed = Math.round((rbFixedIncomeClass / rbLiquidTotal) * 100);
+  const rbActEquities = Math.round((rbEquitiesClass / rbLiquidTotal) * 100);
+  const rbActCrypto = Math.round((rbCryptoClass / rbLiquidTotal) * 100);
+
+  const rbDiffCash = rbActCash - rbTargetCash;
+  const rbDiffFixed = rbActFixed - rbTargetFixed;
+  const rbDiffEquities = rbActEquities - rbTargetEquities;
+  const rbDiffCrypto = rbActCrypto - rbTargetCrypto;
+
+  // Generate rebalancing recommendations (sorted by deviation magnitude)
+  const rbRawRecs: { act: string; dir: string; target: string; color: string; absVal: number }[] = [];
+  if (Math.abs(rbDiffCash) >= 2) {
+    rbRawRecs.push({
+      act: rbDiffCash > 0 ? 'Alokasikan surplus kas ke instrumen investasi produktif' : 'Tingkatkan cadangan kas untuk memperkuat likuiditas',
+      dir: rbDiffCash > 0 ? 'Kurangi' : 'Tambah',
+      target: `${rbDiffCash > 0 ? '-' : '+'}${Math.abs(rbDiffCash)}.0%`,
+      color: rbDiffCash > 0 ? 'text-rose-400' : 'text-emerald-400',
+      absVal: Math.abs(rbDiffCash)
+    });
+  }
+  if (Math.abs(rbDiffFixed) >= 2) {
+    rbRawRecs.push({
+      act: rbDiffFixed > 0 ? 'Kurangi porsi obligasi untuk realokasi aset pertumbuhan' : 'Tambah porsi obligasi/SBN untuk pendapatan pasif stabil',
+      dir: rbDiffFixed > 0 ? 'Kurangi' : 'Tambah',
+      target: `${rbDiffFixed > 0 ? '-' : '+'}${Math.abs(rbDiffFixed)}.0%`,
+      color: rbDiffFixed > 0 ? 'text-rose-400' : 'text-emerald-400',
+      absVal: Math.abs(rbDiffFixed)
+    });
+  }
+  if (Math.abs(rbDiffEquities) >= 2) {
+    rbRawRecs.push({
+      act: rbDiffEquities > 0 ? 'Kurangi eksposur saham/reksadana untuk amankan profit' : 'Akumulasi saham/reksadana untuk pertumbuhan jangka panjang',
+      dir: rbDiffEquities > 0 ? 'Kurangi' : 'Tambah',
+      target: `${rbDiffEquities > 0 ? '-' : '+'}${Math.abs(rbDiffEquities)}.0%`,
+      color: rbDiffEquities > 0 ? 'text-rose-400' : 'text-emerald-400',
+      absVal: Math.abs(rbDiffEquities)
+    });
+  }
+  if (Math.abs(rbDiffCrypto) >= 2) {
+    rbRawRecs.push({
+      act: rbDiffCrypto > 0 ? 'Ambil untung (TP) kripto untuk kurangi volatilitas' : 'Akumulasi bertahap kripto berkapitalisasi besar',
+      dir: rbDiffCrypto > 0 ? 'Kurangi' : 'Tambah',
+      target: `${rbDiffCrypto > 0 ? '-' : '+'}${Math.abs(rbDiffCrypto)}.0%`,
+      color: rbDiffCrypto > 0 ? 'text-rose-400' : 'text-emerald-400',
+      absVal: Math.abs(rbDiffCrypto)
+    });
+  }
+  const rbSortedRecs = [...rbRawRecs].sort((a, b) => b.absVal - a.absVal);
+  const rbFinalRecs = rbSortedRecs.slice(0, 3);
+  if (rbFinalRecs.length === 0) {
+    rbFinalRecs.push({
+      act: 'Alokasi portofolio Anda sudah optimal dan sesuai profil risiko',
+      dir: 'Optimal',
+      target: '0.0%',
+      color: 'text-emerald-400',
+      absVal: 0
+    });
+  }
+
+  // Find the largest asset class for the dynamic subtitle
+  const rbClassValues = [
+    { name: 'Kas & Setara Kas', val: rbCashClass },
+    { name: 'Pendapatan Tetap', val: rbFixedIncomeClass },
+    { name: 'Saham & Reksa Dana', val: rbEquitiesClass },
+    { name: 'Aset Kripto', val: rbCryptoClass },
+    { name: 'Properti & Real Estate', val: rbRealEstateClass },
+    { name: 'Aset Fisik & Alternatif', val: rbOthersClass }
+  ].sort((a, b) => b.val - a.val);
+  const rbMaxClass = rbClassValues[0];
+  const rbMaxClassPct = Math.round((rbMaxClass.val / rbGrandTotal) * 100);
+
+  // HHI Diversification Score
+  const rbWCash = rbCashClass / rbGrandTotal;
+  const rbWFixed = rbFixedIncomeClass / rbGrandTotal;
+  const rbWEquities = rbEquitiesClass / rbGrandTotal;
+  const rbWCrypto = rbCryptoClass / rbGrandTotal;
+  const rbWRealEstate = rbRealEstateClass / rbGrandTotal;
+  const rbWOthers = rbOthersClass / rbGrandTotal;
+  const rbHHI = (rbWCash*rbWCash) + (rbWFixed*rbWFixed) + (rbWEquities*rbWEquities) + (rbWCrypto*rbWCrypto) + (rbWRealEstate*rbWRealEstate) + (rbWOthers*rbWOthers);
+  const rbDivScore = Math.max(1, Math.min(10, parseFloat((10 * (1 - (rbHHI - 0.167) / (1 - 0.167))).toFixed(1))));
+
+  // Dynamic Liquidity Score
+  // Calculate average monthly expenses from last 3 months of transaction data
+  const now = new Date();
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  const recentExpenses = transactions.filter(t => {
+    if (t.type !== 'PENGELUARAN') return false;
+    try {
+      const tDate = new Date(t.date);
+      return tDate >= threeMonthsAgo && tDate <= now;
+    } catch { return false; }
+  });
+  const totalRecentExpenses = recentExpenses.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  // Calculate elapsed months (min 1 to avoid division by zero)
+  const elapsedExpenseMonths = Math.max(1, Math.min(3, (now.getTime() - threeMonthsAgo.getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
+  const avgMonthlyExpense = totalRecentExpenses > 0 ? totalRecentExpenses / elapsedExpenseMonths : (parseFloat(settings.find(s => s.key === 'monthlyIncome')?.value || '0') * 0.6 || 4000000);
+
+  const rbLiquidCash = rbCashClass; // Cash + deposito for liquidity
+  const rbMonthsCovered = avgMonthlyExpense > 0 ? rbLiquidCash / avgMonthlyExpense : 0;
+  // Map months covered to 0-10 score (3 months = 3.0, 6 months = 5.0, 12 months = 7.5, 18+ months = 9.0+, 24+ = 10.0)
+  let rbLiquidityScore: number;
+  if (rbMonthsCovered >= 24) rbLiquidityScore = 10.0;
+  else if (rbMonthsCovered >= 18) rbLiquidityScore = 9.0 + (rbMonthsCovered - 18) / 6 * 1.0;
+  else if (rbMonthsCovered >= 12) rbLiquidityScore = 7.5 + (rbMonthsCovered - 12) / 6 * 1.5;
+  else if (rbMonthsCovered >= 6) rbLiquidityScore = 5.0 + (rbMonthsCovered - 6) / 6 * 2.5;
+  else if (rbMonthsCovered >= 3) rbLiquidityScore = 3.0 + (rbMonthsCovered - 3) / 3 * 2.0;
+  else rbLiquidityScore = rbMonthsCovered;
+  rbLiquidityScore = parseFloat(Math.max(0, Math.min(10, rbLiquidityScore)).toFixed(1));
+
+  let rbLiquidityLabel = '';
+  let rbLiquidityColor = '';
+  if (rbLiquidityScore >= 8.0) { rbLiquidityLabel = 'Luar biasa'; rbLiquidityColor = 'text-emerald-500 dark:text-emerald-400'; }
+  else if (rbLiquidityScore >= 6.0) { rbLiquidityLabel = 'Baik'; rbLiquidityColor = 'text-blue-500 dark:text-blue-400'; }
+  else if (rbLiquidityScore >= 4.0) { rbLiquidityLabel = 'Cukup'; rbLiquidityColor = 'text-amber-500 dark:text-amber-400'; }
+  else { rbLiquidityLabel = 'Perlu ditingkatkan'; rbLiquidityColor = 'text-rose-500 dark:text-rose-400'; }
 
   // Investment-specific performance calculations
   const activeInvestments = investmentAssets.filter(a => {
@@ -982,9 +1281,103 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
             <section>
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
                 <h3 className="font-headline text-lg lg:text-xl font-bold tracking-tight dark:text-white">Portofolio Investasi</h3>
-                <div className="flex gap-2 self-end sm:self-auto">
-                  <button className="p-2 hover:bg-surface-container dark:hover:bg-white/10 rounded-lg transition-colors border border-outline-variant/20 dark:border-white/10"><span className="material-symbols-outlined text-on-surface-variant dark:text-white text-sm lg:text-base">filter_list</span></button>
-                  <button className="p-2 hover:bg-surface-container dark:hover:bg-white/10 rounded-lg transition-colors border border-outline-variant/20 dark:border-white/10"><span className="material-symbols-outlined text-on-surface-variant dark:text-white text-sm lg:text-base">search</span></button>
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  {/* Search Input Field */}
+                  <div className={`relative transition-all duration-300 ${isSearchOpen ? 'w-48 sm:w-64 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+                    <input
+                      type="text"
+                      placeholder="Cari nama aset, ticker, catatan..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-8 py-2 text-xs lg:text-sm bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl focus:outline-none focus:border-primary dark:focus:border-[#a7c8ff] text-on-surface dark:text-white transition-all font-bold placeholder:font-normal"
+                      disabled={!isSearchOpen}
+                      ref={(input) => {
+                        if (input && isSearchOpen) {
+                          input.focus();
+                        }
+                      }}
+                    />
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-outline text-sm lg:text-base opacity-75">search</span>
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-outline hover:text-primary dark:hover:text-[#a7c8ff]"
+                      >
+                        <span className="material-symbols-outlined text-xs lg:text-sm">close</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Toggle Search Button */}
+                  <button 
+                    onClick={() => {
+                      setIsSearchOpen(!isSearchOpen);
+                      if (isSearchOpen) setSearchQuery(''); // clear query when closing
+                    }}
+                    className={`p-2 hover:bg-surface-container dark:hover:bg-white/10 rounded-lg transition-colors border border-outline-variant/20 dark:border-white/10 ${isSearchOpen ? 'bg-primary/10 border-primary dark:bg-[#a7c8ff]/10 dark:border-[#a7c8ff] text-primary dark:text-[#a7c8ff]' : 'text-on-surface-variant dark:text-white'}`}
+                    title="Cari"
+                  >
+                    <span className="material-symbols-outlined text-sm lg:text-base">
+                      {isSearchOpen ? 'search_off' : 'search'}
+                    </span>
+                  </button>
+
+                  {/* Filter Dropdown */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                      className={`p-2 hover:bg-surface-container dark:hover:bg-white/10 rounded-lg transition-colors border border-outline-variant/20 dark:border-white/10 flex items-center justify-center relative ${
+                        selectedFilter !== 'all' 
+                          ? 'bg-primary/10 border-primary dark:bg-[#a7c8ff]/10 dark:border-[#a7c8ff] text-primary dark:text-[#a7c8ff]' 
+                          : 'text-on-surface-variant dark:text-white'
+                      }`}
+                      title="Filter Kelas Aset"
+                    >
+                      <span className="material-symbols-outlined text-sm lg:text-base">filter_list</span>
+                      {selectedFilter !== 'all' && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary dark:bg-[#a7c8ff] rounded-full ring-1 ring-surface dark:ring-[#1a2333]"></span>
+                      )}
+                    </button>
+                    
+                    {isFilterDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-20" onClick={() => setIsFilterDropdownOpen(false)}></div>
+                        <div className="absolute right-0 mt-2 w-48 bg-surface-container-highest dark:bg-[#1e293b] border border-outline-variant/10 dark:border-white/10 rounded-2xl shadow-xl z-30 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="px-4 py-1.5 text-[9px] font-extrabold uppercase tracking-widest text-on-surface-variant dark:text-outline border-b border-outline-variant/10 dark:border-white/5 mb-1.5">
+                            Filter Kelas Aset
+                          </div>
+                          {[
+                            { value: 'all', label: 'Semua Aset' },
+                            { value: 'saham', label: 'Saham' },
+                            { value: 'reksadana', label: 'Reksadana' },
+                            { value: 'sbn', label: 'SBN / Obligasi' },
+                            { value: 'deposito', label: 'Deposito' },
+                            { value: 'p2p', label: 'P2P Lending' },
+                            { value: 'kripto', label: 'Kripto' },
+                            { value: 'dicairkan', label: 'Sudah Dicairkan' }
+                          ].map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => {
+                                setSelectedFilter(opt.value);
+                                setIsFilterDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-4 py-2 text-xs lg:text-sm font-bold flex items-center justify-between hover:bg-surface-container dark:hover:bg-white/5 transition-colors ${
+                                selectedFilter === opt.value 
+                                  ? 'text-primary dark:text-[#a7c8ff] bg-primary/5 dark:bg-[#a7c8ff]/5' 
+                                  : 'text-on-surface-variant dark:text-slate-300'
+                              }`}
+                            >
+                              <span>{opt.label}</span>
+                              {selectedFilter === opt.value && (
+                                <span className="material-symbols-outlined text-xs lg:text-sm shrink-0">check</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="bg-surface-container-lowest dark:bg-transparent rounded-2xl overflow-hidden border border-outline-variant/10 dark:border-white/10 shadow-sm">
@@ -1000,8 +1393,30 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
-                      {investmentAssets.map(asset => {
-                        const isFixedIncome = asset.subType === 'sbn' || asset.subType === 'deposito' || asset.subType === 'p2p' || (asset.title || '').includes('ST012');
+                      {filteredInvestmentAssets.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-12 text-on-surface-variant dark:text-outline">
+                            <div className="flex flex-col items-center justify-center space-y-2">
+                              <span className="material-symbols-outlined text-4xl opacity-50">search_off</span>
+                              <p className="text-sm font-bold">Tidak ada aset investasi yang cocok</p>
+                              <p className="text-xs opacity-75">Coba sesuaikan kata kunci pencarian atau filter Anda.</p>
+                              {(searchQuery || selectedFilter !== 'all') && (
+                                <button 
+                                  onClick={() => {
+                                    setSearchQuery('');
+                                    setSelectedFilter('all');
+                                  }}
+                                  className="mt-2 text-xs font-bold text-primary dark:text-[#a7c8ff] hover:underline cursor-pointer"
+                                >
+                                  Reset Pencarian &amp; Filter
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredInvestmentAssets.map(asset => {
+                          const isFixedIncome = asset.subType === 'sbn' || asset.subType === 'deposito' || asset.subType === 'p2p' || (asset.title || '').includes('ST012');
                         const isMatured = asset.maturityDate ? new Date(asset.maturityDate) < new Date() : false;
                         const isLiquidated = asset.currentValue === 0 && (isMatured || asset.purchasePrice === 0);
 
@@ -1036,10 +1451,10 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                         const plColorClass = pl >= 0 ? 'text-tertiary-container dark:text-tertiary-fixed font-bold' : 'text-error dark:text-[#ffb4ab] font-bold';
                         const plPercentBgClass = pl >= 0 ? 'bg-tertiary-fixed dark:bg-tertiary-fixed/20 text-on-tertiary-fixed dark:text-tertiary-fixed' : 'bg-error-container dark:bg-error-container/30 text-on-error-container dark:text-[#ffb4ab]';
                         
-                        // Extract ticker from title or fallback
+                        // Extract ticker or get fallback abbreviation
                         const safeTitle = asset.title || '';
-                        const tickerMatch = safeTitle.match(/\(([^)]+)\)/);
-                        const ticker = tickerMatch ? tickerMatch[1] : safeTitle.split(' ')[0].toUpperCase();
+                        const displayAbbr = getAssetAbbreviation(safeTitle);
+                        const gradientClass = getAssetGradient(displayAbbr);
                         const cleanTitle = safeTitle.replace(/\([^)]+\)/, '').trim();
 
                         // Visual styling details
@@ -1067,7 +1482,9 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                           <tr key={asset.id} className={`hover:bg-surface-bright dark:hover:bg-white/[0.02] transition-colors ${isLiquidated ? 'opacity-80' : ''}`}>
                             <td className="px-6 lg:px-8 py-4 lg:py-5">
                               <div className="flex items-center gap-3 lg:gap-4">
-                                <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-xl bg-primary-container/10 dark:bg-[#a7c8ff]/10 flex items-center justify-center text-primary dark:text-[#a7c8ff] font-bold text-xs lg:text-sm">{ticker}</div>
+                                <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-xl bg-gradient-to-br ${gradientClass} flex items-center justify-center font-bold text-[10px] lg:text-xs tracking-wider shadow-sm shrink-0`}>
+                                  {displayAbbr}
+                                </div>
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <p className="font-bold text-sm lg:text-base dark:text-white">{cleanTitle}</p>
@@ -1098,7 +1515,8 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                             </td>
                           </tr>
                         );
-                      })}
+                      })
+                    )}
                     </tbody>
                   </table>
                 </div>
@@ -1169,7 +1587,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                 
                 return {
                   ...a,
-                  ticker: a.ticker || safeTitle.split(' ')[0] || 'ASSET',
+                  ticker: a.ticker || getAssetAbbreviation(safeTitle) || 'ASSET',
                   shares: a.shares || 1,
                   avgCost: a.avgCost || a.purchasePrice || a.currentValue,
                   subType
@@ -1259,7 +1677,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                           {/* Card Header */}
                           <div className="flex justify-between items-start gap-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-[#a7c8ff]/10 flex items-center justify-center text-primary dark:text-[#a7c8ff] font-extrabold text-xs tracking-wider">
+                              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAssetGradient(asset.ticker || 'AS')} flex items-center justify-center font-extrabold text-xs tracking-wider shrink-0`}>
                                 {asset.ticker}
                               </div>
                               <div>
@@ -1750,32 +2168,135 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
         )}
       </div>
 
-      {/* Strategic Insights */}
+      {/* Strategic Insights — Dynamic CFA/CFP Rebalancing */}
       {activeTab === 'ikhtisar' && (
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
         <div className="md:col-span-2 bg-primary-container dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white p-6 lg:p-8 rounded-2xl relative overflow-hidden group shadow-lg">
-          <div className="relative z-10">
-            <h4 className="font-headline text-xl lg:text-2xl font-bold mb-4">Rekomendasi Rebalancing Strategis</h4>
-            <p className="text-on-primary-container dark:text-[#a7c8ff]/90 text-xs lg:text-sm max-w-md mb-6 leading-relaxed font-medium">Eksposur ekuitas Anda telah tumbuh menjadi 68% dari total kekayaan bersih. Untuk menjaga tingkat risiko profil Arsitek Anda, kami menyarankan pengalihan 8% ke Pendapatan Tetap atau setara Kas.</p>
-            <button 
-              onClick={() => onShowCTA({ title: "AI Portfolio Rebalancing", description: "Beli dan jual instrumen investasi secara otomatis hingga proporsi aset kembali sesuai profil risiko pilihan Anda." })}
-              className="bg-white text-primary px-4 lg:px-5 py-2.5 rounded-lg font-extrabold text-[10px] lg:text-xs uppercase tracking-widest hover:bg-slate-100 transition-colors shadow-md active:scale-95 flex w-fit"
-            >
-              Lihat Proposal AI
-            </button>
+          <div className="relative z-10 space-y-5">
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <h4 className="font-headline text-xl lg:text-2xl font-bold">Rekomendasi Rebalancing Strategis</h4>
+                <span className={`text-[9px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-lg border ${
+                  rbFinalRecs[0]?.absVal === 0 
+                    ? 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300' 
+                    : 'bg-amber-500/20 border-amber-400/30 text-amber-300'
+                }`}>
+                  {rbRiskProfileName}
+                </span>
+              </div>
+              <p className="text-on-primary-container dark:text-[#a7c8ff]/90 text-xs lg:text-sm max-w-lg leading-relaxed font-medium">
+                {rbFinalRecs[0]?.absVal === 0 
+                  ? `Alokasi portofolio Anda sudah seimbang dan sesuai profil risiko ${rbRiskProfileName}. Tidak ada penyesuaian signifikan yang dibutuhkan saat ini.`
+                  : `Eksposur ${rbMaxClass.name} Anda saat ini di ${rbMaxClassPct}% dari total kekayaan. Berdasarkan profil ${rbRiskProfileName}, berikut rekomendasi penyesuaian portofolio untuk menjaga keseimbangan risiko.`
+                }
+              </p>
+            </div>
+
+            {/* Rebalancing Recommendations */}
+            <div className="space-y-2">
+              {rbFinalRecs.map((rec, i) => (
+                <div key={i} className="bg-white/10 backdrop-blur-md p-3.5 rounded-xl border border-white/10 flex items-center justify-between">
+                  <div className="flex flex-col max-w-[72%]">
+                    <span className="text-[9px] opacity-75 uppercase tracking-widest mb-0.5">{rec.dir}</span>
+                    <span className="text-xs font-bold text-white leading-snug">{rec.act}</span>
+                  </div>
+                  <div className="text-right font-semibold shrink-0">
+                    <span className="text-[9px] opacity-75 block mb-0.5 uppercase tracking-widest">Penyesuaian</span>
+                    <span className={`text-xs font-bold ${rec.color} bg-black/20 px-2 py-0.5 rounded`}>{rec.target}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Target vs Actual Mini Progress */}
+            <div className="pt-4 border-t border-white/15">
+              <h5 className="text-[10px] font-bold uppercase tracking-widest text-[#a7c8ff] mb-3">Target vs Aktual (Aset Likuid)</h5>
+              <div className="grid grid-cols-2 gap-2.5 text-[11px]">
+                <div className="bg-white/5 border border-white/5 p-2 rounded-lg">
+                  <div className="flex justify-between font-bold text-white mb-1.5">
+                    <span className="opacity-90">Kas</span>
+                    <span className="tabular-nums">{rbActCash}% <span className="opacity-50">/ {rbTargetCash}%</span></span>
+                  </div>
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, rbTargetCash > 0 ? (rbActCash / rbTargetCash) * 100 : 0)}%`, backgroundColor: '#f97316' }}></div>
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/5 p-2 rounded-lg">
+                  <div className="flex justify-between font-bold text-white mb-1.5">
+                    <span className="opacity-90">Pend. Tetap</span>
+                    <span className="tabular-nums">{rbActFixed}% <span className="opacity-50">/ {rbTargetFixed}%</span></span>
+                  </div>
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, rbTargetFixed > 0 ? (rbActFixed / rbTargetFixed) * 100 : 0)}%`, backgroundColor: '#f59e0b' }}></div>
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/5 p-2 rounded-lg">
+                  <div className="flex justify-between font-bold text-white mb-1.5">
+                    <span className="opacity-90">Saham & RD</span>
+                    <span className="tabular-nums">{rbActEquities}% <span className="opacity-50">/ {rbTargetEquities}%</span></span>
+                  </div>
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, rbTargetEquities > 0 ? (rbActEquities / rbTargetEquities) * 100 : 0)}%`, backgroundColor: '#3b82f6' }}></div>
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/5 p-2 rounded-lg">
+                  <div className="flex justify-between font-bold text-white mb-1.5">
+                    <span className="opacity-90">Kripto</span>
+                    <span className="tabular-nums">{rbActCrypto}% <span className="opacity-50">/ {rbTargetCrypto}%</span></span>
+                  </div>
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, rbTargetCrypto > 0 ? (rbActCrypto / rbTargetCrypto) * 100 : 0)}%`, backgroundColor: '#a855f7' }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-[9px] opacity-60 leading-tight max-w-[60%]">
+                * Rekomendasi dihitung real-time berdasarkan CFA Weighted Risk Model & CFP Standard Allocation untuk profil <strong>{rbRiskProfileName}</strong>. Skor Diversifikasi (HHI): {rbDivScore.toFixed(1)}/10.
+              </p>
+              <button
+                onClick={() => { setActiveTab('ekuitas'); setSubTab('analisis'); }}
+                className="bg-white text-primary px-4 py-2 rounded-lg font-extrabold text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-colors shadow-md active:scale-95 flex items-center gap-1.5 w-fit cursor-pointer shrink-0"
+              >
+                <span className="material-symbols-outlined text-sm">analytics</span>
+                Laporan Lengkap
+              </button>
+            </div>
           </div>
           {/* Abstract pattern */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20 group-hover:scale-110 transition-transform duration-700"></div>
           <div className="absolute bottom-0 right-0 w-32 h-32 bg-on-primary-container/10 dark:bg-[#a7c8ff]/10 rounded-full blur-2xl mr-10 mb-10"></div>
         </div>
 
-        <div className="bg-surface-container-highest dark:bg-white/5 p-6 lg:p-8 rounded-2xl flex flex-col justify-center shadow-sm border border-outline-variant/10 dark:border-white/10">
-          <p className="text-[10px] lg:text-xs font-label uppercase tracking-widest text-on-surface-variant dark:text-outline mb-2 font-bold">Skor Likuiditas</p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-4xl lg:text-5xl font-headline font-extrabold text-primary dark:text-[#a7c8ff]">8.4</span>
-            <span className="text-on-surface-variant dark:text-outline text-xs lg:text-sm font-bold">/ 10</span>
+        {/* Dynamic Liquidity Score Card */}
+        <div className="bg-surface-container-highest dark:bg-white/5 p-6 lg:p-8 rounded-2xl flex flex-col justify-between shadow-sm border border-outline-variant/10 dark:border-white/10">
+          <div>
+            <p className="text-[10px] lg:text-xs font-label uppercase tracking-widest text-on-surface-variant dark:text-outline mb-2 font-bold">Skor Likuiditas</p>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-4xl lg:text-5xl font-headline font-extrabold ${rbLiquidityColor}`}>{rbLiquidityScore.toFixed(1)}</span>
+              <span className="text-on-surface-variant dark:text-outline text-xs lg:text-sm font-bold">/ 10</span>
+            </div>
+            <p className="text-xs lg:text-sm text-on-surface-variant dark:text-outline mt-4 leading-snug font-medium">
+              {rbLiquidityLabel}. Cadangan kas Anda dapat menutupi pengeluaran operasional selama <strong className="dark:text-white">{Math.floor(rbMonthsCovered)} bulan</strong>.
+            </p>
           </div>
-          <p className="text-xs lg:text-sm text-on-surface-variant dark:text-outline mt-4 leading-snug font-medium">Luar biasa. Cadangan kas Anda dapat menutupi pengeluaran operasional selama 18 bulan.</p>
+          <div className="mt-6 pt-5 border-t border-outline-variant/10 dark:border-white/10 space-y-3">
+            <div>
+              <div className="flex justify-between text-[10px] font-bold text-on-surface-variant dark:text-slate-400 mb-1">
+                <span>Coverage Ratio</span>
+                <span className="dark:text-white">{Math.floor(rbMonthsCovered)}/{rbLiquidityScore >= 8 ? '6' : rbLiquidityScore >= 5 ? '6' : '6'} Bulan</span>
+              </div>
+              <div className="w-full h-1.5 bg-surface-container-high dark:bg-white/10 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-500 ${
+                  rbLiquidityScore >= 8 ? 'bg-emerald-500' : rbLiquidityScore >= 5 ? 'bg-blue-500' : rbLiquidityScore >= 3 ? 'bg-amber-500' : 'bg-rose-500'
+                }`} style={{ width: `${Math.min(100, (rbMonthsCovered / 24) * 100)}%` }}></div>
+              </div>
+            </div>
+            <p className="text-[9px] text-on-surface-variant/60 dark:text-slate-500 italic leading-tight">
+              * Dihitung dari rata-rata pengeluaran {Math.round(elapsedExpenseMonths)} bulan terakhir: Rp {Math.round(avgMonthlyExpense).toLocaleString('id-ID')}/bln
+            </p>
+          </div>
         </div>
       </section>
       )}

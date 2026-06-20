@@ -88,6 +88,140 @@ const incomeCategories = [
   { name: 'Others', icon: 'payments' },
 ];
 
+interface SearchableSelectOption {
+  value: string;
+  label: string;
+  icon?: string;
+}
+
+interface SearchableSelectProps {
+  options: SearchableSelectOption[];
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  searchPlaceholder: string;
+  noOptionsMessage?: string;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  options,
+  value,
+  onChange,
+  placeholder,
+  searchPlaceholder,
+  noOptionsMessage = "Tidak ditemukan",
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  const filteredOptions = options.filter((opt) =>
+    opt.label.toLowerCase().includes(search.toLowerCase()) ||
+    opt.value.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSelect = (val: string) => {
+    onChange(val);
+    setIsOpen(false);
+    setSearch("");
+  };
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-surface-container-low dark:bg-white/5 border-none rounded-xl py-3.5 px-4 text-on-surface dark:text-white font-medium flex items-center justify-between cursor-pointer focus:ring-2 focus:ring-primary-container/20 dark:focus:ring-white/20 transition-all select-none"
+      >
+        <span className="flex items-center gap-2 truncate">
+          {selectedOption?.icon && (
+            <span className="material-symbols-outlined text-lg opacity-70">
+              {selectedOption.icon}
+            </span>
+          )}
+          <span>{selectedOption ? selectedOption.label : placeholder}</span>
+        </span>
+        <span className="material-symbols-outlined text-on-surface-variant dark:text-outline transition-transform duration-200" style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0)' }}>
+          keyboard_arrow_down
+        </span>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-[#191c1e] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl z-[80] overflow-hidden flex flex-col max-h-72 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="p-2 border-b border-slate-100 dark:border-white/5 flex items-center gap-2 bg-slate-50 dark:bg-black/20">
+            <span className="material-symbols-outlined text-outline text-lg opacity-70 pl-2">search</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full bg-transparent border-none py-1.5 px-1 focus:ring-0 text-sm outline-none dark:text-white"
+              placeholder={searchPlaceholder}
+              autoFocus
+            />
+            {search && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setSearch(""); }}
+                className="p-1 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full cursor-pointer flex items-center justify-center text-outline"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            )}
+          </div>
+
+          <div className="overflow-y-auto py-1.5 flex-1">
+            {filteredOptions.length === 0 ? (
+              <div className="px-4 py-3 text-xs text-on-surface-variant dark:text-outline italic text-center">
+                {noOptionsMessage}
+              </div>
+            ) : (
+              filteredOptions.map((opt) => {
+                const isSelected = opt.value === value;
+                return (
+                  <div
+                    key={opt.value}
+                    onClick={() => handleSelect(opt.value)}
+                    className={`px-4 py-3 text-sm font-medium cursor-pointer flex items-center justify-between transition-colors ${
+                      isSelected
+                        ? "bg-primary/10 text-primary dark:bg-[#a7c8ff]/20 dark:text-[#a7c8ff]"
+                        : "hover:bg-slate-50 dark:hover:bg-white/5 text-on-surface dark:text-white"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2.5 truncate">
+                      {opt.icon && (
+                        <span className="material-symbols-outlined text-lg opacity-70">
+                          {opt.icon}
+                        </span>
+                      )}
+                      <span>{opt.label}</span>
+                    </span>
+                    {isSelected && (
+                      <span className="material-symbols-outlined text-sm font-bold text-primary dark:text-[#a7c8ff]">
+                        check
+                      </span>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface FinanceAddTransactionProps {
   onShowCTA: (feature?: FeatureCTA) => void;
   onBack: () => void;
@@ -119,16 +253,36 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
   const currentLanguage = settings.find(s => s.key === 'language')?.value || 'Bahasa Indonesia';
   const isIndo = currentLanguage === 'Bahasa Indonesia';
 
+  const accountOptions = accounts.map(acc => ({
+    value: acc.name,
+    label: acc.name,
+    icon: acc.icon || 'account_balance_wallet'
+  }));
+
+  const toAccountOptions = accounts
+    .filter(acc => acc.name !== account)
+    .map(acc => ({
+      value: acc.name,
+      label: acc.name,
+      icon: acc.icon || 'account_balance_wallet'
+    }));
+
+  const currentCategories = transactionType === 'pemasukan' 
+    ? incomeCategories 
+    : (transactionType === 'pengeluaran' ? expenseCategories : [{ name: 'Transfer', icon: 'swap_horiz' }, { name: 'Lainnya', icon: 'receipt_long' }]);
+
+  const categoryOptions = currentCategories.map(cat => ({
+    value: cat.name,
+    label: translateCategory(cat.name, isIndo),
+    icon: cat.icon
+  }));
+
   const getFontSizeClass = (len: number) => {
     if (len > 15) return 'text-2xl md:text-3xl';
     if (len > 12) return 'text-3xl md:text-4xl';
     if (len > 9) return 'text-4xl md:text-5xl';
     return 'text-5xl';
   };
-
-  const currentCategories = transactionType === 'pemasukan' 
-    ? incomeCategories 
-    : (transactionType === 'pengeluaran' ? expenseCategories : [{ name: 'Transfer', icon: 'swap_horiz' }, { name: 'Lainnya', icon: 'receipt_long' }]);
 
   useEffect(() => {
     // Reset category when transaction type changes
@@ -408,7 +562,7 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
   const usagePercent = budgetAllocated > 0 ? Math.min(Math.round((newSpent / budgetAllocated) * 100), 100) : 0;
 
   return (
-    <div className="w-full max-w-7xl mx-auto animate-in slide-in-from-bottom-4 duration-500 pb-24 text-left">
+    <div className="w-full max-w-7xl mx-auto animate-in slide-in-from-bottom-4 duration-500 pb-6 text-left">
       {/* Header with Back Button */}
       <div className="flex items-center gap-4 mb-8 z-10 relative px-2">
         <button 
@@ -469,50 +623,40 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
                 <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline">
                   {transactionType === 'transfer' ? 'Akun Sumber (Dari)' : 'Pilih Akun'}
                 </label>
-                <div className="relative group">
-                  <select value={account} onChange={(e) => setAccount(e.target.value)} className="w-full bg-surface-container-low dark:bg-white/5 border-none rounded-xl py-3.5 px-4 text-on-surface dark:text-white font-medium appearance-none focus:ring-2 focus:ring-primary-container/20 dark:focus:ring-white/20 transition-all cursor-pointer">
-                    {accounts.length === 0 ? (
-                      <option value="" className="bg-surface-container dark:bg-slate-900 text-on-surface dark:text-white">Tidak ada akun rekening</option>
-                    ) : (
-                      accounts.map(acc => (
-                        <option key={acc.id} value={acc.name} className="bg-surface-container dark:bg-slate-900 text-on-surface dark:text-white">{acc.name}</option>
-                      ))
-                    )}
-                  </select>
-                  <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant dark:text-outline">keyboard_arrow_down</span>
-                </div>
+                <SearchableSelect
+                  options={accountOptions}
+                  value={account}
+                  onChange={setAccount}
+                  placeholder="Pilih rekening..."
+                  searchPlaceholder="Cari rekening..."
+                  noOptionsMessage="Rekening tidak ditemukan"
+                />
               </div>
 
               <div className="space-y-2 text-left">
                 {transactionType === 'transfer' ? (
                   <>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline">Akun Tujuan (Ke)</label>
-                    <div className="relative group">
-                      <select value={toAccount} onChange={(e) => setToAccount(e.target.value)} className="w-full bg-surface-container-low dark:bg-white/5 border-none rounded-xl py-3.5 px-4 text-on-surface dark:text-white font-medium appearance-none focus:ring-2 focus:ring-primary-container/20 dark:focus:ring-white/20 transition-all cursor-pointer">
-                        {accounts.filter(acc => acc.name !== account).length === 0 ? (
-                          <option value="" className="bg-surface-container dark:bg-slate-900 text-on-surface dark:text-white">Tidak ada akun tujuan</option>
-                        ) : (
-                          accounts.filter(acc => acc.name !== account).map(acc => (
-                            <option key={acc.id} value={acc.name} className="bg-surface-container dark:bg-slate-900 text-on-surface dark:text-white">{acc.name}</option>
-                          ))
-                        )}
-                      </select>
-                      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant dark:text-outline">keyboard_arrow_down</span>
-                    </div>
+                    <SearchableSelect
+                      options={toAccountOptions}
+                      value={toAccount}
+                      onChange={setToAccount}
+                      placeholder="Pilih rekening tujuan..."
+                      searchPlaceholder="Cari rekening tujuan..."
+                      noOptionsMessage="Rekening tujuan tidak ditemukan"
+                    />
                   </>
                 ) : (
                   <>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline">Kategori</label>
-                    <div className="relative group">
-                      <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-surface-container-low dark:bg-white/5 border-none rounded-xl py-3.5 px-4 text-on-surface dark:text-white font-medium appearance-none focus:ring-2 focus:ring-primary-container/20 dark:focus:ring-white/20 transition-all cursor-pointer">
-                        {currentCategories.map(cat => (
-                          <option key={cat.name} value={cat.name} className="bg-surface-container dark:bg-slate-900 text-on-surface dark:text-white">
-                            {translateCategory(cat.name, isIndo)}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant dark:text-outline">keyboard_arrow_down</span>
-                    </div>
+                    <SearchableSelect
+                      options={categoryOptions}
+                      value={category}
+                      onChange={setCategory}
+                      placeholder="Pilih kategori..."
+                      searchPlaceholder="Cari kategori..."
+                      noOptionsMessage="Kategori tidak ditemukan"
+                    />
                   </>
                 )}
               </div>
