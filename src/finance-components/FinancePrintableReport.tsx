@@ -50,8 +50,11 @@ const FinancePrintableReport: React.FC = () => {
     ? `${googleSheetUrl.substring(0, 35)}.../exec`
     : 'Tidak Terintegrasi';
 
+  const printType = useFinanceStore(state => state.printType);
   const reportPrintMonth = useFinanceStore(state => state.reportPrintMonth);
   const reportPrintYear = useFinanceStore(state => state.reportPrintYear);
+
+  if (printType !== 'report') return null;
 
   const monthNamesArray = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   const periodString = `${monthNamesArray[reportPrintMonth]} ${reportPrintYear}`;
