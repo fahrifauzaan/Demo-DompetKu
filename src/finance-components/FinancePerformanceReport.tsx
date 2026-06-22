@@ -485,17 +485,41 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
     }
   };
 
-  // Helper to calculate SVG Y coordinate (Inverse: 0 is top, 200 is bottom)
+  // Auto-scale Y axis based on actual data ± padding (best practice: data-driven scale,
+  // not arbitrary fixed range — values cluster cleanly instead of squishing at the bottom).
+  const chartYBounds = (() => {
+    const allVals = chartData.flatMap(d => [d.portfolio, d.ihsg]);
+    if (allVals.length === 0) return { min: -10, max: 10 };
+    const dataMin = Math.min(...allVals, 0); // include 0 so the zero baseline is visible
+    const dataMax = Math.max(...allVals, 0);
+    const span = dataMax - dataMin;
+    const padding = Math.max(1, span * 0.15);
+    return { min: dataMin - padding, max: dataMax + padding };
+  })();
+
+  // SVG Y coordinate (inverse: 0 is top, 200 is bottom). Uses the 20-180 band so labels
+  // & padding don't overlap the lines.
   const getY = (val: number) => {
-    const min = Math.min(-10, portfolioReturnAll - 10, ihsgReturn - 10);
-    const max = Math.max(40, portfolioReturnAll + 10, ihsgReturn + 10);
-    const range = max - min;
+    const { min, max } = chartYBounds;
+    const range = max - min || 1;
     return 180 - ((val - min) / range) * 160;
   };
 
   // Generate paths
   const portfolioPoints = chartData.map((d, i) => `${(i / (chartData.length - 1)) * 1000},${getY(d.portfolio)}`).join(' ');
   const ihsgPoints = chartData.map((d, i) => `${(i / (chartData.length - 1)) * 1000},${getY(d.ihsg)}`).join(' ');
+
+  // Zero-baseline (visible when chart spans both gains and losses).
+  const zeroBaselineY = chartYBounds.min < 0 && chartYBounds.max > 0 ? getY(0) : null;
+
+  // Subtitle matches the active period instead of a hard-coded "12 bulan terakhir".
+  const benchmarkSubtitle = (() => {
+    if (selectedPeriod === 'this_month') return 'Perbandingan performa kumulatif bulan ini';
+    if (selectedPeriod === '3_months') return 'Perbandingan performa kumulatif 3 bulan terakhir';
+    if (selectedPeriod === '12_months') return 'Perbandingan performa kumulatif 12 bulan terakhir';
+    if (selectedPeriod === 'ytd') return 'Perbandingan performa kumulatif YTD';
+    return 'Perbandingan performa kumulatif periode yang dipilih';
+  })();
 
   const formatM = (val: number) => {
     if (val >= 1e9) {
@@ -587,14 +611,14 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
         </header>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
         
         {/* Performance Benchmark vs IHSG */}
-        <section className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px] shadow-sm flex flex-col">
+        <section className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px] shadow-sm flex flex-col">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
             <div>
               <h3 className="font-headline text-sm uppercase tracking-widest font-bold text-on-surface dark:text-white">Benchmark IHSG</h3>
-              <p className="text-xs text-on-surface-variant dark:text-slate-400 mt-1 font-medium">Perbandingan performa kumulatif 12 bulan terakhir</p>
+              <p className="text-xs text-on-surface-variant dark:text-slate-400 mt-1 font-medium">{benchmarkSubtitle}</p>
             </div>
             <div className="flex gap-4 text-xs font-semibold bg-surface-container-low dark:bg-white/5 py-1.5 px-3 rounded-xl border border-outline-variant/10 dark:border-white/10">
               <div className="flex items-center gap-2">
@@ -609,114 +633,177 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
           </div>
 
           {/* Interactive SVG Line Chart */}
-          <div className="flex-1 min-h-[300px] md:min-h-[380px] relative flex items-end justify-between gap-1 px-2 border-b border-outline-variant/20 dark:border-white/10 mb-8 cursor-crosshair group">
-            <svg className="absolute inset-0 w-full h-full preserve-3d" fill="none" preserveAspectRatio="none" viewBox="0 0 1000 200">
-              {/* Grid Lines */}
-              {[40, 80, 120, 160].map((y) => (
-                <line key={y} x1="0" y1={y} x2="1000" y2={y} stroke="currentColor" className="text-outline-variant dark:text-white/10" strokeWidth="1" strokeDasharray="4" opacity="0.3" />
-              ))}
-              
-              {/* IHSG Path */}
-              <polyline 
-                points={ihsgPoints} 
-                stroke="#64748b" 
-                strokeWidth="2" 
-                strokeLinejoin="round" 
-                vectorEffect="non-scaling-stroke" 
-                style={{ filter: 'drop-shadow(0px 3px 6px rgba(100, 116, 139, 0.35))' }}
-              />
-              
-              {/* Portfolio Path */}
-              <polyline 
-                points={portfolioPoints} 
-                stroke="#3b82f6" 
-                strokeWidth="3" 
-                strokeLinejoin="round" 
-                vectorEffect="non-scaling-stroke" 
-                style={{ filter: 'drop-shadow(0px 3px 6px rgba(59, 130, 246, 0.4))' }}
-              />
-              
-              {/* Hover Indicator Line */}
-              {hoveredIndex !== null && (
-                <line 
-                  x1={(hoveredIndex / (chartData.length - 1)) * 1000} 
-                  y1="0" 
-                  x2={(hoveredIndex / (chartData.length - 1)) * 1000} 
-                  y2="200" 
-                  stroke="currentColor" 
-                  className="text-primary dark:text-[#a7c8ff] opacity-30" 
-                  strokeWidth="1" 
-                  strokeDasharray="4" 
-                />
-              )}
+          <div className="flex-1 h-[240px] sm:h-[280px] lg:h-[320px] relative pl-10 sm:pl-12 pr-2 pb-8 cursor-crosshair group">
+            {/* Y-axis value labels (auto-scaled) */}
+            <div className="absolute left-0 top-0 bottom-8 w-9 sm:w-10 flex flex-col justify-between text-[9px] sm:text-[10px] font-bold text-on-surface-variant/70 dark:text-outline/70 tabular-nums text-right pr-2">
+              {(() => {
+                const { min, max } = chartYBounds;
+                const ticks = [max, max - (max - min) * 0.25, (max + min) / 2, min + (max - min) * 0.25, min];
+                return ticks.map((t, i) => (
+                  <span key={i}>{t >= 0 ? '+' : ''}{t.toFixed(1)}%</span>
+                ));
+              })()}
+            </div>
 
-              {/* Hover Points */}
-              {hoveredIndex !== null && chartData[hoveredIndex] && (
-                <>
-                  <circle 
-                    cx={(hoveredIndex / (chartData.length - 1)) * 1000} 
-                    cy={getY(chartData[hoveredIndex].ihsg)} 
-                    r="4" 
-                    fill="white" 
-                    stroke="#64748b" 
-                    strokeWidth="2" 
-                  />
-                  <circle 
-                    cx={(hoveredIndex / (chartData.length - 1)) * 1000} 
-                    cy={getY(chartData[hoveredIndex].portfolio)} 
-                    r="5" 
-                    fill="white" 
-                    stroke="#3b82f6" 
-                    strokeWidth="2.5" 
-                  />
-                </>
-              )}
+            {/* Chart canvas */}
+            <div className="relative w-full h-full border-l border-b border-outline-variant/20 dark:border-white/10">
+              <svg className="absolute inset-0 w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 1000 200">
+                {/* Grid Lines (match Y-axis ticks) */}
+                {[20, 60, 100, 140, 180].map((y) => (
+                  <line key={y} x1="0" y1={y} x2="1000" y2={y} stroke="currentColor" className="text-outline-variant dark:text-white/10" strokeWidth="1" strokeDasharray="4" opacity="0.4" />
+                ))}
 
-              {/* Interaction Zones */}
-              {chartData.map((_, i) => (
-                <rect
-                  key={i}
-                  x={(i / (chartData.length - 1)) * 1000 - 500 / (chartData.length - 1)}
-                  y="0"
-                  width={1000 / (chartData.length - 1)}
-                  height="200"
-                  fill="transparent"
-                  className="cursor-pointer"
-                  onMouseEnter={() => setHoveredIndex(i)}
-                  onMouseLeave={() => setHoveredIndex(null)}
+                {/* Zero baseline (highlighted) */}
+                {zeroBaselineY !== null && (
+                  <line x1="0" y1={zeroBaselineY} x2="1000" y2={zeroBaselineY} stroke="currentColor" className="text-on-surface-variant/50 dark:text-outline/40" strokeWidth="1.5" />
+                )}
+
+                {/* IHSG Path */}
+                <polyline
+                  points={ihsgPoints}
+                  stroke="#64748b"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                  style={{ filter: 'drop-shadow(0px 2px 4px rgba(100, 116, 139, 0.25))' }}
                 />
-              ))}
-            </svg>
-            
-            {/* Dynamic Tooltip */}
-            {hoveredIndex !== null && chartData[hoveredIndex] && (
-              <div 
-                className="absolute bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 p-3.5 rounded-2xl shadow-2xl pointer-events-none transition-all duration-200 z-10 min-w-[160px]"
-                style={{ 
-                  left: `${(hoveredIndex / (chartData.length - 1)) * 100}%`,
-                  bottom: '60%',
-                  transform: 'translateX(-50%)'
-                }}
-              >
-                <div className="font-bold text-slate-700 dark:text-white mb-2 border-b border-slate-200/20 dark:border-white/10 pb-1.5">{chartData[hoveredIndex].month} 2026</div>
-                <div className="flex flex-col gap-1.5 font-semibold">
-                  <div className="text-[#3b82f6] flex justify-between gap-6 items-center">
-                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }}></span> Portofolio:</span> 
-                    <span className="font-bold tabular-nums">{chartData[hoveredIndex].portfolio >= 0 ? '+' : ''}{chartData[hoveredIndex].portfolio.toFixed(1)}%</span>
-                  </div>
-                  <div className="text-slate-400 dark:text-slate-500 flex justify-between gap-6 items-center">
-                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#64748b' }}></span> IHSG:</span> 
-                    <span className="font-bold tabular-nums">{chartData[hoveredIndex].ihsg >= 0 ? '+' : ''}{chartData[hoveredIndex].ihsg.toFixed(1)}%</span>
-                  </div>
-                </div>
+
+                {/* Portfolio Path */}
+                <polyline
+                  points={portfolioPoints}
+                  stroke="#3b82f6"
+                  strokeWidth="2.5"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                  style={{ filter: 'drop-shadow(0px 2px 4px rgba(59, 130, 246, 0.3))' }}
+                />
+
+                {/* Hover Indicator Line */}
+                {hoveredIndex !== null && (
+                  <line
+                    x1={(hoveredIndex / Math.max(chartData.length - 1, 1)) * 1000}
+                    y1="0"
+                    x2={(hoveredIndex / Math.max(chartData.length - 1, 1)) * 1000}
+                    y2="200"
+                    stroke="currentColor"
+                    className="text-primary dark:text-[#a7c8ff] opacity-40"
+                    strokeWidth="1"
+                    strokeDasharray="4"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                )}
+
+                {/* Interaction Zones */}
+                {chartData.map((_, i) => (
+                  <rect
+                    key={i}
+                    x={(i / Math.max(chartData.length - 1, 1)) * 1000 - 500 / Math.max(chartData.length - 1, 1)}
+                    y="0"
+                    width={1000 / Math.max(chartData.length - 1, 1)}
+                    height="200"
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredIndex(i)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                  />
+                ))}
+              </svg>
+
+              {/* Data point markers — rendered as HTML overlays so they stay perfectly
+                  circular regardless of the SVG's non-uniform aspect ratio. */}
+              <div className="absolute inset-0 pointer-events-none">
+                {chartData.map((d, i) => {
+                  const xPct = (i / Math.max(chartData.length - 1, 1)) * 100;
+                  const isHovered = hoveredIndex === i;
+                  // Convert viewBox Y (0-200) to container percentage (0-100).
+                  const ihsgYPct = (getY(d.ihsg) / 200) * 100;
+                  const portfolioYPct = (getY(d.portfolio) / 200) * 100;
+                  return (
+                    <React.Fragment key={i}>
+                      <span
+                        className="absolute rounded-full bg-white dark:bg-[#191c1e] border border-slate-500 transition-all duration-150"
+                        style={{
+                          left: `${xPct}%`,
+                          top: `${ihsgYPct}%`,
+                          width: isHovered ? 10 : 6,
+                          height: isHovered ? 10 : 6,
+                          borderWidth: isHovered ? 2 : 1.5,
+                          borderColor: '#64748b',
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      />
+                      <span
+                        className="absolute rounded-full bg-white dark:bg-[#191c1e] transition-all duration-150"
+                        style={{
+                          left: `${xPct}%`,
+                          top: `${portfolioYPct}%`,
+                          width: isHovered ? 12 : 7,
+                          height: isHovered ? 12 : 7,
+                          borderWidth: isHovered ? 2.5 : 2,
+                          borderStyle: 'solid',
+                          borderColor: '#3b82f6',
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      />
+                    </React.Fragment>
+                  );
+                })}
               </div>
-            )}
 
-            {/* Month Labels */}
-            <div className="absolute -bottom-6 w-full flex justify-between text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-wider">
-              {chartData.filter((_, i) => i % 2 === 0 || i === 11).map((d, i) => (
-                <span key={i}>{d.month}</span>
-              ))}
+              {/* Dynamic Tooltip — smarter placement above/below the hovered point */}
+              {hoveredIndex !== null && chartData[hoveredIndex] && (() => {
+                const xPct = (hoveredIndex / Math.max(chartData.length - 1, 1)) * 100;
+                const portfolioY = getY(chartData[hoveredIndex].portfolio);
+                const ihsgY = getY(chartData[hoveredIndex].ihsg);
+                const topPointY = Math.min(portfolioY, ihsgY);
+                // If hovered point sits in upper half, drop tooltip below; otherwise above.
+                const placeBelow = topPointY < 100;
+                const verticalPctFromTop = (topPointY / 200) * 100;
+                // Edge-align tooltip when near left/right edge to prevent clipping.
+                const horizontalAlign = xPct < 18 ? 'left' : xPct > 82 ? 'right' : 'center';
+                const tooltipStyle: React.CSSProperties = {
+                  left: horizontalAlign === 'left' ? '0%' : horizontalAlign === 'right' ? '100%' : `${xPct}%`,
+                  transform: horizontalAlign === 'left' ? 'translateX(0)' : horizontalAlign === 'right' ? 'translateX(-100%)' : 'translateX(-50%)',
+                  ...(placeBelow
+                    ? { top: `calc(${verticalPctFromTop}% + 18px)` }
+                    : { bottom: `calc(${100 - verticalPctFromTop}% + 18px)` }),
+                };
+                return (
+                  <div
+                    className="absolute bg-white/95 dark:bg-[#191c1e]/95 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 p-3 rounded-2xl shadow-2xl pointer-events-none transition-opacity duration-150 z-10 min-w-[160px]"
+                    style={tooltipStyle}
+                  >
+                    <div className="font-bold text-slate-700 dark:text-white mb-2 text-xs border-b border-slate-200/30 dark:border-white/10 pb-1.5">{chartData[hoveredIndex].month}</div>
+                    <div className="flex flex-col gap-1.5 font-semibold text-xs">
+                      <div className="text-[#3b82f6] flex justify-between gap-4 items-center">
+                        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }}></span> Portofolio</span>
+                        <span className="font-bold tabular-nums">{chartData[hoveredIndex].portfolio >= 0 ? '+' : ''}{chartData[hoveredIndex].portfolio.toFixed(1)}%</span>
+                      </div>
+                      <div className="text-slate-500 dark:text-slate-400 flex justify-between gap-4 items-center">
+                        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#64748b' }}></span> IHSG</span>
+                        <span className="font-bold tabular-nums">{chartData[hoveredIndex].ihsg >= 0 ? '+' : ''}{chartData[hoveredIndex].ihsg.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Month Labels — show all when ≤ 6 points, smart filter otherwise */}
+              <div className="absolute -bottom-6 left-0 right-0 flex justify-between text-[9px] sm:text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-wider">
+                {(() => {
+                  const len = chartData.length;
+                  if (len <= 6) return chartData.map((d, i) => <span key={i}>{d.month}</span>);
+                  // For >6 points, pick ~6 evenly spaced labels including first & last.
+                  const step = Math.max(1, Math.round(len / 6));
+                  return chartData.map((d, i) => (
+                    <span key={i} className={i === 0 || i === len - 1 || i % step === 0 ? '' : 'opacity-0'}>
+                      {d.month}
+                    </span>
+                  ));
+                })()}
+              </div>
             </div>
           </div>
 
