@@ -135,37 +135,37 @@ const DebtSimulatorModal: React.FC<DebtSimulatorModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] flex items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           />
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 30 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 30 }}
-            className="relative w-full max-w-2xl bg-white dark:bg-[#191c1e] rounded-3xl shadow-2xl overflow-hidden border border-slate-200/50 dark:border-white/10 flex flex-col max-h-[95vh]"
+            className="relative w-full max-w-md sm:max-w-xl md:max-w-2xl my-auto bg-white dark:bg-[#191c1e] rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200/50 dark:border-white/10 flex flex-col max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)]"
           >
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
+            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50/50 dark:bg-white/5 shrink-0">
               <div>
-                <h3 className="text-xl font-bold text-blue-950 dark:text-white font-headline flex items-center gap-2">
+                <h3 className="text-base sm:text-lg lg:text-xl font-bold text-blue-950 dark:text-white font-headline flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]">speed</span>
                   Simulator Kebebasan Finansial
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
                   Simulasikan dampak cicilan ekstra menggunakan strategi alokasi CFP® & CFA®.
                 </p>
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full transition-colors text-slate-400">
+              <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full transition-colors text-slate-400 shrink-0">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="p-6 lg:p-8 space-y-6 overflow-y-auto max-h-[70vh]">
+            <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
               {/* Slider Control */}
               <div className="space-y-4 bg-slate-50 dark:bg-white/5 p-5 rounded-2xl border border-slate-100 dark:border-white/5">
                 <div className="flex justify-between items-center flex-wrap gap-2">

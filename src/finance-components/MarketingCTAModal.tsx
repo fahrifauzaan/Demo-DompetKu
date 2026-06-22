@@ -17,16 +17,16 @@ const MarketingCTAModal: React.FC<MarketingCTAModalProps> = ({ isOpen = true, on
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-surface-container-lowest dark:bg-[#191c1e] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 zoom-in-95 duration-200 border border-outline-variant/10 dark:border-white/10 relative">
-        <button 
+    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-surface-container-lowest dark:bg-[#191c1e] w-full max-w-md my-auto rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 zoom-in-95 duration-200 border border-outline-variant/10 dark:border-white/10 relative max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface-container-low dark:hover:bg-white/10 transition-colors text-outline"
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-surface-container-low dark:hover:bg-white/10 transition-colors text-outline z-10"
         >
           <X className="w-5 h-5" />
         </button>
-        
-        <div className="p-8 text-center flex flex-col items-center">
+
+        <div className="p-5 sm:p-6 lg:p-8 text-center flex flex-col items-center">
           <div className="w-16 h-16 rounded-full bg-primary-container/20 dark:bg-white/5 flex items-center justify-center mb-6">
              <span className="material-symbols-outlined text-4xl text-primary dark:text-[#a7c8ff]" style={{ fontVariationSettings: "'FILL' 1" }}>
                {feature && feature.icon ? feature.icon : 'campaign'}

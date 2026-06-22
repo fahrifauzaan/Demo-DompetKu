@@ -86,7 +86,7 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-10">
         {/* Left Column: Form Inputs */}
         <div className="lg:col-span-7 space-y-12">
           
@@ -225,7 +225,7 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
               <h3 className="text-lg font-headline font-bold text-on-surface dark:text-white">Identitas Visual</h3>
             </div>
             
-            <div className="bg-surface-container-low dark:bg-transparent border border-outline-variant/10 dark:border-white/10 rounded-3xl p-8 space-y-8">
+            <div className="bg-surface-container-low dark:bg-transparent border border-outline-variant/10 dark:border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 lg:space-y-8">
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant dark:text-outline opacity-70 mb-4 block">Pilih Ikon</label>
                 <div className="grid grid-cols-6 sm:grid-cols-8 gap-4">
@@ -322,14 +322,14 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
         </div>
 
         {/* Right Column: Sticky Preview & Suggestions */}
-        <div className="lg:col-span-5 space-y-10">
-          
+        <div className="lg:col-span-5 space-y-5 sm:space-y-6 lg:space-y-10">
+
           {/* Real-time Preview Card */}
-          <div className="lg:sticky lg:top-32 space-y-10">
+          <div className="lg:sticky lg:top-32 space-y-5 sm:space-y-6 lg:space-y-10">
             <div className="space-y-6">
               <h3 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline opacity-60">Pratinjau Kartu</h3>
-              <div 
-                className="p-8 rounded-[32px] text-white relative overflow-hidden shadow-2xl transition-colors duration-500"
+              <div
+                className="p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] text-white relative overflow-hidden shadow-2xl transition-colors duration-500"
                 style={{ backgroundColor: selectedColor }}
               >
                 {/* Abstract decorative background */}

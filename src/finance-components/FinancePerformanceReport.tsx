@@ -561,7 +561,7 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
   };
 
   return (
-    <div className="space-y-8 lg:space-y-12 animate-in fade-in duration-500 pb-12">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-12 animate-in fade-in duration-500 pb-8 lg:pb-12">
       
       {/* Header */}
       {!hideHeader && (
@@ -749,7 +749,7 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
 
         {/* Risk Metrics Summary & Heatmap */}
         <section className="lg:col-span-4 space-y-6 lg:space-y-8 flex flex-col justify-between">
-          <div className="bg-surface-container-lowest dark:bg-transparent p-6 lg:p-8 rounded-[24px] shadow-sm border border-outline-variant/10 dark:border-white/10 flex-1">
+          <div className="bg-surface-container-lowest dark:bg-transparent p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px] shadow-sm border border-outline-variant/10 dark:border-white/10 flex-1">
             <h3 className="font-headline text-sm uppercase tracking-widest font-bold text-on-surface dark:text-white mb-6">Metrik Risiko & Alpha (CFA Standards)</h3>
             <div className="space-y-4">
               {/* Excess Return Card */}
@@ -823,7 +823,7 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
           
           {/* Quick Heatmap preview */}
           <div 
-            className="bg-surface-container-low dark:bg-transparent dark:border dark:border-white/10 p-6 rounded-[24px] hover:shadow-md transition-shadow group"
+            className="bg-surface-container-low dark:bg-transparent dark:border dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] hover:shadow-md transition-shadow group"
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-headline text-xs uppercase tracking-widest font-bold text-on-surface dark:text-white group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">Peta Panas Sektor</h3>
@@ -847,7 +847,7 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
         </section>
 
         {/* Visualisasi Alokasi Modal (Treemap Mockup sorted dynamically) */}
-        <section className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px] shadow-sm flex flex-col">
+        <section className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px] shadow-sm flex flex-col">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-2">
             <h3 className="font-headline text-sm uppercase tracking-widest font-bold text-on-surface dark:text-white">Visualisasi Alokasi Modal Sektoral</h3>
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant dark:text-slate-400 bg-surface-container-low dark:bg-white/5 py-1 px-2.5 rounded shadow-sm">
@@ -941,7 +941,7 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
 
         {/* Advisor Insight Box */}
         <section className="lg:col-span-4 flex flex-col">
-          <div className="bg-primary dark:bg-gradient-to-br dark:from-[#00174a] dark:to-[#002366] p-6 lg:p-8 rounded-[24px] text-white relative overflow-hidden h-full flex flex-col justify-center shadow-lg group">
+          <div className="bg-primary dark:bg-gradient-to-br dark:from-[#00174a] dark:to-[#002366] p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px] text-white relative overflow-hidden h-full flex flex-col justify-center shadow-lg group">
             <div className="absolute -right-4 -top-4 opacity-5 group-hover:rotate-12 group-hover:scale-110 transition-all duration-700 pointer-events-none">
               <span className="material-symbols-outlined text-9xl text-white">lightbulb</span>
             </div>

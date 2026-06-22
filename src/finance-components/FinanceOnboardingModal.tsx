@@ -67,14 +67,14 @@ const FinanceOnboardingModal: React.FC<FinanceOnboardingModalProps> = ({ onClose
   const templateLink = "https://docs.google.com/spreadsheets/d/1GMIXfRg7oWSBwUsOyRJqxKKR3-QC6xJny89IsDsbDJ0/copy";
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[110] flex items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
       {/* Backdrop */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-md"
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-md"
       />
 
       {/* Modal Box */}
@@ -83,10 +83,10 @@ const FinanceOnboardingModal: React.FC<FinanceOnboardingModalProps> = ({ onClose
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ type: 'spring', duration: 0.5 }}
-        className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200/50 dark:border-white/10 shadow-2xl overflow-hidden z-10 flex flex-col premium-shadow text-left"
+        className="w-full max-w-md sm:max-w-xl md:max-w-2xl my-auto bg-white dark:bg-slate-900 rounded-2xl sm:rounded-[2rem] border border-slate-200/50 dark:border-white/10 shadow-2xl overflow-hidden z-10 flex flex-col max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] premium-shadow text-left"
       >
         {/* Header */}
-        <div className="px-8 py-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+        <div className="px-5 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 font-headline">
               Hubungkan Database Google Sheets
@@ -120,7 +120,7 @@ const FinanceOnboardingModal: React.FC<FinanceOnboardingModalProps> = ({ onClose
         </div>
 
         {/* Content Wizard (Stepper) */}
-        <div className="p-8 flex-grow">
+        <div className="p-5 sm:p-6 lg:p-8 flex-grow overflow-y-auto">
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div

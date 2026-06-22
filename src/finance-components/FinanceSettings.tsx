@@ -202,11 +202,11 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
 
   return (
     <div className="max-w-5xl mx-auto animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row gap-8">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 lg:gap-8">
         
         {/* Sidebar Navigation */}
         <aside className="w-full md:w-64 shrink-0">
-          <div className="bg-surface-container-lowest dark:bg-white/5 rounded-2xl p-4 border border-outline-variant/20 dark:border-white/10 shadow-sm sticky top-24">
+          <div className="bg-surface-container-lowest dark:bg-white/5 rounded-2xl p-3 sm:p-4 border border-outline-variant/20 dark:border-white/10 shadow-sm md:sticky md:top-24">
             <h3 className="px-4 py-2 text-xs font-bold text-outline uppercase tracking-widest mb-4">Pengaturan</h3>
             <nav className="space-y-1">
               {SECTIONS.map((section) => (
@@ -239,7 +239,7 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
 
         {/* Content Area */}
         <main className="flex-1">
-          <div className="bg-surface-container-lowest dark:bg-white/5 rounded-3xl p-6 lg:p-10 border border-outline-variant/20 dark:border-white/10 shadow-sm min-h-[600px]">
+          <div className="bg-surface-container-lowest dark:bg-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-10 border border-outline-variant/20 dark:border-white/10 shadow-sm min-h-[400px] sm:min-h-[600px]">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSection}
@@ -249,13 +249,13 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                 transition={{ duration: 0.2 }}
               >
                 {activeSection === 'profil' && (
-                  <div className="space-y-8">
+                  <div className="space-y-5 sm:space-y-6 lg:space-y-8">
                     <div>
                       <h2 className="text-2xl font-bold text-on-surface dark:text-white mb-2">Profil Saya</h2>
                       <p className="text-on-surface-variant dark:text-outline text-sm">Kelola informasi pribadi dan foto profil Anda.</p>
                     </div>
                     
-                    <div className="flex items-center gap-6 pb-8 border-b border-outline-variant/10 dark:border-white/5">
+                    <div className="flex items-center gap-4 sm:gap-6 pb-5 sm:pb-8 border-b border-outline-variant/10 dark:border-white/5">
                       <div className="relative group">
                         <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-200 dark:bg-white/10 border-2 border-primary/20 dark:border-white/20">
                           <img alt="Avatar" className="w-full h-full object-cover" src={`https://ui-avatars.com/api/?name=${encodeURIComponent(profileName)}&background=0D8ABC&color=fff&size=128`} />
@@ -271,7 +271,7 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-outline uppercase ml-1">Nama Lengkap</label>
                         <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors dark:text-white" />
@@ -293,7 +293,7 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                 )}
 
                 {activeSection === 'keamanan' && (
-                  <div className="space-y-8">
+                  <div className="space-y-5 sm:space-y-6 lg:space-y-8">
                     <div>
                       <h2 className="text-2xl font-bold text-on-surface dark:text-white mb-2">Keamanan</h2>
                       <p className="text-on-surface-variant dark:text-outline text-sm">Pastikan akun dan data finansial Anda tetap terlindungi.</p>
@@ -405,7 +405,7 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                 )}
 
                 {activeSection === 'preferensi' && (
-                  <div className="space-y-8">
+                  <div className="space-y-5 sm:space-y-6 lg:space-y-8">
                     <div>
                       <h2 className="text-2xl font-bold text-on-surface dark:text-white mb-2">Preferensi Aplikasi</h2>
                       <p className="text-on-surface-variant dark:text-outline text-sm">Sesuaikan tampilan dan mata uang sistem.</p>
@@ -584,7 +584,7 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                 )}
 
                 {activeSection === 'notifikasi' && (
-                  <div className="space-y-8">
+                  <div className="space-y-5 sm:space-y-6 lg:space-y-8">
                     <div>
                       <h2 className="text-2xl font-bold text-on-surface dark:text-white mb-2">Notifikasi</h2>
                       <p className="text-on-surface-variant dark:text-outline text-sm">Atur pesan dan alert apa saja yang ingin Anda terima.</p>
@@ -597,7 +597,7 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                         { id: 'security', label: 'Keamanan Akun', desc: 'Notifikasi untuk login baru atau perubahan password.' },
                         { id: 'marketing', label: 'Informasi & Promo', desc: 'Tips finansial dan penawaran eksklusif.' },
                       ].map((item) => (
-                        <div key={item.id} className="flex items-center justify-between p-6 bg-surface-container dark:bg-white/5 rounded-2xl border border-outline-variant/20 dark:border-white/10 shadow-sm">
+                        <div key={item.id} className="flex items-center justify-between p-4 sm:p-5 lg:p-6 bg-surface-container dark:bg-white/5 rounded-2xl border border-outline-variant/20 dark:border-white/10 shadow-sm">
                           <div className="pr-4">
                             <h4 className="font-bold text-sm dark:text-white mb-1">{item.label}</h4>
                             <p className="text-xs text-outline">{item.desc}</p>

@@ -246,7 +246,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
 
       {/* Quick Stats Bento */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-        <div className="col-span-1 md:col-span-2 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 rounded-[24px] p-6 lg:p-8 flex items-center justify-between group hover:bg-surface-bright/50 dark:hover:bg-white/5 transition-colors cursor-default shadow-sm">
+        <div className="col-span-1 md:col-span-2 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 rounded-2xl lg:rounded-[24px] p-4 sm:p-6 lg:p-8 flex items-center justify-between group hover:bg-surface-bright/50 dark:hover:bg-white/5 transition-colors cursor-default shadow-sm">
           <div>
             <p className="text-on-surface-variant dark:text-slate-400 text-sm font-medium mb-1 uppercase tracking-widest text-[10px] md:text-sm">Status Keuangan Hari Ini</p>
             <h3 className="text-2xl md:text-3xl font-bold font-headline text-on-surface dark:text-white mt-1">{totalAlertsCount} Perlu Perhatian</h3>
@@ -256,7 +256,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
           </div>
         </div>
         <div 
-          className="bg-primary dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white rounded-[24px] p-6 lg:p-8 flex flex-col justify-between shadow-md cursor-pointer hover:shadow-lg transition-shadow border border-primary-container dark:border-[#a7c8ff]/10"
+          className="bg-primary dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white rounded-2xl lg:rounded-[24px] p-4 sm:p-6 lg:p-8 flex flex-col justify-between shadow-md cursor-pointer hover:shadow-lg transition-shadow border border-primary-container dark:border-[#a7c8ff]/10"
           onClick={() => {
             if (onNavigate) {
               onNavigate('analytics');
@@ -288,7 +288,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
           
           <div className="space-y-1">
             {filteredWarnings.length === 0 ? (
-              <div className="bg-surface-container-lowest dark:bg-white/5 rounded-[24px] p-8 border border-outline-variant/10 dark:border-white/10 text-center flex flex-col items-center justify-center gap-3">
+              <div className="bg-surface-container-lowest dark:bg-white/5 rounded-2xl lg:rounded-[24px] p-5 sm:p-6 lg:p-8 border border-outline-variant/10 dark:border-white/10 text-center flex flex-col items-center justify-center gap-3">
                 <div className="w-14 h-14 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                   <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                 </div>

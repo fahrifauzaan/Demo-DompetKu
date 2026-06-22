@@ -312,18 +312,18 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
   const activeItems = processedData[activeTab];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-16">
-      
+    <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-500 pb-10 lg:pb-16">
+
       {/* HEADER UTAMA & MONTH PICKER */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-black/[0.04] dark:border-white/5 pb-4">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 border-b border-black/[0.04] dark:border-white/5 pb-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black font-headline tracking-tight text-[#1d1d1f] dark:text-white">Budget vs Aktual</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-body text-xs md:text-sm font-medium">
+          <p className="text-slate-500 dark:text-slate-400 mt-1 font-body text-[13px] sm:text-xs md:text-sm font-medium">
             Bandingkan rencana anggaran (budgeting) vs realisasi pengeluaran aktual pada periode aktif.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Month Selector Premium */}
           <div className="flex items-center bg-[#f5f5f7] dark:bg-[#1c1c1e] p-1 rounded-2xl border border-black/[0.04] dark:border-white/[0.04] shadow-inner select-none">
             <button onClick={handlePrevMonth} className="p-2 hover:bg-white dark:hover:bg-[#2c2c2e] rounded-xl transition-all flex items-center justify-center cursor-pointer shadow-sm border border-transparent hover:border-black/[0.02]">
@@ -348,10 +348,10 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
       </header>
 
       {/* OVERALL PERFORMANCE BENTO PANELS */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         
         {/* Card 1: 50/30/20 Allocation Rule */}
-        <div className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] flex flex-col justify-between shadow-sm relative overflow-hidden group">
+        <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] flex flex-col justify-between shadow-sm relative overflow-hidden group">
           <div>
             <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Rasio Alokasi Anggaran (50/30/20)</span>
             <div className="space-y-3">
@@ -401,7 +401,7 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
         </div>
 
         {/* Card 2: Zero-Based Budgeting (ZBB) Evaluator */}
-        <div className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] flex flex-col justify-between shadow-sm relative overflow-hidden group">
+        <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] flex flex-col justify-between shadow-sm relative overflow-hidden group">
           <div>
             <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Zero-Based Budgeting (ZBB)</span>
             <div className="flex flex-col gap-1">
@@ -432,7 +432,7 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
         </div>
 
         {/* Card 3: Spending Outflow Panel */}
-        <div className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] flex flex-col justify-between shadow-sm relative overflow-hidden group">
+        <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] flex flex-col justify-between shadow-sm relative overflow-hidden group">
           <div>
             <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Laju Pengeluaran & Tabungan</span>
             <div className="flex flex-col gap-1">
@@ -494,7 +494,7 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
         </div>
 
         {/* DETAILED CATEGORIES LIST */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
           {activeItems.length > 0 ? (
             activeItems.map((cat) => {
               const isEditing = editingCatId === cat.id;
@@ -534,7 +534,7 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
               return (
                 <div 
                   key={cat.id} 
-                  className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow relative"
+                  className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow relative"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">

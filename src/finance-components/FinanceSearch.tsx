@@ -115,7 +115,7 @@ const FinanceSearch: React.FC<FinanceSearchProps> = ({ onNavigate, onClose }) =>
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 sm:pt-32 px-4">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 sm:pt-20 lg:pt-32 px-3 sm:px-4">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

@@ -50,17 +50,17 @@ const Finance2FAOverlay: React.FC<Finance2FAOverlayProps> = ({ isOpen, secret, o
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }} 
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] bg-surface-container dark:bg-[#000a1a] flex flex-col items-center justify-center p-6"
+          className="fixed inset-0 z-[9999] bg-surface-container dark:bg-[#000a1a] flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto"
         >
           {/* Logo / Brand */}
-          <div className="absolute top-8 left-8 flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary relative overflow-hidden group">
-              <span className="material-symbols-outlined text-2xl relative z-10 group-hover:scale-110 transition-transform duration-300">account_balance_wallet</span>
+          <div className="absolute top-4 sm:top-8 left-4 sm:left-8 flex items-center gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary relative overflow-hidden group">
+              <span className="material-symbols-outlined text-xl sm:text-2xl relative z-10 group-hover:scale-110 transition-transform duration-300">account_balance_wallet</span>
             </div>
-            <span className="font-headline font-black text-xl tracking-tight text-slate-800 dark:text-white">DompetKu</span>
+            <span className="font-headline font-black text-lg sm:text-xl tracking-tight text-slate-800 dark:text-white">DompetKu</span>
           </div>
 
-          <div className="w-full max-w-md bg-white dark:bg-white/5 p-8 rounded-[32px] shadow-2xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center">
+          <div className="w-full max-w-md bg-white dark:bg-white/5 p-5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] shadow-2xl border border-outline-variant/20 dark:border-white/10 flex flex-col items-center mt-16 sm:mt-0">
             <div className="w-20 h-20 rounded-full bg-primary/10 text-primary dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center mb-6">
               <span className="material-symbols-outlined text-4xl">verified_user</span>
             </div>

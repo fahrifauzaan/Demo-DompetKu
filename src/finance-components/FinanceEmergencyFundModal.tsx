@@ -47,8 +47,8 @@ const FinanceEmergencyFundModal: React.FC<FinanceEmergencyFundModalProps> = ({ o
   const percent = Number(target) > 0 ? Math.min(Math.round((Number(current) / Number(target)) * 100), 100) : 0;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-surface-container-lowest dark:bg-[#191c1e] w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 zoom-in-95 duration-200 border border-outline-variant/10 dark:border-white/10 p-8">
+    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-surface-container-lowest dark:bg-[#191c1e] w-full max-w-md my-auto rounded-2xl sm:rounded-3xl shadow-2xl animate-in slide-in-from-bottom-4 zoom-in-95 duration-200 border border-outline-variant/10 dark:border-white/10 p-4 sm:p-6 lg:p-8 max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] overflow-y-auto">
         
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">

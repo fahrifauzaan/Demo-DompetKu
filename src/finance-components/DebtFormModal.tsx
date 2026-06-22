@@ -99,21 +99,21 @@ const DebtFormModal: React.FC<DebtFormModalProps> = ({ isOpen, onClose, onSave, 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[110] flex items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           />
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative w-full max-w-2xl bg-white dark:bg-[#191c1e] rounded-3xl shadow-2xl overflow-hidden border border-slate-200/50 dark:border-white/10 max-h-[90vh] flex flex-col"
+            className="relative w-full max-w-md sm:max-w-xl md:max-w-2xl my-auto bg-white dark:bg-[#191c1e] rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200/50 dark:border-white/10 max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col"
           >
-            <div className="p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50/50 dark:bg-white/5 shrink-0">
+            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50/50 dark:bg-white/5 shrink-0">
               <div>
                 <h3 className="text-xl font-bold text-blue-950 dark:text-white font-headline">
                   {editingDebt ? 'Edit Instrumen Utang' : 'Tambah Utang Baru'}
@@ -127,7 +127,7 @@ const DebtFormModal: React.FC<DebtFormModalProps> = ({ isOpen, onClose, onSave, 
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 ml-1">Nama Liabilitas</label>

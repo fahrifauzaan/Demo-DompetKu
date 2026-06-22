@@ -519,7 +519,7 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
   const maxVal = Math.max(...allValues, 0.1) * 1.1;
 
   return (
-    <div className="space-y-8 lg:space-y-12 animate-in fade-in duration-500 pb-12">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-12 animate-in fade-in duration-500 pb-8 lg:pb-12">
       
       {/* Header Section */}
       {!hideHeader && (
@@ -546,10 +546,10 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
       )}
 
       {/* Top Overview Bento Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 lg:gap-6">
         
         {/* Asset Allocation Treemap */}
-        <div className="lg:col-span-4 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px] flex flex-col justify-between shadow-sm">
+        <div className="lg:col-span-4 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px] flex flex-col justify-between shadow-sm">
           <div>
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant dark:text-outline">Alokasi Aset Utama</h3>
@@ -622,7 +622,7 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
         </div>
 
         {/* Investment Portfolio Details Card */}
-        <div className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px] shadow-sm overflow-hidden flex flex-col">
+        <div className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px] shadow-sm overflow-hidden flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant dark:text-outline">Rincian Portofolio Investasi</h3>
             <div className="p-2 bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-bold rounded-md flex items-center gap-1 shrink-0">
@@ -714,10 +714,10 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
       </div>
 
       {/* Middle Section: Analysis & Rebalancing */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
         
         {/* Diversification Analysis */}
-        <div className="bg-surface-container-low dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px]">
+        <div className="bg-surface-container-low dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px]">
           <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant dark:text-outline mb-6 flex items-center gap-2">
             <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]">analytics</span> Analisis Diversifikasi
           </h3>
@@ -773,7 +773,7 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
         </div>
 
         {/* Rebalancing Recommendations */}
-        <div className="bg-primary-container dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white p-6 lg:p-8 rounded-[24px] relative overflow-hidden flex flex-col justify-between shadow-md group">
+        <div className="bg-primary-container dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px] relative overflow-hidden flex flex-col justify-between shadow-md group">
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
             <span className="material-symbols-outlined text-9xl">balance</span>
           </div>
@@ -849,7 +849,7 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
       </div>
 
       {/* Bottom Chart: Trend Diversification */}
-      <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 lg:p-8 rounded-[24px] shadow-sm">
+      <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px] shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
           <div>
             <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-on-surface-variant dark:text-outline mb-1">Tren Diversifikasi</h3>

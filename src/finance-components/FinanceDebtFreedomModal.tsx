@@ -385,7 +385,7 @@ export const FinanceDebtFreedomModal: React.FC<DebtFreedomModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }} 
           exit={{ opacity: 0, scale: 0.96, y: 40 }}
           transition={{ type: 'spring', damping: 28, stiffness: 240 }}
-          className="relative w-full max-w-7xl h-[95vh] md:h-[90vh] bg-surface dark:bg-[#121416] rounded-[36px] shadow-2xl overflow-y-auto md:overflow-hidden flex flex-col md:flex-row border border-outline-variant/20 dark:border-white/10"
+          className="relative w-full max-w-7xl h-[calc(100vh-1rem)] sm:h-[95vh] md:h-[90vh] bg-surface dark:bg-[#121416] rounded-2xl sm:rounded-[28px] md:rounded-[36px] shadow-2xl overflow-y-auto md:overflow-hidden flex flex-col md:flex-row border border-outline-variant/20 dark:border-white/10"
         >
           {/* LEFT PANEL: CONFIGURATION */}
           <div className="w-full md:w-[45%] bg-surface-container-lowest dark:bg-black/30 p-5 md:p-6 border-b md:border-b-0 md:border-r border-outline-variant/10 dark:border-white/5 overflow-y-visible md:overflow-y-auto custom-scrollbar flex flex-col h-auto md:h-full">

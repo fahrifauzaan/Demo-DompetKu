@@ -219,7 +219,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
       {/* Header and Subtitle */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-black/[0.04] dark:border-white/5 pb-4">
@@ -285,10 +285,10 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
           
           {/* ==================== TAB 1: OVERVIEW ==================== */}
           {activeTab === 'overview' && (
-            <div className="space-y-8">
+            <div className="space-y-5 sm:space-y-6 lg:space-y-8">
               {/* Hero Section: Net Worth Overview & Quick Actions (Grid-span adjusts for desktop/tablet/mobile) */}
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
+
                 {/* Total Net Worth Card */}
                 <div className="relative overflow-hidden lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#ffffff] via-[#fbfbfb] to-[#f5f5f7] dark:from-[#1c1c1e] dark:via-[#151517] dark:to-[#1c1c1e] border border-black/[0.06] dark:border-white/[0.08] shadow-[0_4px_24px_-4px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.4)] flex flex-col justify-between group transition-all duration-500 min-h-[180px] sm:min-h-[200px] liquid-shine">
                   <div className="relative z-10">
@@ -374,10 +374,10 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
               </section>
 
               {/* Secondary Metrics - Minimalist Clean Cards (1 col Mobile, 3 cols Tablet/Desktop) */}
-              <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                 
                 {/* Total Income */}
-                <div className="relative overflow-hidden p-6 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm group hover:scale-[1.01] transition-all duration-300">
+                <div className="relative overflow-hidden p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm group hover:scale-[1.01] transition-all duration-300">
                   <div className="flex justify-between items-start mb-4">
                     <div className="w-9 h-9 bg-slate-100 dark:bg-white/5 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 border border-black/[0.02] dark:border-white/[0.02]">
                       <span className="material-symbols-outlined text-base font-bold">payments</span>
@@ -395,7 +395,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                 </div>
 
                 {/* Total Expense */}
-                <div className="relative overflow-hidden p-6 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm group hover:scale-[1.01] transition-all duration-300">
+                <div className="relative overflow-hidden p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm group hover:scale-[1.01] transition-all duration-300">
                   <div className="flex justify-between items-start mb-4">
                     <div className="w-9 h-9 bg-slate-100 dark:bg-white/5 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 border border-black/[0.02] dark:border-white/[0.02]">
                       <span className="material-symbols-outlined text-base font-bold">shopping_bag</span>
@@ -413,7 +413,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                 </div>
 
                 {/* Monthly Savings */}
-                <div className="relative overflow-hidden p-6 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm group hover:scale-[1.01] transition-all duration-300">
+                <div className="relative overflow-hidden p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm group hover:scale-[1.01] transition-all duration-300">
                   <div className="flex justify-between items-start mb-4">
                     <div className="w-9 h-9 bg-slate-100 dark:bg-white/5 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 border border-black/[0.02] dark:border-white/[0.02]">
                       <span className="material-symbols-outlined text-base font-bold">savings</span>
@@ -432,10 +432,10 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
               </section>
 
               {/* Net Worth Trend Graph and Portfolio Allocation breakdown */}
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                 
                 {/* Net Worth Trend Chart */}
-                <div className="relative lg:col-span-2 p-6 lg:p-8 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
+                <div className="relative lg:col-span-2 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 z-10">
                     <div>
                       <h4 className="font-headline text-lg font-extrabold text-[#1d1d1f] dark:text-white tracking-tight">
@@ -562,7 +562,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                 </div>
                 
                 {/* Brief Allocation Breakdown */}
-                <div className="relative overflow-hidden p-6 lg:p-8 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
+                <div className="relative overflow-hidden p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
                   <h4 className="font-headline text-lg font-extrabold text-[#1d1d1f] dark:text-white tracking-tight mb-6">
                     Alokasi Portofolio
                   </h4>
@@ -704,10 +704,10 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
 
           {/* ==================== TAB 2: HEALTH RATIOS (CFP® STANDARDS) ==================== */}
           {activeTab === 'ratios' && (
-            <div className="space-y-8">
+            <div className="space-y-5 sm:space-y-6 lg:space-y-8">
               
               {/* Educational Banner */}
-              <div className="p-6 rounded-3xl bg-[#f5f5f7] dark:bg-white/[0.02] border border-black/[0.04] dark:border-white/[0.04] flex gap-4 items-start shadow-sm">
+              <div className="p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-[#f5f5f7] dark:bg-white/[0.02] border border-black/[0.04] dark:border-white/[0.04] flex gap-3 sm:gap-4 items-start shadow-sm">
                 <span className="material-symbols-outlined text-[#007aff] dark:text-[#0a84ff] text-xl shrink-0 mt-0.5">info</span>
                 <div className="space-y-1">
                   <h4 className="font-headline font-bold text-slate-900 dark:text-white text-xs md:text-sm">Rasio Kesehatan Keuangan Standard Profesional</h4>
@@ -718,10 +718,10 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
               </div>
 
               {/* Ratios Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                 
                 {/* Ratio 1: Savings Rate */}
-                <div className="p-6 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4 hover:scale-[1.01] transition-transform duration-300">
+                <div className="p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4 hover:scale-[1.01] transition-transform duration-300">
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Rasio Menabung</span>
@@ -775,7 +775,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                 </div>
 
                 {/* Ratio 2: Emergency Fund */}
-                <div className="p-6 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4 hover:scale-[1.01] transition-transform duration-300">
+                <div className="p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4 hover:scale-[1.01] transition-transform duration-300">
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Rasio Dana Darurat</span>
@@ -829,7 +829,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                 </div>
 
                 {/* Ratio 3: Solvency */}
-                <div className="p-6 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4 hover:scale-[1.01] transition-transform duration-300">
+                <div className="p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4 hover:scale-[1.01] transition-transform duration-300">
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Rasio Leverage Modal</span>
@@ -877,7 +877,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                 </div>
 
                 {/* Ratio 4: Debt Service Ratio */}
-                <div className="p-6 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4 hover:scale-[1.01] transition-transform duration-300">
+                <div className="p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4 hover:scale-[1.01] transition-transform duration-300">
                   <div className="flex justify-between items-start">
                     <div>
                       <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Rasio Beban Cicilan</span>
@@ -930,7 +930,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
 
           {/* ==================== TAB 3: BALANCE SHEET (CFA® PORTFOLIO) ==================== */}
           {activeTab === 'balanceSheet' && (
-            <div className="space-y-8">
+            <div className="space-y-5 sm:space-y-6 lg:space-y-8">
               
               {/* Balance Sheet Statement */}
               <div className="rounded-3xl border border-black/[0.05] dark:border-white/[0.08] bg-white/40 dark:bg-white/[0.02] shadow-sm overflow-hidden backdrop-blur-xl">
@@ -946,7 +946,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                 <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-black/[0.05] dark:divide-white/[0.08]">
                   
                   {/* Left Column: ASSETS */}
-                  <div className="p-6 lg:p-8 space-y-6">
+                  <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
                     <div className="flex justify-between items-center border-b border-black/[0.04] dark:border-white/5 pb-2">
                       <span className="font-headline font-black text-slate-800 dark:text-white uppercase tracking-wider text-xs">1. ASET (ASSETS)</span>
                       <span className="font-mono text-[10px] font-bold text-slate-400">AKTIVA</span>
@@ -1021,7 +1021,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                   </div>
 
                   {/* Right Column: LIABILITIES & EQUITIES */}
-                  <div className="p-6 lg:p-8 flex flex-col justify-between">
+                  <div className="p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
                     <div className="space-y-6">
                       <div className="flex justify-between items-center border-b border-black/[0.04] dark:border-white/5 pb-2">
                         <span className="font-headline font-black text-slate-800 dark:text-white uppercase tracking-wider text-xs">2. LIABILITAS & EKUITAS</span>
@@ -1077,10 +1077,10 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
               </div>
 
               {/* CFA Portfolio Analysis Panel */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                 
                 {/* Productive Capital Quality */}
-                <div className="p-6 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4">
+                <div className="p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Asset Efficiency Index</span>
                     <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${capitalQualityIndex >= 60 ? 'bg-[#e3fbe3] dark:bg-[#1a3822] text-[#28cd41] dark:text-[#30d158]' : 'bg-amber-500/10 text-amber-500'}`}>
@@ -1106,7 +1106,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                 </div>
 
                 {/* Weighted Borrowing Cost */}
-                <div className="p-6 rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4">
+                <div className="p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl bg-white/40 dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Leverage Cost Index</span>
                     <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full ${debtCostIndex === 0 ? 'bg-[#e3fbe3] dark:bg-[#1a3822] text-[#28cd41] dark:text-[#30d158]' : debtCostIndex < 10 ? 'bg-amber-500/10 text-amber-500' : 'bg-[#ffebeb] text-[#ff3b30]'}`}>

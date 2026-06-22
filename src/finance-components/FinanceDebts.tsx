@@ -241,21 +241,21 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
   const yearLabels = Array.from({ length: 5 }, (_, i) => startYear + i);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-16">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-500 pb-10 lg:pb-16">
       {/* Page Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-black/[0.04] dark:border-white/5 pb-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 border-b border-black/[0.04] dark:border-white/5 pb-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black font-headline tracking-tight text-[#1d1d1f] dark:text-white">Rencana Pelunasan Utang</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 font-body text-xs md:text-sm font-medium">
+          <p className="text-slate-500 dark:text-slate-400 mt-1 font-body text-[13px] sm:text-xs md:text-sm font-medium">
             Optimalkan struktur pembayaran Anda untuk meminimalkan bunga dan mempercepat jalan menuju kebebasan finansial sesuai standar perencana keuangan profesional.
           </p>
         </div>
       </div>
 
       {/* 4 Premium Metric Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {/* Card 1: Total Liabilitas */}
-        <div className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
+        <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
           <div>
             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Total Liabilitas</span>
             <span className="font-headline text-2xl font-black text-slate-800 dark:text-white tabular-nums">Rp {totalCurrentBalance.toLocaleString('id-ID')}</span>
@@ -266,7 +266,7 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
         </div>
 
         {/* Card 2: Weighted APR */}
-        <div className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
+        <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
           <div>
             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Bunga Efektif (Weighted)</span>
             <span className="font-headline text-2xl font-black text-[#007aff] dark:text-[#a7c8ff] tabular-nums">{weightedInterest.toFixed(2)}%</span>
@@ -277,7 +277,7 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
         </div>
 
         {/* Card 3: Debt to Income (DTI) */}
-        <div className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
+        <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
           <div>
             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Rasio Cicilan / Pendapatan (DTI)</span>
             <span className="font-headline text-2xl font-black text-slate-800 dark:text-white tabular-nums">{debtToIncomeRatio.toFixed(1)}%</span>
@@ -301,7 +301,7 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
         </div>
 
         {/* Card 4: Debt to Asset (DTA) */}
-        <div className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
+        <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm flex flex-col justify-between">
           <div>
             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Rasio Utang / Aset (DTA)</span>
             <span className="font-headline text-2xl font-black text-slate-800 dark:text-white tabular-nums">{debtToAssetRatio.toFixed(1)}%</span>
@@ -328,7 +328,7 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative overflow-hidden rounded-3xl p-8 md:p-12 text-center border border-black/[0.05] dark:border-white/[0.05] bg-white/40 dark:bg-white/[0.02] shadow-xl flex flex-col items-center justify-center min-h-[450px]"
+          className="relative overflow-hidden rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 text-center border border-black/[0.05] dark:border-white/[0.05] bg-white/40 dark:bg-white/[0.02] shadow-xl flex flex-col items-center justify-center min-h-[360px] sm:min-h-[450px]"
         >
           {/* Decorative Glowing Background */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] rounded-full bg-gradient-to-tr from-emerald-500/5 to-teal-500/5 blur-[80px] pointer-events-none" />
@@ -362,12 +362,12 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
           </button>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
           
           {/* Left Column: Strategy & CFP Panel */}
-          <div className="lg:col-span-4 flex flex-col gap-6 lg:gap-8">
+          <div className="lg:col-span-4 flex flex-col gap-4 sm:gap-6 lg:gap-8">
             {/* Payoff Strategy Toggle */}
-            <div className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm">
+            <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm">
               <h3 className="font-headline font-bold text-lg mb-6 flex items-center gap-2 text-slate-800 dark:text-white">
                 <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]" style={{ fontVariationSettings: "'FILL' 1" }}>psychology</span>
                 Strategi Pembayaran
@@ -403,7 +403,7 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
             </div>
 
             {/* CFP Advisory Panel */}
-            <div className="bg-white/40 dark:bg-white/[0.02] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-6">
+            <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm space-y-4 sm:space-y-6">
               <h3 className="font-headline font-bold text-lg flex items-center gap-2 text-slate-800 dark:text-white">
                 <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]">verified</span>
                 Analisis & Rekomendasi CFP
@@ -475,7 +475,7 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
             </div>
 
             {/* Comparison View Card */}
-            <div className="bg-[#f5f5f7] dark:bg-[#1c1c1e] p-6 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] relative overflow-hidden shadow-inner">
+            <div className="bg-[#f5f5f7] dark:bg-[#1c1c1e] p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] relative overflow-hidden shadow-inner">
               <div className="relative z-10">
                 <h3 className="font-headline font-bold text-lg mb-6 text-slate-800 dark:text-white">Perbandingan Proyeksi</h3>
                 <div className="space-y-6">
@@ -512,10 +512,10 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
           </div>
 
           {/* Right Column: Data Visualization & Debt List */}
-          <div className="lg:col-span-8 space-y-6 lg:space-y-8">
+          <div className="lg:col-span-8 space-y-4 sm:space-y-6 lg:space-y-8">
             
             {/* Debt Reduction Chart Area */}
-            <div className="bg-white/40 dark:bg-white/[0.02] p-6 lg:p-8 rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm">
+            <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8">
                 <div>
                   <h3 className="font-headline font-bold text-xl text-slate-800 dark:text-white">Proyeksi Pengurangan Utang</h3>

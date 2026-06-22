@@ -463,10 +463,10 @@ const FinanceEquityLedger: React.FC<FinanceEquityLedgerProps> = ({ onShowCTA, on
 
   // ===================== RENDER =====================
   return (
-    <div className="space-y-8 lg:space-y-10 animate-in fade-in duration-500 pb-12">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-10 animate-in fade-in duration-500 pb-8 lg:pb-12">
 
       {/* ── HEADER ── */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
         <div className="space-y-2">
           {onBack && (
             <button
@@ -507,7 +507,7 @@ const FinanceEquityLedger: React.FC<FinanceEquityLedgerProps> = ({ onShowCTA, on
       {/* ── 6 KPI CARDS ── */}
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
         {/* 1. Total Portfolio Value */}
-        <div className="col-span-2 md:col-span-1 lg:col-span-2 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-[#a7c8ff]/5 dark:to-[#a7c8ff]/10 border border-primary/10 dark:border-[#a7c8ff]/10 p-6 rounded-2xl relative overflow-hidden">
+        <div className="col-span-2 md:col-span-1 lg:col-span-2 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-[#a7c8ff]/5 dark:to-[#a7c8ff]/10 border border-primary/10 dark:border-[#a7c8ff]/10 p-4 sm:p-5 lg:p-6 rounded-2xl relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-20 h-20 bg-primary/5 dark:bg-[#a7c8ff]/5 rounded-full blur-2xl" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline block mb-1.5">Nilai Pasar Portofolio</span>
           <h3 className="text-2xl lg:text-3xl font-extrabold font-headline text-on-surface dark:text-white tabular-nums tracking-tighter">
@@ -519,7 +519,7 @@ const FinanceEquityLedger: React.FC<FinanceEquityLedgerProps> = ({ onShowCTA, on
         </div>
 
         {/* 2. Total Cost Basis */}
-        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-6 rounded-2xl">
+        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline block mb-1.5">Nilai Perolehan</span>
           <h4 className="text-lg lg:text-xl font-bold font-headline text-on-surface dark:text-white tabular-nums tracking-tight">
             {formatCurrency(kpis.totalCostBasis, true)}
@@ -528,7 +528,7 @@ const FinanceEquityLedger: React.FC<FinanceEquityLedgerProps> = ({ onShowCTA, on
         </div>
 
         {/* 3. Unrealized P/L */}
-        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-6 rounded-2xl">
+        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline block mb-1.5">Unrealized P/L</span>
           <h4 className={`text-lg lg:text-xl font-bold font-headline tabular-nums tracking-tight ${kpis.unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}`}>
             {kpis.unrealizedPL >= 0 ? '+' : ''}{formatCurrency(kpis.unrealizedPL, true)}
@@ -539,7 +539,7 @@ const FinanceEquityLedger: React.FC<FinanceEquityLedgerProps> = ({ onShowCTA, on
         </div>
 
         {/* 4. Dividen & Kupon */}
-        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-6 rounded-2xl">
+        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline block mb-1.5">Dividen & Kupon</span>
           <h4 className="text-lg lg:text-xl font-bold font-headline text-tertiary-container dark:text-tertiary-fixed tabular-nums tracking-tight">
             {formatCurrency(kpis.totalDividendCoupon, true)}
@@ -550,7 +550,7 @@ const FinanceEquityLedger: React.FC<FinanceEquityLedgerProps> = ({ onShowCTA, on
         </div>
 
         {/* 5. Realized Sales */}
-        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-6 rounded-2xl">
+        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline block mb-1.5">Realisasi Penjualan</span>
           <h4 className="text-lg lg:text-xl font-bold font-headline text-on-surface dark:text-white tabular-nums tracking-tight">
             {formatCurrency(kpis.totalRealizedSales, true)}
@@ -559,7 +559,7 @@ const FinanceEquityLedger: React.FC<FinanceEquityLedgerProps> = ({ onShowCTA, on
         </div>
 
         {/* 6. Est. Tax */}
-        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-6 rounded-2xl">
+        <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl">
           <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline block mb-1.5">Est. Pajak</span>
           <h4 className="text-lg lg:text-xl font-bold font-headline text-error dark:text-[#ffb4ab] tabular-nums tracking-tight">
             {formatCurrency(kpis.estTax, true)}
@@ -570,7 +570,7 @@ const FinanceEquityLedger: React.FC<FinanceEquityLedgerProps> = ({ onShowCTA, on
 
       {/* ── ALLOCATION BAR ── */}
       {allocationData.length > 0 && (
-        <section className="bg-surface-container-low dark:bg-transparent rounded-2xl p-6 lg:p-8 border border-outline-variant/10 dark:border-white/10">
+        <section className="bg-surface-container-low dark:bg-transparent rounded-2xl p-4 sm:p-6 lg:p-8 border border-outline-variant/10 dark:border-white/10">
           <h4 className="font-headline text-sm font-bold text-on-surface dark:text-white uppercase tracking-widest mb-5">
             Alokasi Portofolio per Kelas Aset
           </h4>
@@ -1007,7 +1007,7 @@ const FinanceEquityLedger: React.FC<FinanceEquityLedgerProps> = ({ onShowCTA, on
       )}
 
       {/* ── TAX BREAKDOWN ── */}
-      <section className="bg-surface-container-low dark:bg-transparent rounded-2xl p-6 lg:p-8 border border-outline-variant/10 dark:border-white/10">
+      <section className="bg-surface-container-low dark:bg-transparent rounded-2xl p-4 sm:p-6 lg:p-8 border border-outline-variant/10 dark:border-white/10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
           <h4 className="font-headline text-sm font-bold text-on-surface dark:text-white uppercase tracking-widest flex items-center gap-2">
             <span className="material-symbols-outlined text-base text-error dark:text-[#ffb4ab]">receipt_long</span>

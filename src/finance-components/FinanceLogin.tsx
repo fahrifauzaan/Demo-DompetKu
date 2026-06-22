@@ -337,7 +337,7 @@ const FinanceLogin: React.FC = () => {
       <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-cyan-500/10 dark:bg-cyan-500/5 blur-[120px] pointer-events-none" />
       
       {/* Halaman/Canvas Login & Sign Up */}
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center z-10">
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 items-center z-10">
         
         {/* Info/Branding Section - Desktop Only (5 columns) */}
         <div className="hidden lg:flex lg:col-span-5 flex-col text-left space-y-6 pr-4">
@@ -398,7 +398,7 @@ const FinanceLogin: React.FC = () => {
 
         {/* Auth Box Container (7 columns) */}
         <div className="lg:col-span-7 w-full flex justify-center">
-          <div className="w-full max-w-md liquid-glass rounded-[2rem] p-8 md:p-10 border border-white/40 dark:border-white/10 premium-shadow">
+          <div className="w-full max-w-md liquid-glass rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 md:p-8 lg:p-10 border border-white/40 dark:border-white/10 premium-shadow">
             
             {/* Header for Mobile display */}
             <div className="flex flex-col items-center mb-8 lg:hidden">

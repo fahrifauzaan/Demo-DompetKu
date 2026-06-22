@@ -126,11 +126,11 @@ const TaxGuideModal: React.FC<TaxGuideModalProps> = ({ isOpen, onClose, initialT
   const currentGuide = TAX_GUIDES.find(g => g.key === activeTab) || TAX_GUIDES[0];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-surface-container-lowest dark:bg-[#191c1e] w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 zoom-in-95 duration-300 border border-outline-variant/10 dark:border-white/10 flex flex-col max-h-[90vh]">
-        
+    <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-300 overflow-y-auto">
+      <div className="bg-surface-container-lowest dark:bg-[#191c1e] w-full max-w-md sm:max-w-2xl md:max-w-3xl my-auto rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 zoom-in-95 duration-300 border border-outline-variant/10 dark:border-white/10 flex flex-col max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)]">
+
         {/* Header */}
-        <div className="px-6 py-5 border-b border-outline-variant/10 dark:border-white/5 flex justify-between items-center bg-surface-container-low dark:bg-white/5">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-outline-variant/10 dark:border-white/5 flex justify-between items-center bg-surface-container-low dark:bg-white/5 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-error/10 dark:bg-error/20 flex items-center justify-center text-error dark:text-[#ffb4ab]">
               <span className="material-symbols-outlined text-2xl">receipt_long</span>

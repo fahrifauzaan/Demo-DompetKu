@@ -84,7 +84,7 @@ export const FinanceFIRECalculatorModal: React.FC<FIRECalculatorModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-hidden">
         {/* Backdrop */}
         <motion.div 
           initial={{ opacity: 0 }}
@@ -100,11 +100,11 @@ export const FinanceFIRECalculatorModal: React.FC<FIRECalculatorModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="relative w-full max-w-6xl max-h-[95vh] bg-surface dark:bg-[#191c1e] rounded-[32px] shadow-2xl overflow-y-auto md:overflow-hidden flex flex-col md:flex-row border border-outline-variant/20 dark:border-white/10"
+          className="relative w-full max-w-6xl max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] bg-surface dark:bg-[#191c1e] rounded-2xl sm:rounded-[28px] md:rounded-[32px] shadow-2xl overflow-y-auto md:overflow-hidden flex flex-col md:flex-row border border-outline-variant/20 dark:border-white/10"
         >
           
           {/* Left Panel - Controls */}
-          <div className="w-full md:w-1/3 bg-surface-container-lowest dark:bg-black/20 p-6 md:p-8 border-b md:border-b-0 md:border-r border-outline-variant/10 dark:border-white/5 overflow-y-visible md:overflow-y-auto custom-scrollbar flex flex-col h-auto md:h-full">
+          <div className="w-full md:w-1/3 bg-surface-container-lowest dark:bg-black/20 p-4 sm:p-6 md:p-8 border-b md:border-b-0 md:border-r border-outline-variant/10 dark:border-white/5 overflow-y-visible md:overflow-y-auto custom-scrollbar flex flex-col h-auto md:h-full">
             <div className="flex justify-between items-center mb-8">
               <div>
                 <h2 className="text-2xl font-extrabold font-headline text-primary dark:text-[#a7c8ff] flex items-center gap-2">
@@ -232,7 +232,7 @@ export const FinanceFIRECalculatorModal: React.FC<FIRECalculatorModalProps> = ({
           </div>
 
           {/* Right Panel - Chart & Results */}
-          <div className="w-full md:w-2/3 p-6 md:p-8 flex flex-col bg-surface dark:bg-transparent overflow-y-visible md:overflow-y-auto h-auto md:h-full">
+          <div className="w-full md:w-2/3 p-4 sm:p-6 md:p-8 flex flex-col bg-surface dark:bg-transparent overflow-y-visible md:overflow-y-auto h-auto md:h-full">
             <div className="md:hidden flex justify-end mb-4">
                {/* Mobile close button is in header */}
             </div>

@@ -219,23 +219,23 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
   };
 
   return (
-    <div className="space-y-8 lg:space-y-12 animate-in fade-in duration-500 pb-12">
+    <div className="space-y-5 sm:space-y-6 md:space-y-8 lg:space-y-12 animate-in fade-in duration-500 pb-8 lg:pb-12">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl lg:text-4xl font-headline font-extrabold tracking-tight text-on-surface dark:text-white">Log Transaksi</h1>
-          <p className="text-on-surface-variant dark:text-outline max-w-md text-sm lg:text-base">Tinjau dan kelola aktivitas keuangan Anda di semua akun dan entitas yang terhubung.</p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
+        <div className="space-y-1.5 md:space-y-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-headline font-extrabold tracking-tight text-on-surface dark:text-white">Log Transaksi</h1>
+          <p className="text-on-surface-variant dark:text-outline max-w-md text-[13px] sm:text-sm lg:text-base">Tinjau dan kelola aktivitas keuangan Anda di semua akun dan entitas yang terhubung.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button 
+        <div className="flex items-center gap-2 sm:gap-3 self-start md:self-auto">
+          <button
             onClick={() => setIsExportModalOpen(true)}
-            className="px-4 lg:px-5 py-2.5 bg-surface-container-highest dark:bg-white/10 text-on-surface-variant dark:text-white font-semibold rounded-lg flex items-center gap-2 hover:bg-surface-variant dark:hover:bg-white/20 transition-colors text-sm"
+            className="px-3 sm:px-4 lg:px-5 py-2.5 bg-surface-container-highest dark:bg-white/10 text-on-surface-variant dark:text-white font-semibold rounded-lg flex items-center gap-2 hover:bg-surface-variant dark:hover:bg-white/20 transition-colors text-xs sm:text-sm"
           >
             <span className="material-symbols-outlined text-[1.2rem]">download</span>
             Ekspor
           </button>
-          <button onClick={() => onNavigate && onNavigate('add-transaction')} className="bg-gradient-to-r from-primary to-primary-container dark:from-[#a7c8ff] dark:to-[#82b1ff] text-white dark:text-[#001b3c] px-6 py-3 rounded-full font-bold shadow-lg shadow-primary-container/20 dark:shadow-[#a7c8ff]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2">
-            <span className="material-symbols-outlined">add</span>
+          <button onClick={() => onNavigate && onNavigate('add-transaction')} className="bg-gradient-to-r from-primary to-primary-container dark:from-[#a7c8ff] dark:to-[#82b1ff] text-white dark:text-[#001b3c] px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold shadow-lg shadow-primary-container/20 dark:shadow-[#a7c8ff]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2 text-xs sm:text-sm">
+            <span className="material-symbols-outlined text-lg sm:text-xl">add</span>
             <span className="hidden sm:block">Transaksi Baru</span>
             <span className="sm:hidden">Tambah</span>
           </button>
@@ -243,7 +243,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
       </div>
 
       {/* Filter & Search Section - Apple Glassmorphism */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 lg:p-6 liquid-glass rounded-3xl border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 p-4 sm:p-5 lg:p-6 liquid-glass rounded-2xl sm:rounded-3xl border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
         <div className="space-y-1.5 lg:col-span-1 sm:col-span-2">
           <label className="text-[10px] lg:text-xs font-bold uppercase tracking-wider text-on-surface-variant dark:text-outline ml-1">Cari</label>
           <div className="relative group">
@@ -399,7 +399,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
         </div>
         
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 bg-white/30 dark:bg-black/20 backdrop-blur-md border-t border-white/40 dark:border-white/10 gap-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white/30 dark:bg-black/20 backdrop-blur-md border-t border-white/40 dark:border-white/10 gap-3 sm:gap-4">
           <span className="text-xs lg:text-sm text-on-surface-variant dark:text-outline font-medium">Menampilkan {filteredTransactions.length > 0 ? 1 : 0} hingga {filteredTransactions.length} dari {transactions.length} transaksi</span>
           <div className="flex items-center gap-1 lg:gap-2">
             <button className="p-1 lg:p-2.5 text-on-surface-variant hover:text-primary disabled:opacity-30 rounded-lg hover:bg-surface-container dark:hover:bg-white/10 transition-colors" disabled>
@@ -415,7 +415,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
 
       {/* Bento Summary Grid - Apple Glassmorphism */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-        <div className="p-6 liquid-glass rounded-3xl space-y-4 border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+        <div className="p-4 sm:p-5 lg:p-6 liquid-glass rounded-2xl sm:rounded-3xl space-y-3 sm:space-y-4 border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] lg:text-xs font-bold uppercase text-on-surface-variant dark:text-outline tracking-wider">Pengeluaran Bulanan</span>
             <span className="text-[10px] lg:text-xs text-error dark:text-[#ffb4ab] font-bold">+12% vs bulan lalu</span>
@@ -427,7 +427,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
           <p className="text-[10px] lg:text-xs text-on-surface-variant dark:text-outline font-medium">Anda telah menggunakan 74% dari anggaran bulanan Anda.</p>
         </div>
         
-        <div className="p-6 liquid-glass rounded-3xl space-y-4 border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+        <div className="p-4 sm:p-5 lg:p-6 liquid-glass rounded-2xl sm:rounded-3xl space-y-3 sm:space-y-4 border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] lg:text-xs font-bold uppercase text-on-surface-variant dark:text-outline tracking-wider">Merchant Teratas</span>
             <span className="material-symbols-outlined text-outline">shopping_cart</span>
@@ -444,7 +444,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
           <div className="text-xl lg:text-2xl font-headline font-bold text-on-surface dark:text-white tabular-nums">Rp 12.842.200</div>
         </div>
         
-        <div className="p-6 liquid-glass rounded-3xl flex flex-col justify-between border border-white/20 dark:border-white/10 lg:col-span-1 md:col-span-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
+        <div className="p-4 sm:p-5 lg:p-6 liquid-glass rounded-2xl sm:rounded-3xl flex flex-col justify-between border border-white/20 dark:border-white/10 lg:col-span-1 md:col-span-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
           <div className="space-y-2">
             <span className="text-[10px] lg:text-xs font-bold uppercase text-on-surface-variant dark:text-outline tracking-wider flex items-center gap-2">
               <span className="material-symbols-outlined text-sm text-tertiary-fixed">tips_and_updates</span>

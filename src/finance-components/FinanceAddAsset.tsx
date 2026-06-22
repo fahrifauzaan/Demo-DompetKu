@@ -545,9 +545,9 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-10">
         {/* Form Section */}
-        <div className="lg:col-span-8 space-y-10">
+        <div className="lg:col-span-8 space-y-5 sm:space-y-6 lg:space-y-10">
           
           {/* 1. Pilih Jenis Aset */}
           <section>
@@ -990,7 +990,7 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
                   </div>
 
                   {/* Real-time Preview Card (The Architect Design) */}
-                  <div className="relative overflow-hidden bg-primary dark:bg-gradient-to-br dark:from-[#00174a] dark:to-primary p-8 rounded-2xl text-white shadow-xl group">
+                  <div className="relative overflow-hidden bg-primary dark:bg-gradient-to-br dark:from-[#00174a] dark:to-primary p-4 sm:p-6 lg:p-8 rounded-2xl text-white shadow-xl group">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary-container opacity-90 group-hover:opacity-80 transition-opacity"></div>
                     <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                       <div className="flex-1">
@@ -1625,7 +1625,7 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
             
             {assetType === 'investment' && (
               /* INVESTMENT SPECIFIC SIDEBAR */
-              <section className="bg-surface-container-low dark:bg-white/5 p-8 rounded-3xl border border-outline-variant/10 dark:border-white/10 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
+              <section className="bg-surface-container-low dark:bg-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-outline-variant/10 dark:border-white/10 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">
                 <h3 className="text-lg font-bold mb-6 text-primary dark:text-[#a7c8ff] font-headline">Dampak Portofolio</h3>
                 <div className="flex justify-center mb-8 relative">
                   <div className="relative h-48 w-48">
@@ -1731,7 +1731,7 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
               /* LIQUID SPECIFIC SIDEBAR */
               <section className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                 {/* Preview Card (Glassmorphism) */}
-                <div className="relative overflow-hidden p-8 rounded-[32px] bg-primary-container dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white shadow-2xl border border-white/5">
+                <div className="relative overflow-hidden p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] bg-primary-container dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white shadow-2xl border border-white/5">
                   <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
                   <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/4 w-32 h-32 bg-[#a7c8ff]/10 rounded-full blur-2xl"></div>
                   <div className="relative z-10 space-y-10">

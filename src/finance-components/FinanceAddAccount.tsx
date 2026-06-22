@@ -75,12 +75,12 @@ const FinanceAddAccount: React.FC<FinanceAddAccountProps> = ({ onShowCTA, onBack
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-10">
         {/* Form Section (Left/Main) */}
-        <div className="lg:col-span-8 space-y-10">
-          <section className="bg-surface-container-lowest dark:bg-white/5 p-8 rounded-2xl border border-outline-variant/10 dark:border-white/10 shadow-sm">
-            <h3 className="text-lg font-bold text-primary dark:text-[#a7c8ff] mb-6 font-headline">Informasi Akun</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="lg:col-span-8 space-y-5 sm:space-y-6 lg:space-y-10">
+          <section className="bg-surface-container-lowest dark:bg-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl border border-outline-variant/10 dark:border-white/10 shadow-sm">
+            <h3 className="text-base sm:text-lg font-bold text-primary dark:text-[#a7c8ff] mb-4 sm:mb-6 font-headline">Informasi Akun</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-widest">Nama Akun</label>
                 <input 
@@ -219,7 +219,7 @@ const FinanceAddAccount: React.FC<FinanceAddAccountProps> = ({ onShowCTA, onBack
 
         {/* Sidebar Preview/Info (Right) */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-primary dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white p-8 rounded-3xl shadow-2xl relative overflow-hidden transition-colors">
+          <div className="bg-primary dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-2xl relative overflow-hidden transition-colors">
             {/* Background Decor */}
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#a7c8ff]/10 rounded-full blur-2xl"></div>
@@ -242,7 +242,7 @@ const FinanceAddAccount: React.FC<FinanceAddAccountProps> = ({ onShowCTA, onBack
             </div>
           </div>
 
-          <div className="bg-surface-container-low dark:bg-white/5 p-8 rounded-3xl border border-outline-variant/10 dark:border-white/10 space-y-4">
+          <div className="bg-surface-container-low dark:bg-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-outline-variant/10 dark:border-white/10 space-y-3 sm:space-y-4">
             <h4 className="font-bold text-on-surface dark:text-white text-sm flex items-center gap-2">
               <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] text-xl">info</span>
               Mengapa ini penting?

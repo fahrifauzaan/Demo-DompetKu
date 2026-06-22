@@ -530,7 +530,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
     : 'bg-gradient-to-r from-purple-500 to-indigo-600';
 
   return (
-    <div className="space-y-8 lg:space-y-10 animate-in fade-in duration-500 pb-12">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-10 animate-in fade-in duration-500 pb-8 lg:pb-12">
       {/* Header & Filters Section */}
       <section className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -666,9 +666,9 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
 
       {/* Conditional Content Rendering */}
       {activeSubTab === 'summary' && (
-        <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-300">
+        <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-in slide-in-from-bottom-2 duration-300">
               {/* --- NEW: CFO ADVISORY INSIGHT BENTO BOX --- */}
-              <div className="bg-gradient-to-br from-primary-container/40 to-surface-container-lowest dark:from-[#a7c8ff]/10 dark:to-transparent border border-primary/20 dark:border-[#a7c8ff]/20 p-6 lg:p-8 rounded-[32px] shadow-sm relative overflow-hidden">
+              <div className="bg-gradient-to-br from-primary-container/40 to-surface-container-lowest dark:from-[#a7c8ff]/10 dark:to-transparent border border-primary/20 dark:border-[#a7c8ff]/20 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                   <span className="material-symbols-outlined text-9xl">analytics</span>
                 </div>
@@ -677,7 +677,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
                     <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] animate-pulse">insights</span>
                     <h3 className="font-extrabold text-lg text-primary dark:text-[#a7c8ff] tracking-tight">CFO Advisory Insight</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                     <div className="bg-white/60 dark:bg-black/20 backdrop-blur-md border border-white/40 dark:border-white/5 rounded-2xl p-5">
                       <div className="flex items-center gap-3 mb-2">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${nwGrowth >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
@@ -718,7 +718,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
               </div>
 
               {/* --- NEW: CASH FLOW WATERFALL --- */}
-              <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 rounded-[32px] shadow-sm">
+              <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] shadow-sm">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                   <div>
                     <div className="flex items-center gap-2">
@@ -831,10 +831,10 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 lg:gap-6">
             
             {/* Net Worth Trend Card */}
-            <div className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 rounded-[24px] shadow-sm">
+            <div className="lg:col-span-8 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] shadow-sm">
               <div className="flex justify-between items-start mb-8 flex-col sm:flex-row gap-4 sm:gap-0">
                 <div>
                   <h3 className="font-headline text-on-surface-variant dark:text-outline text-xs uppercase tracking-widest font-bold mb-1">Tren Kekayaan Bersih</h3>
@@ -895,7 +895,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
             </div>
 
             {/* Budget Health Card */}
-            <div className="lg:col-span-4 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-6 rounded-[24px] flex flex-col shadow-sm">
+            <div className="lg:col-span-4 bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] flex flex-col shadow-sm">
               <h3 className="font-headline text-on-surface-variant dark:text-outline text-xs uppercase tracking-widest font-bold mb-6">Budget Health Score</h3>
               <div className="space-y-6 flex-1 flex flex-col justify-center">
                 
@@ -938,7 +938,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
           </div>
 
           {/* Secondary Analysis Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
             
             {/* Cash Flow Table/Chart */}
             <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 rounded-[24px] overflow-hidden shadow-sm flex flex-col">
@@ -993,7 +993,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
             </div>
 
             {/* Expense Categories Breakdown */}
-            <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 rounded-[24px] p-6 lg:p-8 flex flex-col shadow-sm">
+            <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 rounded-2xl lg:rounded-[24px] p-4 sm:p-6 lg:p-8 flex flex-col shadow-sm">
               <div className="flex justify-between items-center mb-8">
                 <h3 className="font-headline text-on-surface-variant dark:text-outline text-xs uppercase tracking-widest font-bold">Alokasi Pengeluaran</h3>
                 <button onClick={() => onNavigate?.('transactions')} className="text-primary dark:text-[#a7c8ff] text-xs font-bold hover:underline cursor-pointer">Log Transaksi</button>
@@ -1091,12 +1091,12 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
           </div>
 
           {/* Insights Cards Grid */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
             
             {/* FIRE Predictor Insight */}
             <div 
               onClick={() => setIsFIREModalOpen(true)}
-              className="bg-primary-container dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white p-6 rounded-[24px] relative overflow-hidden group shadow-md flex flex-col justify-between cursor-pointer hover:scale-[1.02] transition-transform"
+              className="bg-primary-container dark:bg-gradient-to-br dark:from-[#001b3c] dark:to-[#002f5e] text-white p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] relative overflow-hidden group shadow-md flex flex-col justify-between cursor-pointer hover:scale-[1.02] transition-transform"
             >
               <div className="relative z-10">
                 <div className="flex justify-between items-start mb-4">
@@ -1127,7 +1127,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
             {/* Emergency Goal Insight */}
             <div 
               onClick={() => setIsEmergencyModalOpen(true)}
-              className="bg-surface-container-low dark:bg-white/5 dark:border dark:border-white/10 p-6 rounded-[24px] border border-outline-variant/10 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow relative"
+              className="bg-surface-container-low dark:bg-white/5 dark:border dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] border border-outline-variant/10 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow relative"
             >
               <div className="absolute top-4 right-4 bg-primary/10 dark:bg-white/20 text-primary dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
                 SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
@@ -1152,7 +1152,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
             {/* Debt Freedom Projection */}
             <div 
               onClick={() => setIsDebtModalOpen(true)}
-              className="bg-surface-container-low dark:bg-white/5 dark:border dark:border-white/10 p-6 rounded-[24px] border border-outline-variant/10 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow relative"
+              className="bg-surface-container-low dark:bg-white/5 dark:border dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] border border-outline-variant/10 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow relative"
             >
               <div className="absolute top-4 right-4 bg-green-500/10 text-green-700 dark:bg-white/20 dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
                 SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
@@ -1188,12 +1188,12 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
                 Financial Health Scorecard
               </h3>
             </div>
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
               
               {/* DTI Ratio */}
               <div 
                 onClick={() => setRatioModalConfig({ isOpen: true, type: 'DTI' })}
-                className="bg-surface-container-lowest dark:bg-black/20 p-6 rounded-[24px] border border-outline-variant/20 dark:border-white/5 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer relative"
+                className="bg-surface-container-lowest dark:bg-black/20 p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] border border-outline-variant/20 dark:border-white/5 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer relative"
               >
                 <div className="absolute top-4 right-4 bg-outline-variant/20 dark:bg-white/10 text-on-surface-variant dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
                   SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
@@ -1220,7 +1220,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
               {/* Liquidity Ratio */}
               <div 
                 onClick={() => setRatioModalConfig({ isOpen: true, type: 'LIQUIDITY' })}
-                className="bg-surface-container-lowest dark:bg-black/20 p-6 rounded-[24px] border border-outline-variant/20 dark:border-white/5 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer relative"
+                className="bg-surface-container-lowest dark:bg-black/20 p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] border border-outline-variant/20 dark:border-white/5 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer relative"
               >
                 <div className="absolute top-4 right-4 bg-outline-variant/20 dark:bg-white/10 text-on-surface-variant dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
                   SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
@@ -1248,7 +1248,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
               {/* Debt-to-Asset Ratio */}
               <div 
                 onClick={() => setRatioModalConfig({ isOpen: true, type: 'SOLVENCY' })}
-                className="bg-surface-container-lowest dark:bg-black/20 p-6 rounded-[24px] border border-outline-variant/20 dark:border-white/5 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer relative"
+                className="bg-surface-container-lowest dark:bg-black/20 p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] border border-outline-variant/20 dark:border-white/5 flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer relative"
               >
                 <div className="absolute top-4 right-4 bg-outline-variant/20 dark:bg-white/10 text-on-surface-variant dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
                   SIMULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>

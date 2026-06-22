@@ -68,7 +68,7 @@ const FinancePinModal: React.FC<FinancePinModalProps> = ({
             initial={{ scale: 0.95, opacity: 0, y: 20 }} 
             animate={{ scale: 1, opacity: 1, y: 0 }} 
             exit={{ scale: 0.95, opacity: 0, y: 20 }} 
-            className="relative w-full max-w-sm bg-surface-container-lowest dark:bg-[#0b1221] p-8 rounded-[32px] border border-white/20 shadow-2xl overflow-hidden flex flex-col items-center"
+            className="relative w-full max-w-sm bg-surface-container-lowest dark:bg-[#0b1221] p-5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] border border-white/20 shadow-2xl overflow-hidden flex flex-col items-center"
           >
             <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none" />
             
