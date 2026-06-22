@@ -7,7 +7,6 @@ import FinanceAssets from './finance-components/FinanceAssets';
 import FinanceDebts from './finance-components/FinanceDebts';
 import FinanceAddTransaction from './finance-components/FinanceAddTransaction';
 import FinanceAddCategory from './finance-components/FinanceAddCategory';
-import FinanceIntegration from './finance-components/FinanceIntegration';
 import FinanceAddAsset from './finance-components/FinanceAddAsset';
 import FinanceAddAccount from './finance-components/FinanceAddAccount';
 import FinanceAnalytics from './finance-components/FinanceAnalytics';
@@ -30,7 +29,7 @@ interface FinanceDemoProps {
   toggleDark: () => void;
 }
 
-export type FinanceTab = 'dashboard' | 'transactions' | 'budget' | 'assets' | 'debts' | 'analytics' | 'portfolio-report' | 'performance-report' | 'equity-ledger' | 'add-transaction' | 'add-category' | 'integration' | 'add-asset' | 'add-account' | 'notifications' | 'settings';
+export type FinanceTab = 'dashboard' | 'transactions' | 'budget' | 'assets' | 'debts' | 'analytics' | 'portfolio-report' | 'performance-report' | 'equity-ledger' | 'add-transaction' | 'add-category' | 'add-asset' | 'add-account' | 'notifications' | 'settings';
 
 const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
   const [activeTab, setActiveTab] = useState<FinanceTab>('dashboard');
@@ -624,7 +623,6 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
           {/* Sub-Modules (Forms & Modals) */}
           {activeTab === 'add-transaction' && <FinanceAddTransaction onShowCTA={handleShowCTA} onBack={() => { setActiveTab('transactions'); setEditingTransactionId(null); }} editingTransactionId={editingTransactionId} />}
           {activeTab === 'add-category' && <FinanceAddCategory onShowCTA={handleShowCTA} onBack={() => setActiveTab('budget')} />}
-          {activeTab === 'integration' && <FinanceIntegration onShowCTA={handleShowCTA} onBack={() => setActiveTab('dashboard')} />}
           {activeTab === 'add-asset' && <FinanceAddAsset onShowCTA={handleShowCTA} onBack={() => setActiveTab('assets')} />}
           {activeTab === 'add-account' && <FinanceAddAccount onShowCTA={handleShowCTA} onBack={() => setActiveTab('assets')} />}
           

@@ -1132,17 +1132,6 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                 </div>
 
               </div>
-              
-              {/* Integration Button */}
-              <div className="flex justify-end gap-3 mt-6">
-                <button 
-                  onClick={() => onNavigate && onNavigate('integration')} 
-                  className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-black/[0.01] dark:bg-white/[0.01] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] border border-dashed border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300 font-bold text-xs hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer animate-pulse-subtle"
-                >
-                  <span className="material-symbols-outlined text-[1.1rem]">add_link</span>
-                  Tambah Akun Integrasi Perbankan / Sekuritas
-                </button>
-              </div>
             </div>
           )}
 
