@@ -43,11 +43,11 @@ const getAssetAbbreviation = (title: string) => {
       return ticker.toUpperCase();
     }
   }
-  
+
   // Get initials from title
   const cleanTitle = safeTitle.replace(/\([^)]+\)/g, '').trim();
   const words = cleanTitle.split(/\s+/).filter(w => w.length > 0 && !/^(dan|di|ke|dari|dengan|atau|&|and|or|of|in|on|at|by|for)$/i.test(w));
-  
+
   if (words.length >= 2) {
     return (words[0][0] + words[1][0]).toUpperCase();
   }
@@ -55,6 +55,93 @@ const getAssetAbbreviation = (title: string) => {
     return words[0].slice(0, 2).toUpperCase();
   }
   return 'AS';
+};
+
+// Strict 2-letter initials from the title — never uses parenthesized ticker.
+// Used for non-saham assets (reksadana, crypto, etc) so the icon stays compact.
+const getAssetInitials = (title: string) => {
+  const cleanTitle = (title || '').replace(/\([^)]+\)/g, '').trim();
+  const words = cleanTitle.split(/\s+/).filter(w => w.length > 0 && !/^(dan|di|ke|dari|dengan|atau|&|and|or|of|in|on|at|by|for)$/i.test(w));
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return 'AS';
+};
+
+// IDX lot size: 1 Lot = 100 Lembar (Bursa Efek Indonesia standard).
+const LOT_SIZE_IDX = 100;
+
+// Industry-standard decimals per asset class.
+const getPriceDecimals = (subType?: string): number => {
+  if (subType === 'kripto' || subType === 'crypto') return 8;
+  if (subType === 'reksadana') return 4;
+  if (subType === 'saham') return 0;
+  return 2;
+};
+
+// Format a number to Indonesian decimal display: 29440.09 -> "29.440,09".
+const formatPriceID = (value: number, decimals: number): string => {
+  if (!Number.isFinite(value)) return '';
+  return value.toLocaleString('id-ID', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  });
+};
+
+// Parse Indonesian-formatted decimal string: "29.440,09" -> 29440.09.
+// Dots are thousand separators, comma is the decimal mark.
+const parsePriceID = (input: string): number => {
+  if (!input) return 0;
+  const cleaned = input.replace(/\./g, '').replace(/,/g, '.');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : 0;
+};
+
+// IDX shares display: "4 Lot (400 Lembar)" when divisible by 100; otherwise raw.
+const formatShares = (shares: number, subType?: string): string => {
+  const s = shares || 0;
+  if (subType === 'saham') {
+    if (s >= LOT_SIZE_IDX && s % LOT_SIZE_IDX === 0) {
+      const lots = s / LOT_SIZE_IDX;
+      return `${lots.toLocaleString('id-ID')} Lot (${s.toLocaleString('id-ID')} Lembar)`;
+    }
+    return `${s.toLocaleString('id-ID')} Lembar`;
+  }
+  if (subType === 'kripto' || subType === 'crypto') {
+    return `${s.toLocaleString('id-ID', { maximumFractionDigits: 8 })} Koin`;
+  }
+  return `${s.toLocaleString('id-ID', { maximumFractionDigits: 4 })} Unit`;
+};
+
+// Honest data-freshness label per asset class.
+// GoogleFinance IDX is delayed ~20 min; reksadana NAV publishes T+1.
+const getPriceFreshnessLabel = (subType?: string): string => {
+  if (subType === 'reksadana') return 'NAV per akhir hari kerja (T+1)';
+  if (subType === 'kripto' || subType === 'crypto') return 'Harga pasar (delayed ~5 menit)';
+  if (subType === 'saham') return 'Harga pasar (delayed ~20 menit)';
+  return 'Harga pasar (delayed)';
+};
+
+// Default effective date for a manual price entry.
+// Reksadana NAV publishes T+1 → previous business day; others → today.
+const getDefaultPriceDate = (subType?: string): string => {
+  const d = new Date();
+  if (subType === 'reksadana') {
+    d.setDate(d.getDate() - 1);
+    if (d.getDay() === 0) d.setDate(d.getDate() - 2); // Sun → Fri
+    else if (d.getDay() === 6) d.setDate(d.getDate() - 1); // Sat → Fri
+  }
+  return d.toISOString().split('T')[0];
+};
+
+// Tier of price-change anomaly for sanity-check UI.
+type PriceChangeTier = 'normal' | 'warn' | 'severe';
+const classifyPriceChange = (oldPrice: number, newPrice: number): { tier: PriceChangeTier; deltaPct: number } => {
+  if (!oldPrice || oldPrice <= 0) return { tier: 'normal', deltaPct: 0 };
+  const deltaPct = ((newPrice - oldPrice) / oldPrice) * 100;
+  const ratio = newPrice / oldPrice;
+  if (ratio > 5 || ratio < 0.2) return { tier: 'severe', deltaPct };
+  if (Math.abs(deltaPct) > 20) return { tier: 'warn', deltaPct };
+  return { tier: 'normal', deltaPct };
 };
 
 const getAssetGradient = (text: string) => {
@@ -105,6 +192,10 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
   const [editingAsset, setEditingAsset] = useState<any>(null);
   const [editingAccount, setEditingAccount] = useState<any>(null);
   const [newLastPriceInput, setNewLastPriceInput] = useState('');
+  // Effective date of the manually-entered price ("Harga per tanggal").
+  const [editPriceEffectiveDate, setEditPriceEffectiveDate] = useState<string>('');
+  // In-session ids whose price has been manually overridden — drives "Manual" badge.
+  const [manualOverrideIds, setManualOverrideIds] = useState<Set<string>>(new Set());
 
   // Physical Asset detailed edit states
   const [editTitle, setEditTitle] = useState('');
@@ -614,10 +705,18 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
   };
 
   const handleOpenEditPrice = (asset: any) => {
-    const currentPrice = asset.subType === 'reksadana' ? asset.currentNav || asset.currentPrice : asset.currentPrice || (asset.currentValue / (asset.shares || 1));
+    const currentPrice = asset.subType === 'reksadana'
+      ? asset.currentNav || asset.currentPrice
+      : asset.currentPrice || (asset.currentValue / (asset.shares || 1));
+    const decimals = getPriceDecimals(asset.subType);
     setEditingAsset(asset);
     setEditType('investment');
-    setNewLastPriceInput(String(currentPrice || ''));
+    // Pre-fill with Indonesian-locale formatting so the parser (dot = thousand,
+    // comma = decimal) round-trips correctly.
+    setNewLastPriceInput(currentPrice ? formatPriceID(currentPrice, decimals) : '');
+    // Default effective date: reksadana NAV publishes T+1, so prior business day;
+    // saham/kripto default to today.
+    setEditPriceEffectiveDate(getDefaultPriceDate(asset.subType));
     setIsEditPriceOpen(true);
   };
 
@@ -724,27 +823,52 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
     } else {
       // Investment
       if (!editingAsset) return;
-      const cleanPrice = newLastPriceInput.replace(/\./g, '').replace(/,/g, '.');
-      const parsedNewPrice = parseFloat(cleanPrice) || 0;
+      const parsedNewPrice = parsePriceID(newLastPriceInput);
       if (parsedNewPrice <= 0) return;
+
+      // Sanity check on extreme price changes — guards against decimal typos.
+      const oldPrice = editingAsset.subType === 'reksadana'
+        ? editingAsset.currentNav || editingAsset.currentPrice
+        : editingAsset.currentPrice || (editingAsset.currentValue / (editingAsset.shares || 1));
+      const decimals = getPriceDecimals(editingAsset.subType);
+      const { tier, deltaPct } = classifyPriceChange(oldPrice || 0, parsedNewPrice);
+      if (tier === 'severe') {
+        const ok = window.confirm(
+          `⚠️ Harga berubah ${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(1)}% (${formatPriceID(oldPrice || 0, decimals)} → ${formatPriceID(parsedNewPrice, decimals)}).\n\nIni kemungkinan besar salah ketik desimal/pemisah ribuan. Yakin lanjut simpan?`
+        );
+        if (!ok) return;
+      } else if (tier === 'warn') {
+        const ok = window.confirm(
+          `Harga berubah ${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(1)}% (>±20%). Konfirmasi simpan?`
+        );
+        if (!ok) return;
+      }
 
       const shares = editingAsset.shares || 1;
       const updatedValue = Math.round(parsedNewPrice * shares);
+      const effectiveDate = editPriceEffectiveDate || new Date().toISOString().split('T')[0];
 
       const updatedAsset = {
         ...editingAsset,
         currentPrice: editingAsset.subType === 'reksadana' ? undefined : parsedNewPrice,
         currentNav: editingAsset.subType === 'reksadana' ? parsedNewPrice : undefined,
         currentValue: updatedValue,
+        lastValuationUpdate: effectiveDate,
       };
 
       const assetTitle = editingAsset.title;
+      const assetId = editingAsset.id;
       setIsEditPriceOpen(false);
       setEditingAsset(null);
+      setManualOverrideIds(prev => {
+        const next = new Set(prev);
+        next.add(assetId);
+        return next;
+      });
 
       try {
         await updateAsset(updatedAsset);
-        alert(`Sukses: Harga terakhir instrumen "${assetTitle}" berhasil diperbarui!`);
+        alert(`Sukses: Harga "${assetTitle}" diperbarui ke Rp ${formatPriceID(parsedNewPrice, decimals)} (per ${effectiveDate}).`);
         setTimeout(() => {
           syncFromGoogleSheets();
         }, 500);
@@ -793,36 +917,39 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
   };
 
   return (
-    <div className="space-y-8 lg:space-y-12 animate-in fade-in duration-500">
+    <div className="space-y-6 md:space-y-8 lg:space-y-12 animate-in fade-in duration-500">
       {/* Summary Header (Editorial Style) */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-12 items-end">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 lg:gap-12 items-start md:items-end">
         <div>
-          <span className="text-on-surface-variant dark:text-outline font-label text-[10px] lg:text-xs uppercase tracking-widest mb-2 block font-bold">Posisi Kekayaan Bersih</span>
-          <h2 className="font-headline text-4xl lg:text-5xl font-extrabold tracking-tight text-on-surface dark:text-white tabular-nums">Rp {netWorth.toLocaleString('id-ID')}</h2>
-          <p className="text-tertiary-container dark:text-tertiary-fixed text-xs lg:text-sm mt-3 flex items-center gap-1 font-bold">
+          <span className="text-on-surface-variant dark:text-outline font-label text-[10px] lg:text-xs uppercase tracking-widest mb-1.5 md:mb-2 block font-bold">Posisi Kekayaan Bersih</span>
+          <h2 className="font-headline text-[28px] sm:text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-on-surface dark:text-white tabular-nums leading-[1.1] break-all">Rp {netWorth.toLocaleString('id-ID')}</h2>
+          <p className="text-tertiary-container dark:text-tertiary-fixed text-[11px] sm:text-xs lg:text-sm mt-2 md:mt-3 flex items-center gap-1 font-bold">
             <span className="material-symbols-outlined text-sm">trending_up</span>
             +12,4% dari kuartal terakhir
           </p>
         </div>
-        <div className="flex flex-wrap gap-3 lg:gap-4 md:justify-end">
-          <button onClick={() => onNavigate && onNavigate('add-asset')} className="bg-gradient-to-r from-primary to-primary-container dark:from-[#a7c8ff] dark:to-[#82b1ff] text-white dark:text-[#001b3c] px-6 py-3 rounded-full font-bold shadow-lg shadow-primary-container/20 dark:shadow-[#a7c8ff]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2">
-            <span className="material-symbols-outlined">add</span>
+        <div className="flex flex-wrap gap-2 sm:gap-3 lg:gap-4 md:justify-end">
+          <button onClick={() => onNavigate && onNavigate('add-asset')} className="bg-gradient-to-r from-primary to-primary-container dark:from-[#a7c8ff] dark:to-[#82b1ff] text-white dark:text-[#001b3c] px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold shadow-lg shadow-primary-container/20 dark:shadow-[#a7c8ff]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2 text-xs sm:text-sm">
+            <span className="material-symbols-outlined text-lg sm:text-xl">add</span>
             <span className="hidden sm:block">Tambah Aset</span>
+            <span className="sm:hidden">Tambah</span>
           </button>
           <div className="flex bg-surface-container-low dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-lg overflow-hidden shrink-0">
-            <button 
+            <button
               onClick={handleDownloadCSV}
-              className="px-4 py-2.5 text-primary dark:text-[#a7c8ff] hover:bg-surface-container dark:hover:bg-white/10 transition-colors flex items-center gap-2 font-bold text-xs lg:text-sm"
+              className="px-3 sm:px-4 py-2.5 text-primary dark:text-[#a7c8ff] hover:bg-surface-container dark:hover:bg-white/10 transition-colors flex items-center gap-2 font-bold text-xs lg:text-sm"
               title="Unduh CSV"
+              aria-label="Unduh Laporan CSV"
             >
               <span className="material-symbols-outlined text-[18px]">table_chart</span>
               <span className="hidden sm:block">Unduh Laporan</span>
             </button>
             <div className="w-px bg-outline-variant/20 dark:bg-white/10"></div>
-            <button 
+            <button
               onClick={() => setIsPrintModalOpen(true)}
-              className="px-4 py-2.5 text-primary dark:text-[#a7c8ff] hover:bg-surface-container dark:hover:bg-white/10 transition-colors flex items-center gap-2 font-bold text-xs lg:text-sm"
+              className="px-3 sm:px-4 py-2.5 text-primary dark:text-[#a7c8ff] hover:bg-surface-container dark:hover:bg-white/10 transition-colors flex items-center gap-2 font-bold text-xs lg:text-sm"
               title="Cetak PDF"
+              aria-label="Cetak Laporan PDF"
             >
               <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
               <span className="hidden sm:block">Cetak (PDF)</span>
@@ -832,7 +959,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
       </section>
 
       {/* Tonal Sectioning (Assets Categories) */}
-      <div className="bg-surface-container-low dark:bg-transparent rounded-2xl p-6 md:p-10 space-y-12 border border-outline-variant/10 dark:border-white/10">
+      <div className="bg-surface-container-low dark:bg-transparent rounded-2xl p-4 sm:p-6 md:p-8 lg:p-10 space-y-6 sm:space-y-8 md:space-y-10 lg:space-y-12 border border-outline-variant/10 dark:border-white/10">
         {/* Category Tabs - Apple Glassmorphism Capsule Segmented Control */}
         <div className="flex justify-start w-full overflow-x-auto no-scrollbar py-2 border-b border-outline-variant/15 dark:border-white/10">
           <div className="inline-flex p-1 bg-surface-container/60 dark:bg-white/[0.03] backdrop-blur-2xl border border-outline-variant/10 dark:border-white/[0.05] rounded-full shadow-inner relative whitespace-nowrap">
@@ -844,24 +971,24 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
             ] as const).map(tab => {
               const isActive = activeTab === tab.id;
               return (
-                <button 
+                <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative px-5 py-2.5 rounded-full text-xs lg:text-sm font-semibold tracking-tight transition-all duration-300 flex items-center gap-2 cursor-pointer z-10 select-none active:scale-[0.98] ${
-                    isActive 
-                      ? 'text-primary dark:text-[#a7c8ff]' 
+                  className={`relative px-3.5 sm:px-4 lg:px-5 py-2 sm:py-2.5 rounded-full text-[11px] sm:text-xs lg:text-sm font-semibold tracking-tight transition-all duration-300 flex items-center gap-1.5 sm:gap-2 cursor-pointer z-10 select-none active:scale-[0.98] ${
+                    isActive
+                      ? 'text-primary dark:text-[#a7c8ff]'
                       : 'text-on-surface-variant dark:text-slate-400 hover:text-primary dark:hover:text-[#a7c8ff]'
                   }`}
                 >
                   {/* Sliding Active Tab Background Indicator */}
                   {isActive && (
-                    <motion.div 
+                    <motion.div
                       layoutId="activeAssetTabIndicator"
                       className="absolute inset-0 bg-white dark:bg-white/[0.07] shadow-sm backdrop-blur-xl border border-black/[0.02] dark:border-white/[0.08] rounded-full -z-10"
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                     />
                   )}
-                  <span className="material-symbols-outlined text-base lg:text-lg" style={{ fontVariationSettings: isActive ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 400" }}>{tab.icon}</span>
+                  <span className="material-symbols-outlined text-[15px] sm:text-base lg:text-lg" style={{ fontVariationSettings: isActive ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 400" }}>{tab.icon}</span>
                   <span>{tab.label}</span>
                 </button>
               );
@@ -870,11 +997,11 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
         </div>
 
         {activeTab === 'ikhtisar' && (
-          <div className="animate-in fade-in duration-500 space-y-12 mt-8">
+          <div className="animate-in fade-in duration-500 space-y-6 sm:space-y-8 lg:space-y-12 mt-4 sm:mt-6 lg:mt-8">
             {/* Visual Asset Allocation */}
-            <section className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 rounded-3xl p-6 md:p-8 shadow-sm">
-              <h3 className="font-headline text-lg lg:text-xl font-bold tracking-tight dark:text-white mb-2">Alokasi Kelas Aset</h3>
-              <p className="text-on-surface-variant dark:text-outline text-xs lg:text-sm font-medium mb-6">Distribusi portofolio kekayaan Anda berdasarkan likuiditas dan jenis instrumen.</p>
+            <section className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm">
+              <h3 className="font-headline text-base sm:text-lg lg:text-xl font-bold tracking-tight dark:text-white mb-2">Alokasi Kelas Aset</h3>
+              <p className="text-on-surface-variant dark:text-outline text-[11px] sm:text-xs lg:text-sm font-medium mb-4 sm:mb-6">Distribusi portofolio kekayaan Anda berdasarkan likuiditas dan jenis instrumen.</p>
               
               {/* Premium Segmented Progress Bar */}
               <div className="w-full h-4 bg-surface-container dark:bg-white/10 rounded-full overflow-hidden flex mb-6 border border-outline-variant/5 dark:border-white/5">
@@ -950,22 +1077,24 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
             {/* Liquid Assets Grid */}
             <section>
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6 lg:mb-8">
                 <div>
-                  <h3 className="font-headline text-xl lg:text-2xl font-bold tracking-tight text-primary dark:text-white">Aset Lancar</h3>
-                  <p className="text-on-surface-variant dark:text-outline text-xs lg:text-sm font-medium">Total: Rp {totalAccounts.toLocaleString('id-ID')}</p>
+                  <h3 className="font-headline text-lg sm:text-xl lg:text-2xl font-bold tracking-tight text-primary dark:text-white">Aset Lancar</h3>
+                  <p className="text-on-surface-variant dark:text-outline text-[11px] sm:text-xs lg:text-sm font-medium">Total: Rp {totalAccounts.toLocaleString('id-ID')}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => onNavigate?.('add-account')}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary/10 dark:bg-[#a7c8ff]/10 text-primary dark:text-[#a7c8ff] rounded-xl text-xs font-extrabold border border-primary/20 hover:bg-primary/20 transition-all active:scale-95 shadow-sm"
+                  className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-primary/10 dark:bg-[#a7c8ff]/10 text-primary dark:text-[#a7c8ff] rounded-xl text-xs font-extrabold border border-primary/20 hover:bg-primary/20 transition-all active:scale-95 shadow-sm"
                 >
-                  <span className="material-symbols-outlined text-base">add_circle</span> Tambah Akun Baru
+                  <span className="material-symbols-outlined text-base">add_circle</span>
+                  <span className="hidden sm:inline">Tambah Akun Baru</span>
+                  <span className="sm:hidden">Tambah</span>
                 </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                 {accounts.map(acc => (
-                  <div key={acc.id} className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 p-6 rounded-2xl hover:bg-surface-bright dark:hover:bg-white/10 transition-all group cursor-pointer shadow-sm">
-                    <div className="flex justify-between items-start mb-4">
+                  <div key={acc.id} className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl hover:bg-surface-bright dark:hover:bg-white/10 transition-all group cursor-pointer shadow-sm">
+                    <div className="flex justify-between items-start mb-3 sm:mb-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                         acc.type === 'bank' ? 'bg-blue-50 dark:bg-blue-900/40 text-primary dark:text-[#a7c8ff]' :
                         acc.type === 'wallet' ? 'bg-slate-100 dark:bg-slate-800/50 text-primary dark:text-[#a7c8ff]' :
@@ -1279,11 +1408,11 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
             {/* Investment Assets Table */}
             <section>
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
-                <h3 className="font-headline text-lg lg:text-xl font-bold tracking-tight dark:text-white">Portofolio Investasi</h3>
-                <div className="flex items-center gap-2 self-end sm:self-auto">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <h3 className="font-headline text-base sm:text-lg lg:text-xl font-bold tracking-tight dark:text-white">Portofolio Investasi</h3>
+                <div className="flex items-center gap-2 self-stretch sm:self-auto w-full sm:w-auto">
                   {/* Search Input Field */}
-                  <div className={`relative transition-all duration-300 ${isSearchOpen ? 'w-48 sm:w-64 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+                  <div className={`relative transition-all duration-300 ${isSearchOpen ? 'flex-1 sm:w-64 sm:flex-none opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
                     <input
                       type="text"
                       placeholder="Cari nama aset, ticker, catatan..."
@@ -1528,45 +1657,46 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
         {activeTab === 'ekuitas' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8 pt-4">
             {/* Sub-tab Navigation (Premium Glassmorphism Style) */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-outline-variant/10 dark:border-white/10 pb-4">
-              <div className="flex bg-surface-container-low dark:bg-white/5 p-1.5 rounded-2xl border border-outline-variant/10 dark:border-white/5 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4 border-b border-outline-variant/10 dark:border-white/10 pb-4">
+              <div className="flex bg-surface-container-low dark:bg-white/5 p-1 sm:p-1.5 rounded-2xl border border-outline-variant/10 dark:border-white/5 w-full sm:w-auto overflow-x-auto no-scrollbar snap-x snap-mandatory">
                 <button
                   onClick={() => setSubTab('saham-reksa')}
-                  className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl font-bold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
+                  className={`flex-1 sm:flex-none snap-start whitespace-nowrap px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-[11px] sm:text-xs lg:text-sm transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 ${
                     subTab === 'saham-reksa'
                       ? 'bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] shadow-md shadow-primary/20 dark:shadow-[#a7c8ff]/10'
                       : 'text-on-surface-variant dark:text-outline hover:text-primary dark:hover:text-[#a7c8ff]'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-sm lg:text-base">trending_up</span>
+                  <span className="material-symbols-outlined text-[15px] sm:text-sm lg:text-base">trending_up</span>
                   Saham &amp; Reksadana
                 </button>
                 <button
                   onClick={() => setSubTab('sbn-deposito')}
-                  className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl font-bold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
+                  className={`flex-1 sm:flex-none snap-start whitespace-nowrap px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-[11px] sm:text-xs lg:text-sm transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 ${
                     subTab === 'sbn-deposito'
                       ? 'bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] shadow-md shadow-primary/20 dark:shadow-[#a7c8ff]/10'
                       : 'text-on-surface-variant dark:text-outline hover:text-primary dark:hover:text-[#a7c8ff]'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-sm lg:text-base">account_balance</span>
+                  <span className="material-symbols-outlined text-[15px] sm:text-sm lg:text-base">account_balance</span>
                   SBN &amp; Deposito
                 </button>
                 <button
                   onClick={() => setSubTab('analisis')}
-                  className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl font-bold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
+                  className={`flex-1 sm:flex-none snap-start whitespace-nowrap px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-[11px] sm:text-xs lg:text-sm transition-all duration-300 flex items-center justify-center gap-1.5 sm:gap-2 ${
                     subTab === 'analisis'
                       ? 'bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] shadow-md shadow-primary/20 dark:shadow-[#a7c8ff]/10'
                       : 'text-on-surface-variant dark:text-outline hover:text-primary dark:hover:text-[#a7c8ff]'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-sm lg:text-base">analytics</span>
-                  Kinerja &amp; Benchmark
+                  <span className="material-symbols-outlined text-[15px] sm:text-sm lg:text-base">analytics</span>
+                  <span className="hidden sm:inline">Kinerja &amp; Benchmark</span>
+                  <span className="sm:hidden">Kinerja</span>
                 </button>
               </div>
 
               <div className="flex gap-3 w-full sm:w-auto">
-                <button 
+                <button
                   onClick={() => onNavigate && onNavigate('equity-ledger')}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-surface-container-low dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 text-primary dark:text-[#a7c8ff] font-bold text-xs lg:text-sm rounded-xl hover:bg-surface-container hover:-translate-y-0.5 transition-all shadow-sm"
                 >
@@ -1585,9 +1715,13 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                 if (titleLower.includes('reksadana') || titleLower.includes('schroder') || titleLower.includes('indeks')) subType = 'reksadana';
                 if (titleLower.includes('st012') || titleLower.includes('sukuk') || titleLower.includes('sbn')) subType = 'sbn';
                 
+                const displayTicker = subType === 'saham'
+                  ? (a.ticker || getAssetAbbreviation(safeTitle) || 'ASSET')
+                  : getAssetInitials(safeTitle);
+
                 return {
                   ...a,
-                  ticker: a.ticker || getAssetAbbreviation(safeTitle) || 'ASSET',
+                  ticker: displayTicker,
                   shares: a.shares || 1,
                   avgCost: a.avgCost || a.purchasePrice || a.currentValue,
                   subType
@@ -1625,30 +1759,30 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
               const plPercentTotal = liveTotalPurchasePrice > 0 ? (totalPL / liveTotalPurchasePrice) * 100 : 0;
 
               return (
-                <div className="space-y-6 lg:space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-500">
                   {/* Top Live Performance Metrics bar */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
-                    <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 p-6 rounded-2xl shadow-sm flex flex-col justify-between">
-                      <span className="text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-widest block mb-2">Nilai Ekuitas (Live)</span>
-                      <h4 className="text-2xl font-headline font-extrabold text-primary dark:text-[#a7c8ff] tabular-nums">Rp {liveTotalMarketValue.toLocaleString('id-ID')}</h4>
-                      <p className="text-xs text-on-surface-variant dark:text-outline mt-2 font-medium">Berdasarkan data pasar real-time</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+                    <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl shadow-sm flex flex-col justify-between gap-2">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-widest block">Nilai Ekuitas (Live)</span>
+                      <h4 className="text-xl sm:text-2xl font-headline font-extrabold text-primary dark:text-[#a7c8ff] tabular-nums break-all leading-tight">Rp {liveTotalMarketValue.toLocaleString('id-ID')}</h4>
+                      <p className="text-[11px] sm:text-xs text-on-surface-variant dark:text-outline font-medium">Saham delayed ~20 mnt · Reksadana NAV T+1</p>
                     </div>
-                    <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 p-6 rounded-2xl shadow-sm flex flex-col justify-between">
-                      <span className="text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-widest block mb-2">Modal Diinvestasikan</span>
-                      <h4 className="text-2xl font-headline font-extrabold text-on-surface dark:text-white tabular-nums">Rp {liveTotalPurchasePrice.toLocaleString('id-ID')}</h4>
-                      <p className="text-xs text-on-surface-variant dark:text-outline mt-2 font-medium">Total modal historis</p>
+                    <div className="bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 p-4 sm:p-5 lg:p-6 rounded-2xl shadow-sm flex flex-col justify-between gap-2">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-on-surface-variant dark:text-outline uppercase tracking-widest block">Modal Diinvestasikan</span>
+                      <h4 className="text-xl sm:text-2xl font-headline font-extrabold text-on-surface dark:text-white tabular-nums break-all leading-tight">Rp {liveTotalPurchasePrice.toLocaleString('id-ID')}</h4>
+                      <p className="text-[11px] sm:text-xs text-on-surface-variant dark:text-outline font-medium">Total modal historis</p>
                     </div>
-                    <div className={`border p-6 rounded-2xl shadow-sm flex flex-col justify-between transition-all duration-500 ${
-                      totalPL >= 0 
+                    <div className={`border p-4 sm:p-5 lg:p-6 rounded-2xl shadow-sm flex flex-col justify-between gap-2 transition-all duration-500 ${
+                      totalPL >= 0
                         ? 'bg-tertiary-container/10 border-tertiary-container dark:bg-tertiary-fixed/5 dark:border-tertiary-fixed/30 text-on-tertiary-container dark:text-tertiary-fixed'
                         : 'bg-error-container/10 border-error-container dark:bg-error-container/5 dark:border-error-container/30 text-error dark:text-[#ffb4ab]'
                     }`}>
-                      <span className="text-[10px] font-bold uppercase tracking-widest block mb-2">Capital Gain / Loss</span>
-                      <h4 className="text-2xl font-headline font-extrabold tabular-nums flex items-center gap-1">
+                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest block">Capital Gain / Loss</span>
+                      <h4 className="text-xl sm:text-2xl font-headline font-extrabold tabular-nums leading-tight break-all">
                         {totalPL >= 0 ? '+' : '-'}Rp {Math.abs(totalPL).toLocaleString('id-ID')}
                       </h4>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md w-fit mt-2 ${
-                        totalPL >= 0 
+                      <span className={`text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-md w-fit ${
+                        totalPL >= 0
                           ? 'bg-tertiary-fixed dark:bg-tertiary-fixed/20 text-on-tertiary-fixed dark:text-tertiary-fixed'
                           : 'bg-error-container dark:bg-error-container/20 text-on-error-container dark:text-[#ffb4ab]'
                       }`}>
@@ -1658,7 +1792,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   </div>
 
                   {/* Stock Cards Grid (Extremely Premium Layout) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                     {stocksAndMutualFundsWithLive.map(asset => {
                       const isProfit = asset.pl >= 0;
                       const subtypeText = asset.subType === 'saham' ? 'Saham' : 'Reksadana';
@@ -1673,19 +1807,19 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                         : 'border-outline-variant/10 dark:border-white/5 hover:border-primary/20 dark:hover:border-[#a7c8ff]/20';
 
                       return (
-                        <div key={asset.id} className={`bg-surface-container-lowest dark:bg-white/5 border rounded-[22px] p-6 space-y-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-500 group ${flashBorderClass}`}>
+                        <div key={asset.id} className={`bg-surface-container-lowest dark:bg-white/5 border rounded-2xl sm:rounded-[22px] p-4 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 lg:space-y-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-500 group ${flashBorderClass}`}>
                           {/* Card Header */}
-                          <div className="flex justify-between items-start gap-4">
-                            <div className="flex items-center gap-3">
+                          <div className="flex justify-between items-start gap-3 sm:gap-4">
+                            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                               <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAssetGradient(asset.ticker || 'AS')} flex items-center justify-center font-extrabold text-xs tracking-wider shrink-0`}>
                                 {asset.ticker}
                               </div>
-                              <div>
-                                <h4 className="font-headline font-bold text-sm lg:text-base text-on-surface dark:text-white leading-tight group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">{asset.title}</h4>
-                                <p className="text-[10px] text-on-surface-variant dark:text-outline font-bold uppercase tracking-wider mt-1">{asset.location}</p>
+                              <div className="min-w-0">
+                                <h4 className="font-headline font-bold text-sm lg:text-base text-on-surface dark:text-white leading-tight group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors truncate">{asset.title}</h4>
+                                <p className="text-[10px] text-on-surface-variant dark:text-outline font-bold uppercase tracking-wider mt-1 truncate">{asset.location}</p>
                               </div>
                             </div>
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${subtypeColor}`}>
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${subtypeColor}`}>
                               {subtypeText}
                             </span>
                           </div>
@@ -1695,13 +1829,13 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                             <div>
                               <p className="text-on-surface-variant dark:text-outline text-[10px] uppercase font-bold tracking-wider mb-1">Kepemilikan</p>
                               <p className="font-bold text-on-surface dark:text-slate-300 tabular-nums">
-                                {(asset.shares || 0).toLocaleString('id-ID')} {asset.subType === 'saham' ? 'Lembar' : 'Unit'}
+                                {formatShares(asset.shares || 0, asset.subType)}
                               </p>
                             </div>
                             <div>
                               <p className="text-on-surface-variant dark:text-outline text-[10px] uppercase font-bold tracking-wider mb-1">Harga Avg</p>
                               <p className="font-bold text-on-surface-variant dark:text-slate-400 tabular-nums">
-                                Rp {Math.round(asset.avgCost || 0).toLocaleString('id-ID')}
+                                Rp {formatPriceID(asset.avgCost || 0, getPriceDecimals(asset.subType))}
                               </p>
                             </div>
                           </div>
@@ -1711,7 +1845,10 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                             <div>
                               <div className="flex items-center gap-1.5 group/edit">
                                 <p className="text-on-surface-variant dark:text-outline text-[10px] uppercase font-bold tracking-wider mb-0.5">Harga Terakhir</p>
-                                <button 
+                                {manualOverrideIds.has(asset.id) && (
+                                  <span className="px-1.5 py-px rounded text-[8px] font-extrabold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30" title="Diupdate manual selama sesi ini">Manual</span>
+                                )}
+                                <button
                                   onClick={() => handleOpenEditPrice(asset)}
                                   className="opacity-0 group-hover:opacity-100 group-hover/edit:opacity-100 transition-opacity p-0.5 rounded hover:bg-surface-container dark:hover:bg-white/10 flex items-center justify-center text-primary dark:text-[#a7c8ff]"
                                   title="Edit Harga Terakhir"
@@ -1722,7 +1859,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                               <p className={`font-headline font-extrabold text-sm lg:text-base transition-colors duration-300 tabular-nums ${
                                 asset.flash === 'up' ? 'text-emerald-500 scale-[1.05]' : asset.flash === 'down' ? 'text-red-500 scale-[1.05]' : 'dark:text-white'
                               }`}>
-                                Rp {(asset.livePrice || 0).toLocaleString('id-ID')}
+                                Rp {formatPriceID(asset.livePrice || 0, getPriceDecimals(asset.subType))}
                               </p>
                             </div>
                             <div className="text-right">
@@ -1763,21 +1900,21 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
               );
 
               return (
-                <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-500">
                   <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-2">
                     <div>
-                      <h3 className="font-headline text-lg lg:text-xl font-bold tracking-tight dark:text-white">Portofolio Surat Berharga Negara (SBN) & Pendapatan Tetap</h3>
-                      <p className="text-on-surface-variant dark:text-outline text-xs lg:text-sm font-medium mt-1">Investasi dengan imbal hasil teratur dan terjamin aman (SBN, Deposito Terjamin, & P2P Lending).</p>
+                      <h3 className="font-headline text-base sm:text-lg lg:text-xl font-bold tracking-tight dark:text-white">Portofolio Surat Berharga Negara (SBN) &amp; Pendapatan Tetap</h3>
+                      <p className="text-on-surface-variant dark:text-outline text-[11px] sm:text-xs lg:text-sm font-medium mt-1">Investasi dengan imbal hasil teratur dan terjamin aman (SBN, Deposito Terjamin, &amp; P2P Lending).</p>
                     </div>
                   </div>
 
                   {fixedIncomeAssets.length === 0 ? (
-                    <div className="bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 rounded-2xl p-12 text-center text-on-surface-variant dark:text-outline space-y-4">
+                    <div className="bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 rounded-2xl p-8 sm:p-12 text-center text-on-surface-variant dark:text-outline space-y-4">
                       <span className="material-symbols-outlined text-5xl text-outline-variant dark:text-outline/40">account_balance</span>
                       <p className="text-sm font-bold">Belum ada instrumen Pendapatan Tetap.</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                       {fixedIncomeAssets.map(asset => {
                         const isMatured = asset.maturityDate ? new Date(asset.maturityDate) < new Date() : false;
                         const isLiquidated = asset.currentValue === 0 && (isMatured || asset.purchasePrice === 0);
@@ -1819,22 +1956,22 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                         }
 
                         return (
-                          <div key={asset.id} className="bg-surface-container-lowest dark:bg-white/5 rounded-3xl p-6 md:p-8 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-6 flex flex-col justify-between relative overflow-hidden group">
-                            
+                          <div key={asset.id} className="bg-surface-container-lowest dark:bg-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-outline-variant/10 dark:border-white/5 shadow-sm space-y-4 sm:space-y-6 flex flex-col justify-between relative overflow-hidden group">
+
                             {/* Decorative background logo */}
                             <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-primary/5 rounded-full blur-2xl group-hover:scale-110 transition-transform duration-700 pointer-events-none"></div>
 
-                            <div className="space-y-6">
+                            <div className="space-y-4 sm:space-y-6">
                               {/* Card Header */}
-                              <div className="flex justify-between items-start gap-4">
-                                <div className="flex items-center gap-4">
-                                  <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center ${iconClass}`}>
-                                    <span className="material-symbols-outlined text-2xl">{iconName}</span>
+                              <div className="flex justify-between items-start gap-3 sm:gap-4">
+                                <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border flex items-center justify-center shrink-0 ${iconClass}`}>
+                                    <span className="material-symbols-outlined text-xl sm:text-2xl">{iconName}</span>
                                   </div>
-                                  <div>
-                                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${tagClass}`}>{tagText}</span>
-                                    <h4 className="font-headline font-extrabold text-xl dark:text-white mt-1.5">{asset.title}</h4>
-                                    <p className="text-xs text-on-surface-variant dark:text-outline font-semibold mt-1">{subDesc}</p>
+                                  <div className="min-w-0">
+                                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md inline-block ${tagClass}`}>{tagText}</span>
+                                    <h4 className="font-headline font-extrabold text-base sm:text-lg lg:text-xl dark:text-white mt-1.5 leading-tight">{asset.title}</h4>
+                                    <p className="text-[11px] sm:text-xs text-on-surface-variant dark:text-outline font-semibold mt-1">{subDesc}</p>
                                   </div>
                                 </div>
                               </div>
@@ -1955,30 +2092,32 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
         )}
 
         {activeTab === 'real-estat' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-12 pt-8">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6 sm:space-y-8 lg:space-y-12 pt-4 sm:pt-6 lg:pt-8">
             <section>
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-8">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6 lg:mb-8">
                 <div>
-                  <h3 className="font-headline text-xl lg:text-2xl font-extrabold tracking-tight dark:text-white">Daftar Properti &amp; Tanah</h3>
-                  <p className="text-on-surface-variant dark:text-outline text-sm mt-1">Estimasi nilai pasar berdasarkan data transaksi terkini di area sekitarnya.</p>
+                  <h3 className="font-headline text-lg sm:text-xl lg:text-2xl font-extrabold tracking-tight dark:text-white">Daftar Properti &amp; Tanah</h3>
+                  <p className="text-on-surface-variant dark:text-outline text-[11px] sm:text-xs lg:text-sm mt-1">Estimasi nilai pasar berdasarkan data transaksi terkini di area sekitarnya.</p>
                 </div>
-                <button 
+                <button
                   onClick={() => onNavigate && onNavigate('add-asset')}
-                  className="px-4 py-2 bg-primary/10 dark:bg-white/5 text-primary dark:text-[#a7c8ff] rounded-xl text-sm font-bold flex items-center gap-2 border border-outline-variant/20 dark:border-white/10 hover:bg-primary/20 transition-all"
+                  className="self-start sm:self-auto px-4 py-2 bg-primary/10 dark:bg-white/5 text-primary dark:text-[#a7c8ff] rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 border border-outline-variant/20 dark:border-white/10 hover:bg-primary/20 transition-all"
                 >
-                  <span className="material-symbols-outlined text-lg">add_home</span> Tambah Properti
+                  <span className="material-symbols-outlined text-lg">add_home</span>
+                  <span className="hidden sm:inline">Tambah Properti</span>
+                  <span className="sm:hidden">Tambah</span>
                 </button>
               </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                 {assets.filter(a => a.category === 'real-estat').map(asset => {
                   const isLunas = asset.equity === 100;
                   return (
                     <div key={asset.id} className="bg-surface-container-lowest dark:bg-white/5 rounded-2xl overflow-hidden flex flex-col md:flex-row shadow-sm border border-outline-variant/10 dark:border-white/10 group">
-                      <div className="w-full md:w-2/5 h-48 md:h-auto overflow-hidden relative p-[6px]">
+                      <div className="w-full md:w-2/5 h-44 sm:h-48 md:h-auto overflow-hidden relative p-[6px]">
                         <AssetCardVisual asset={asset} />
                       </div>
-                      <div className="p-6 md:p-8 flex-1 flex flex-col justify-between">
+                      <div className="p-4 sm:p-6 md:p-8 flex-1 flex flex-col justify-between">
                         <div>
                           <div className="flex justify-between items-start gap-2">
                             <h4 className="font-headline font-extrabold text-xl text-primary dark:text-white">{asset.title}</h4>
@@ -2067,22 +2206,24 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
         )}
 
         {activeTab === 'koleksi' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-12 pt-8">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6 sm:space-y-8 lg:space-y-12 pt-4 sm:pt-6 lg:pt-8">
             <section>
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-8">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6 lg:mb-8">
                 <div>
-                  <h3 className="font-headline text-xl lg:text-2xl font-extrabold tracking-tight dark:text-white">Barang Koleksi &amp; Hobi</h3>
-                  <p className="text-on-surface-variant dark:text-outline text-sm mt-1">Estimasi nilai likuidasi berdasarkan lelang internasional dan harga pasar kolektor.</p>
+                  <h3 className="font-headline text-lg sm:text-xl lg:text-2xl font-extrabold tracking-tight dark:text-white">Barang Koleksi &amp; Hobi</h3>
+                  <p className="text-on-surface-variant dark:text-outline text-[11px] sm:text-xs lg:text-sm mt-1">Estimasi nilai likuidasi berdasarkan lelang internasional dan harga pasar kolektor.</p>
                 </div>
-                <button 
+                <button
                   onClick={() => onNavigate && onNavigate('add-asset')}
-                  className="px-4 py-2 bg-primary/10 dark:bg-white/5 text-primary dark:text-[#a7c8ff] rounded-xl text-sm font-bold flex items-center gap-2 border border-outline-variant/20 dark:border-white/10 hover:bg-primary/20 transition-all"
+                  className="self-start sm:self-auto px-4 py-2 bg-primary/10 dark:bg-white/5 text-primary dark:text-[#a7c8ff] rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 border border-outline-variant/20 dark:border-white/10 hover:bg-primary/20 transition-all"
                 >
-                  <span className="material-symbols-outlined text-lg">diamond</span> Tambah Koleksi
+                  <span className="material-symbols-outlined text-lg">diamond</span>
+                  <span className="hidden sm:inline">Tambah Koleksi</span>
+                  <span className="sm:hidden">Tambah</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                 {assets.filter(a => a.category === 'koleksi' || a.category === 'kendaraan').map(asset => {
                   const gain = asset.currentValue - asset.purchasePrice;
                   const gainPercent = asset.purchasePrice > 0 ? (gain / asset.purchasePrice * 100) : 0;
@@ -2090,10 +2231,10 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   const gainClass = gain >= 0 ? 'bg-tertiary-fixed dark:bg-tertiary-fixed/20 text-on-tertiary-fixed dark:text-tertiary-fixed' : 'bg-error-container dark:bg-error-container/30 text-on-error-container dark:text-[#ffb4ab]';
                   return (
                     <div key={asset.id} className="bg-surface-container-lowest dark:bg-white/5 rounded-2xl overflow-hidden shadow-sm border border-outline-variant/10 dark:border-white/10 group flex flex-col">
-                      <div className="h-48 overflow-hidden relative p-[6px]">
+                      <div className="h-44 sm:h-48 overflow-hidden relative p-[6px]">
                         <AssetCardVisual asset={asset} />
                       </div>
-                      <div className="p-6 flex-1 flex flex-col justify-between">
+                      <div className="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col justify-between">
                         <div>
                           <div className="flex justify-between items-start gap-2">
                             <h4 className="font-headline font-bold text-lg text-primary dark:text-white">{asset.title}</h4>
@@ -2441,22 +2582,38 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
         const targetAsset = editingAsset || {};
         const shares = targetAsset.shares || 0;
-        const unitLabel = targetAsset.subType === 'saham' ? 'Lembar' : 'Unit';
-        
-        const cleanPrice = newLastPriceInput.replace(/\./g, '').replace(/,/g, '.');
-        const parsedNewPrice = parseFloat(cleanPrice) || 0;
+        const targetSubType: string | undefined = targetAsset.subType;
+        const isSahamSub = targetSubType === 'saham';
+        const isReksadanaSub = targetSubType === 'reksadana';
+        const isKriptoSub = targetSubType === 'kripto' || targetSubType === 'crypto';
+        const unitLabelSingular = isSahamSub ? 'Lembar' : isKriptoSub ? 'Koin' : 'Unit';
+        const priceLabel = isSahamSub ? 'Harga per Lembar' : isReksadanaSub ? 'NAV per Unit' : isKriptoSub ? 'Harga per Koin' : `Harga per ${unitLabelSingular}`;
+        const priceDecimals = getPriceDecimals(targetSubType);
+
+        const parsedNewPrice = isInvestment ? parsePriceID(newLastPriceInput) : 0;
         const newCurrentValue = Math.round(parsedNewPrice * shares);
-        
+
+        const oldPriceForCompare = isReksadanaSub
+          ? (targetAsset.currentNav || targetAsset.currentPrice || 0)
+          : (targetAsset.currentPrice || (shares > 0 ? targetAsset.currentValue / shares : 0));
+        const avgCost = targetAsset.avgCost || (shares > 0 ? (targetAsset.purchasePrice || 0) / shares : 0);
+
         const purchasePrice = targetAsset.purchasePrice || (targetAsset.avgCost ? targetAsset.avgCost * shares : targetAsset.currentValue || 0);
         const newPL = newCurrentValue - purchasePrice;
         const newPLPercent = purchasePrice > 0 ? (newPL / purchasePrice) * 100 : 0;
         const newPLIsProfit = newPL >= 0;
 
+        const change = classifyPriceChange(oldPriceForCompare, parsedNewPrice);
+        const changeIsPositive = change.deltaPct >= 0;
+        const newVsAvgPct = avgCost > 0 ? ((parsedNewPrice - avgCost) / avgCost) * 100 : 0;
+
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-[#121318]/95 border border-white/10 p-6 md:p-8 rounded-3xl max-w-md w-full space-y-6 shadow-2xl relative overflow-hidden text-white animate-in zoom-in-95 duration-300">
-              
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 overflow-y-auto">
+            <div className="bg-[#121318]/95 border border-white/10 rounded-2xl sm:rounded-3xl max-w-md md:max-w-lg w-full my-auto shadow-2xl relative text-white animate-in zoom-in-95 duration-300 max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+
               <div className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div>
+
+              <div className="flex-1 overflow-y-auto px-5 sm:px-6 md:px-8 pt-5 sm:pt-6 md:pt-7 pb-2 space-y-5 scrollbar-thin">
 
               <div className="flex justify-between items-start">
                 <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 text-primary dark:text-[#a7c8ff] flex items-center justify-center shadow-md shadow-primary/5">
@@ -2517,14 +2674,14 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   {!isPhysical && (
                     <div className="text-right">
                       <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Kepemilikan</p>
-                      <p className="font-bold text-sm text-white">{shares.toLocaleString('id-ID')} {unitLabel}</p>
+                      <p className="font-bold text-sm text-white">{formatShares(shares, targetSubType)}</p>
                     </div>
                   )}
                 </div>
               )}
 
               {isPhysical ? (
-                <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1 text-left scrollbar-thin">
+                <div className="space-y-4 text-left">
                   {/* General Fields */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Nama / Merk Aset</label>
@@ -2712,51 +2869,127 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   )}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <label className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
-                    {isAccount 
-                      ? "Saldo Rekening Baru" 
-                      : `Harga Per ${unitLabel} Baru (Rp / NAV)`}
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">Rp</span>
-                    <input
-                      type="text"
-                      value={newLastPriceInput}
-                      onChange={handlePriceInputChange}
-                      placeholder={isInvestment ? "Contoh: 284,50 atau 164" : "Contoh: 15.000.000"}
-                      className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 focus:border-primary/50 dark:focus:border-[#a7c8ff]/50 rounded-xl text-white font-bold outline-none transition-all placeholder:text-slate-600 focus:bg-white/[0.08]"
-                      autoFocus
-                    />
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
+                      {isAccount ? "Saldo Rekening Baru" : `${priceLabel} Baru`}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">Rp</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={newLastPriceInput}
+                        onChange={handlePriceInputChange}
+                        placeholder={isInvestment
+                          ? (isSahamSub ? "Contoh: 6.225" : isKriptoSub ? "Contoh: 1.045.500,12345678" : "Contoh: 29.440,0904")
+                          : "Contoh: 15.000.000"}
+                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 focus:border-primary/50 dark:focus:border-[#a7c8ff]/50 rounded-xl text-white font-bold outline-none transition-all placeholder:text-slate-600 focus:bg-white/[0.08] tabular-nums"
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 italic">
+                      {isInvestment
+                        ? `* Format Indonesia: titik (.) = pemisah ribuan, koma (,) = desimal. Max ${priceDecimals} digit desimal.`
+                        : "* Masukkan nilai bulat tanpa desimal."}
+                    </p>
                   </div>
-                  <p className="text-[10px] text-slate-500 italic">
-                    {isInvestment 
-                      ? "* Gunakan koma (,) untuk desimal jika diperlukan."
-                      : "* Masukkan nilai bulat tanpa desimal."}
-                  </p>
+
+                  {isInvestment && (
+                    <div className="space-y-2">
+                      <label className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Harga per Tanggal</label>
+                      <input
+                        type="date"
+                        value={editPriceEffectiveDate}
+                        max={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setEditPriceEffectiveDate(e.target.value)}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm [color-scheme:dark]"
+                      />
+                      <p className="text-[10px] text-slate-500 italic">
+                        {isReksadanaSub
+                          ? "* NAV reksadana publikasi T+1 — default ke hari kerja sebelumnya."
+                          : "* Tanggal efektif harga ini berlaku."}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {isInvestment && parsedNewPrice > 0 && (
                 <div className="bg-white/5 border border-white/5 rounded-2xl p-4 space-y-3 text-xs animate-in fade-in duration-300">
-                  <div className="flex justify-between">
+                  {/* Old → New comparison */}
+                  <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                    <div>
+                      <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Harga Lama</p>
+                      <p className="text-slate-300 font-semibold tabular-nums text-[13px]">Rp {formatPriceID(oldPriceForCompare, priceDecimals)}</p>
+                    </div>
+                    <span className="material-symbols-outlined text-slate-500 text-base">arrow_forward</span>
+                    <div className="text-right">
+                      <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Harga Baru</p>
+                      <p className="text-white font-extrabold tabular-nums text-[13px]">Rp {formatPriceID(parsedNewPrice, priceDecimals)}</p>
+                    </div>
+                  </div>
+
+                  {/* Delta % */}
+                  {oldPriceForCompare > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 font-semibold">Δ Perubahan</span>
+                      <span className={`px-2 py-0.5 rounded font-extrabold tabular-nums text-[11px] ${
+                        change.tier === 'severe'
+                          ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                          : change.tier === 'warn'
+                            ? 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/20'
+                            : changeIsPositive
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                      }`}>
+                        {changeIsPositive ? '+' : ''}{change.deltaPct.toFixed(2)}%
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Sanity warning */}
+                  {change.tier === 'severe' && (
+                    <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-200 text-[11px] font-semibold leading-relaxed">
+                      <span className="material-symbols-outlined text-sm mt-px">warning</span>
+                      <span>Perubahan ekstrem (&gt;5× / &lt;0.2×). Cek apakah ada salah ketik desimal/pemisah ribuan. Konfirmasi akan diminta saat simpan.</span>
+                    </div>
+                  )}
+
+                  {/* Avg Cost vs Harga Baru */}
+                  {avgCost > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 font-semibold">Avg Cost vs Baru</span>
+                      <span className="text-slate-300 tabular-nums">
+                        Rp {formatPriceID(avgCost, priceDecimals)} <span className={`${newVsAvgPct >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold`}>({newVsAvgPct >= 0 ? '+' : ''}{newVsAvgPct.toFixed(1)}%)</span>
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between pt-2 border-t border-white/5">
                     <span className="text-slate-400 font-semibold">Estimasi Nilai Pasar Baru</span>
                     <span className="text-white font-bold tabular-nums">Rp {newCurrentValue.toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-semibold">Estimasi Live P/L Baru</span>
+                    <span className="text-slate-400 font-semibold">Estimasi Unrealized P/L</span>
                     <span className={`px-2.5 py-0.5 rounded font-extrabold tabular-nums text-[11px] ${
-                      newPLIsProfit 
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                      newPLIsProfit
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                         : 'bg-red-500/10 text-red-400 border border-red-500/20'
                     }`}>
                       {newPLIsProfit ? '+' : '-'}Rp {Math.abs(newPL).toLocaleString('id-ID')} ({newPLIsProfit ? '+' : ''}{newPLPercent.toFixed(1)}%)
                     </span>
                   </div>
+
+                  <p className="text-[10px] text-slate-500 italic pt-1">
+                    Sumber default: {getPriceFreshnessLabel(targetSubType)}. Override manual ini akan ditandai sebagai <strong className="text-slate-300">Manual</strong> sampai sinkronisasi berikutnya.
+                  </p>
                 </div>
               )}
 
-              <div className="flex gap-3 pt-2">
+              </div>
+
+              <div className="flex gap-3 px-5 sm:px-6 md:px-8 py-4 border-t border-white/5 bg-[#121318]/95 backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={() => {
