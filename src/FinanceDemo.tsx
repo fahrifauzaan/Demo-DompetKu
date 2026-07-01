@@ -16,6 +16,7 @@ import FinanceNotifications from './finance-components/FinanceNotifications';
 import FinanceEquityLedger from './finance-components/FinanceEquityLedger';
 import FinanceSearch from './finance-components/FinanceSearch';
 import FinanceSettings from './finance-components/FinanceSettings';
+import FinanceGuide from './finance-components/FinanceGuide';
 import MarketingCTAModal, { FeatureCTA } from './finance-components/MarketingCTAModal';
 import { useFinanceStore } from './store/useFinanceStore';
 import FinancePrintableReport from './finance-components/FinancePrintableReport';
@@ -29,7 +30,7 @@ interface FinanceDemoProps {
   toggleDark: () => void;
 }
 
-export type FinanceTab = 'dashboard' | 'transactions' | 'budget' | 'assets' | 'debts' | 'analytics' | 'portfolio-report' | 'performance-report' | 'equity-ledger' | 'add-transaction' | 'add-category' | 'add-asset' | 'add-account' | 'notifications' | 'settings';
+export type FinanceTab = 'dashboard' | 'transactions' | 'budget' | 'assets' | 'debts' | 'analytics' | 'portfolio-report' | 'performance-report' | 'equity-ledger' | 'add-transaction' | 'add-category' | 'add-asset' | 'add-account' | 'notifications' | 'settings' | 'guide';
 
 const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
   const [activeTab, setActiveTab] = useState<FinanceTab>('dashboard');
@@ -459,9 +460,10 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
           <NavItem id="assets" icon="account_balance" label="Aset" />
           <NavItem id="debts" icon="leaderboard" label="Rencana Utang" />
           <NavItem id="analytics" icon="query_stats" label="Laporan" />
+          <NavItem id="guide" icon="menu_book" label="Panduan" />
           <NavItem id="settings" icon="settings" label="Pengaturan" />
         </nav>
-        
+
         <div className="p-4 border-t border-slate-200/20">
           <button 
             onClick={() => {
@@ -499,7 +501,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
               <span className="material-symbols-outlined">menu</span>
             </button>
             <h1 className="text-lg sm:text-xl font-bold text-blue-950 dark:text-white font-headline tracking-tight capitalize truncate">
-              {activeTab === 'dashboard' ? 'Dasbor' : activeTab === 'transactions' ? 'Transaksi' : activeTab === 'budget' ? 'Anggaran' : activeTab === 'assets' ? 'Aset' : activeTab === 'analytics' || activeTab.includes('report') ? 'Laporan' : activeTab === 'notifications' ? 'Notifikasi' : activeTab === 'settings' ? 'Pengaturan' : 'Manajemen'}
+              {activeTab === 'dashboard' ? 'Dasbor' : activeTab === 'transactions' ? 'Transaksi' : activeTab === 'budget' ? 'Anggaran' : activeTab === 'assets' ? 'Aset' : activeTab === 'analytics' || activeTab.includes('report') ? 'Laporan' : activeTab === 'notifications' ? 'Notifikasi' : activeTab === 'guide' ? 'Panduan' : activeTab === 'settings' ? 'Pengaturan' : 'Manajemen'}
             </h1>
           </div>
           
@@ -623,7 +625,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
           {/* Sub-Modules (Forms & Modals) */}
           {activeTab === 'add-transaction' && <FinanceAddTransaction onShowCTA={handleShowCTA} onBack={() => { setActiveTab('transactions'); setEditingTransactionId(null); }} editingTransactionId={editingTransactionId} />}
           {activeTab === 'add-category' && <FinanceAddCategory onShowCTA={handleShowCTA} onBack={() => setActiveTab('budget')} />}
-          {activeTab === 'add-asset' && <FinanceAddAsset onShowCTA={handleShowCTA} onBack={() => setActiveTab('assets')} />}
+          {activeTab === 'add-asset' && <FinanceAddAsset onShowCTA={handleShowCTA} onBack={() => setActiveTab('assets')} onNavigate={handleNavigate} />}
           {activeTab === 'add-account' && <FinanceAddAccount onShowCTA={handleShowCTA} onBack={() => setActiveTab('assets')} />}
           
           {/* Detailed Reports & Views */}
@@ -639,6 +641,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
             />
           )}
           {activeTab === 'settings' && <FinanceSettings onShowCTA={handleShowCTA} onBack={() => setActiveTab('dashboard')} />}
+          {activeTab === 'guide' && <FinanceGuide onNavigate={handleNavigate} />}
         </div>
         
         {/* Global Watermark - shown at the bottom of the content area */}
@@ -700,6 +703,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
                 <NavItem id="assets" icon="account_balance" label="Aset" />
                 <NavItem id="debts" icon="leaderboard" label="Rencana Utang" />
                 <NavItem id="analytics" icon="query_stats" label="Laporan" />
+                <NavItem id="guide" icon="menu_book" label="Panduan" />
                 <NavItem id="settings" icon="settings" label="Pengaturan" />
               </nav>
               <div className="p-4 border-t border-slate-200/20 flex flex-col gap-2">

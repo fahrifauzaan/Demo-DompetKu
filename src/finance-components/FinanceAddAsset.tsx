@@ -5,6 +5,7 @@ import { useFinanceStore, formatDateString } from '../store/useFinanceStore';
 interface FinanceAddAssetProps {
   onShowCTA: (feature?: FeatureCTA) => void;
   onBack: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
 type AssetType = 'liquid' | 'physical' | 'investment';
@@ -76,7 +77,7 @@ const INSTITUTION_OPTIONS = [
   }
 ];
 
-const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) => {
+const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack, onNavigate }) => {
   const [assetType, setAssetType] = useState<AssetType>('liquid');
   const [assetName, setAssetName] = useState('');
   const [assetValue, setAssetValue] = useState('0');
@@ -600,6 +601,39 @@ const FinanceAddAsset: React.FC<FinanceAddAssetProps> = ({ onShowCTA, onBack }) 
               </button>
             </div>
           </section>
+
+            {/* Contextual helper — clarifies the confusing Aset Lancar vs Investasi distinction */}
+            <section className="rounded-2xl border border-blue-200/60 dark:border-[#a7c8ff]/20 bg-blue-50/60 dark:bg-[#a7c8ff]/5 p-4 sm:p-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+              <div className="flex gap-3">
+                <span className="material-symbols-outlined text-blue-600 dark:text-[#a7c8ff] shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>lightbulb</span>
+                <div>
+                  <p className="text-sm font-bold text-on-surface dark:text-white">
+                    {assetType === 'liquid'
+                      ? 'Aset Lancar = saldo tunai yang siap dipakai'
+                      : assetType === 'investment'
+                      ? 'Aset Investasi = instrumen yang Anda beli untuk bertumbuh'
+                      : 'Aset Fisik = harta berwujud & properti'}
+                  </p>
+                  <p className="text-xs text-on-surface-variant dark:text-slate-400 mt-1 leading-relaxed max-w-2xl">
+                    {assetType === 'liquid'
+                      ? 'Termasuk rekening bank, e-wallet, uang tunai, dan saldo RDN yang BELUM dibelikan produk. Kalau sudah dibelikan saham/reksadana, catat di Aset Investasi.'
+                      : assetType === 'investment'
+                      ? 'Isi jumlah (Lot untuk saham — 1 Lot = 100 lembar) dan harga rata-rata beli, bukan harga sekarang. Deposito & reksadana juga masuk sini, bukan Aset Lancar.'
+                      : 'Untuk rumah, tanah, kendaraan, emas, atau barang koleksi. Cukup catat nama aset dan estimasi nilainya saat ini.'}
+                  </p>
+                </div>
+              </div>
+              {onNavigate && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate('guide')}
+                  className="shrink-0 self-start sm:self-center flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/70 dark:bg-white/10 border border-blue-200/60 dark:border-white/10 hover:bg-white dark:hover:bg-white/15 text-blue-700 dark:text-[#a7c8ff] text-xs font-bold transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                >
+                  <span className="material-symbols-outlined text-base">menu_book</span>
+                  Buka Panduan
+                </button>
+              )}
+            </section>
 
             {/* 2. Formulir Detail Aset */}
             <section className="bg-surface-container-low dark:bg-transparent border border-outline-variant/10 dark:border-white/10 rounded-3xl p-8 space-y-8 shadow-sm transition-all duration-500">
