@@ -170,10 +170,12 @@ interface FinanceState {
   reportPrintMonth: number;
   reportPrintYear: number;
   setReportPrintPeriod: (month: number, year: number) => void;
-  printType: 'report' | 'ledger' | null;
-  setPrintType: (type: 'report' | 'ledger' | null) => void;
+  printType: 'report' | 'ledger' | 'spt' | null;
+  setPrintType: (type: 'report' | 'ledger' | 'spt' | null) => void;
   ledgerPrintTransactions: any[];
   setLedgerPrintTransactions: (txs: any[]) => void;
+  sptPrintRows: any[];
+  setSptPrintRows: (rows: any[]) => void;
 
   // Actions — Full Sync
   syncFromGoogleSheets: () => Promise<void>;
@@ -404,6 +406,7 @@ export const useFinanceStore = create<FinanceState>()(
       reportPrintYear: new Date().getFullYear(),
       printType: null,
       ledgerPrintTransactions: [],
+      sptPrintRows: [],
 
       // Security
       isAuthenticated2FA: false,
@@ -603,6 +606,7 @@ export const useFinanceStore = create<FinanceState>()(
       setReportPrintPeriod: (month, year) => set({ reportPrintMonth: month, reportPrintYear: year }),
       setPrintType: (type) => set({ printType: type }),
       setLedgerPrintTransactions: (txs) => set({ ledgerPrintTransactions: txs }),
+      setSptPrintRows: (rows) => set({ sptPrintRows: rows }),
 
       updateMonthlyBudget: async (yearMonth, categoryName, amount) => {
         const currentBudgets = { ...get().monthlyBudgets };

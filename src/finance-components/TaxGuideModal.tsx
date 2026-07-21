@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Receipt, CheckCircle, Info, ExternalLink } from 'lucide-react';
+import FinanceSPTExportModal from './FinanceSPTExportModal';
 
 interface TaxGuideModalProps {
   isOpen: boolean;
@@ -50,15 +51,15 @@ const TAX_GUIDES: TaxGuideDetail[] = [
     rate: 'PPh Final 10%',
     rateDesc: 'Dikenakan atas kupon/bunga obligasi serta keuntungan penjualan obligasi di pasar sekunder (capital gain). Dipotong otomatis oleh bank/sekuritas Agen Penjual.',
     icon: 'assured_workload',
-    hartaCode: '032',
-    hartaLabel: 'Obligasi Perusahaan / SBN / Sukuk',
+    hartaCode: '034',
+    hartaLabel: 'Obligasi Pemerintah (ORI/SR/ST) — 034 · Korporasi — 033',
     color: 'text-amber-600',
     bgColor: 'bg-amber-50 dark:bg-amber-900/20',
     darkColor: 'text-amber-400',
     darkBgColor: 'bg-amber-900/40',
     basisRule: 'PP No. 91 Tahun 2021. Berlaku untuk seluruh obligasi pemerintah (ORI, SR, SBR, ST) dan obligasi korporasi.',
     steps: [
-      'Laporkan nominal kepemilikan SBN/Obligasi Anda per 31 Desember di Lampiran IV (Daftar Harta) dengan Kode Harta 032 berdasarkan nilai pembelian awal (nominal pokok).',
+      'Laporkan nominal kepemilikan SBN/Obligasi Anda per 31 Desember di Lampiran IV (Daftar Harta) dengan Kode Harta 034 (Obligasi Pemerintah, mis. ORI/SR/ST) atau 033 (Obligasi Korporasi), berdasarkan nilai pembelian awal (nominal pokok).',
       'Laporkan total pendapatan bunga/kupon kotor yang Anda terima dalam setahun beserta PPh Final (10% dari bunga kotor) di Lampiran III Bagian A (PPh Final) nomor 2 (Bunga Deposito, Tabungan, Diskonto SBI, Bunga Obligasi).'
     ]
   },
@@ -104,15 +105,15 @@ const TAX_GUIDES: TaxGuideDetail[] = [
     rate: 'PPh Final 20%',
     rateDesc: 'Dikenakan atas bunga dari deposito dan tabungan jika total saldo simpanan di atas Rp 7.500.000. Pajak dipotong secara otomatis oleh pihak Bank.',
     icon: 'savings',
-    hartaCode: '012',
-    hartaLabel: 'Tabungan / Deposito',
+    hartaCode: '014',
+    hartaLabel: 'Deposito — 014 · Tabungan — 012',
     color: 'text-teal-600',
     bgColor: 'bg-teal-50 dark:bg-teal-900/20',
     darkColor: 'text-teal-400',
     darkBgColor: 'bg-teal-900/40',
     basisRule: 'PP No. 131 Tahun 2000. Dikenakan secara final atas bunga tabungan maupun bunga deposito.',
     steps: [
-      'Laporkan nilai penempatan nominal deposito Anda per 31 Desember di Lampiran IV (Daftar Harta) menggunakan Kode Harta 012 (Deposito) atau 011 (Tabungan).',
+      'Laporkan nilai penempatan nominal deposito Anda per 31 Desember di Lampiran IV (Daftar Harta) menggunakan Kode Harta 014 (Deposito), 012 (Tabungan), atau 011 (Uang Tunai) sesuai jenisnya.',
       'Laporkan total bunga kotor yang diterima setahun beserta PPh Final (20% dari bunga kotor) di Lampiran III Bagian A (PPh Final) nomor 2 (Bunga Deposito, Tabungan, Diskonto SBI, dll).'
     ]
   }
@@ -120,6 +121,7 @@ const TAX_GUIDES: TaxGuideDetail[] = [
 
 const TaxGuideModal: React.FC<TaxGuideModalProps> = ({ isOpen, onClose, initialTab = 'saham' }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [isSptOpen, setIsSptOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -247,7 +249,13 @@ const TaxGuideModal: React.FC<TaxGuideModalProps> = ({ isOpen, onClose, initialT
           </div>
           
           <div className="flex gap-2 w-full sm:w-auto shrink-0">
-            <a 
+            <button
+              onClick={() => setIsSptOpen(true)}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 bg-surface-container-high dark:bg-white/10 border border-outline-variant/20 hover:bg-surface-container-highest dark:hover:bg-white/20 text-on-surface dark:text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all"
+            >
+              <span>Ekspor Harta</span>
+            </button>
+            <a
               href="https://djponline.pajak.go.id/"
               target="_blank"
               rel="noopener noreferrer"
@@ -256,7 +264,7 @@ const TaxGuideModal: React.FC<TaxGuideModalProps> = ({ isOpen, onClose, initialT
               <span>DJP Online</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
-            
+
             <button
               onClick={onClose}
               className="flex-1 sm:flex-initial px-5 py-2 bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] font-bold text-xs uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-md active:scale-95"
@@ -267,6 +275,8 @@ const TaxGuideModal: React.FC<TaxGuideModalProps> = ({ isOpen, onClose, initialT
         </div>
 
       </div>
+
+      <FinanceSPTExportModal isOpen={isSptOpen} onClose={() => setIsSptOpen(false)} />
     </div>
   );
 };

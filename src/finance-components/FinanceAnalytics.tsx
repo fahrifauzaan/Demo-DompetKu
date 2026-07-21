@@ -8,7 +8,9 @@ import FinanceFIRECalculatorModal from './FinanceFIRECalculatorModal';
 import FinanceEmergencyModal from './FinanceEmergencyModal';
 import FinanceDebtFreedomModal from './FinanceDebtFreedomModal';
 import FinanceRatioSimulatorModal, { RatioType } from './FinanceRatioSimulatorModal';
+import FinanceZakatModal from './FinanceZakatModal';
 import { useFinanceStore } from '../store/useFinanceStore';
+import { computeZakat, readGoldPrice, readInclude, defaultDeduction } from './zakatUtils';
 
 
 interface FinanceAnalyticsProps {
@@ -21,6 +23,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
   const [hoveredCashFlowIndex, setHoveredCashFlowIndex] = useState<number | null>(null);
   const [isFIREModalOpen, setIsFIREModalOpen] = useState(false);
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
+  const [isZakatModalOpen, setIsZakatModalOpen] = useState(false);
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
   const [ratioModalConfig, setRatioModalConfig] = useState<{isOpen: boolean, type: RatioType}>({ isOpen: false, type: 'DTI' });
 
@@ -445,6 +448,14 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
   const emergencyTarget = parseFloat(targetRaw) || 50000000;
   const emergencyCurrent = parseFloat(currentRaw) || 42500000;
   const emergencyProgress = Math.min(100, Math.max(0, Math.round((emergencyCurrent / emergencyTarget) * 100)));
+
+  // Estimasi Zakat Maal untuk kartu pemicu (pakai toggle & harga emas tersimpan; deduksi otomatis).
+  // Kalkulasi presisi (dengan override) ada di dalam FinanceZakatModal.
+  const zakatEstimate = computeZakat(accounts, assets, {
+    goldPrice: readGoldPrice(settings),
+    include: readInclude(settings),
+    deduction: defaultDeduction(debts),
+  });
 
   const handlePrint = () => {
     window.print();
@@ -1149,6 +1160,40 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
               </p>
             </div>
 
+            {/* Zakat Maal Calculator */}
+            <div
+              onClick={() => setIsZakatModalOpen(true)}
+              className="bg-surface-container-low dark:bg-white/5 dark:border dark:border-white/10 p-4 sm:p-5 lg:p-6 rounded-2xl lg:rounded-[24px] border border-outline-variant/10 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow relative"
+            >
+              <div className="absolute top-4 right-4 bg-emerald-500/10 text-emerald-700 dark:bg-white/20 dark:text-white px-2 py-1 rounded text-[8px] font-bold tracking-widest uppercase flex items-center gap-1">
+                KALKULATOR <span className="material-symbols-outlined text-[10px]">open_in_new</span>
+              </div>
+              <div>
+                <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 mb-4 text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>volunteer_activism</span>
+                <h4 className="font-headline font-bold mb-2 text-on-surface dark:text-white">Zakat Maal</h4>
+                {zakatEstimate.wajib ? (
+                  <>
+                    <p className="text-[10px] text-outline font-bold tracking-widest mt-4">ESTIMASI ZAKAT / HAUL</p>
+                    <p className="text-xl font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400 mt-1">Rp {Math.round(zakatEstimate.zakat).toLocaleString('id-ID')}</p>
+                  </>
+                ) : zakatEstimate.zakatable > 0 ? (
+                  <>
+                    <p className="text-[10px] text-outline font-bold tracking-widest mt-4">STATUS NISAB</p>
+                    <p className="text-sm font-extrabold text-on-surface dark:text-white mt-1">Belum mencapai nisab</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[10px] text-outline font-bold tracking-widest mt-4">HITUNG ZAKAT</p>
+                    <p className="text-sm font-extrabold text-on-surface dark:text-white mt-1">Dari harta Anda</p>
+                  </>
+                )}
+              </div>
+              <p className="text-[10px] mt-4 font-bold text-outline flex items-center gap-1">
+                <span className="material-symbols-outlined text-[12px]">{zakatEstimate.wajib ? 'check_circle' : 'savings'}</span>
+                {zakatEstimate.wajib ? 'Mencapai nisab · 2,5%' : `Nisab Rp ${Math.round(zakatEstimate.nisab).toLocaleString('id-ID')}`}
+              </p>
+            </div>
+
             {/* Debt Freedom Projection */}
             <div 
               onClick={() => setIsDebtModalOpen(true)}
@@ -1304,6 +1349,11 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
         onClose={() => setIsEmergencyModalOpen(false)}
         currentCash={totalCash}
         monthlyExpenses={avgMonthlyExpenses}
+      />
+
+      <FinanceZakatModal
+        isOpen={isZakatModalOpen}
+        onClose={() => setIsZakatModalOpen(false)}
       />
 
       <FinanceDebtFreedomModal

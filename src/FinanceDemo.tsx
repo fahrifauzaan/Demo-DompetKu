@@ -21,6 +21,7 @@ import MarketingCTAModal, { FeatureCTA } from './finance-components/MarketingCTA
 import { useFinanceStore } from './store/useFinanceStore';
 import FinancePrintableReport from './finance-components/FinancePrintableReport';
 import FinancePrintableLedger from './finance-components/FinancePrintableLedger';
+import FinancePrintableSPT from './finance-components/FinancePrintableSPT';
 import { useAuthStore } from './store/useAuthStore';
 import FinanceOnboardingModal from './finance-components/FinanceOnboardingModal';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -664,6 +665,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
         {/* Corporate-grade Printable Report canvas (only active in print mode) */}
         <FinancePrintableReport />
         <FinancePrintableLedger />
+        <FinancePrintableSPT />
       </main>
 
       {/* Mobile Sidebar Overlay */}

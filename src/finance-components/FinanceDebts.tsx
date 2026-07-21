@@ -4,6 +4,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { motion, AnimatePresence } from 'motion/react';
 import DebtFormModal, { Debt } from './DebtFormModal';
 import DebtSimulatorModal from './DebtSimulatorModal';
+import DebtAmortizationModal from './DebtAmortizationModal';
 
 // interface Debt removed as it is imported from DebtFormModal
 
@@ -20,6 +21,7 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [showActionId, setShowActionId] = useState<string | null>(null);
+  const [amortizationDebt, setAmortizationDebt] = useState<Debt | null>(null);
 
   const handleSaveDebt = (debt: Debt) => {
     if (editingDebt) {
@@ -717,8 +719,11 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
                                     initial={{ opacity: 0, scale: 0.9, y: -10 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                                    className="absolute right-6 top-12 w-32 bg-white dark:bg-[#191c1e] shadow-xl rounded-xl border border-slate-200 dark:border-white/10 z-50 overflow-hidden"
+                                    className="absolute right-6 top-12 w-44 bg-white dark:bg-[#191c1e] shadow-xl rounded-xl border border-slate-200 dark:border-white/10 z-50 overflow-hidden"
                                   >
+                                    <button onClick={() => { setAmortizationDebt(debt); setShowActionId(null); }} className="w-full px-4 py-2.5 text-xs font-bold text-left hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-2 dark:text-white cursor-pointer">
+                                      <span className="material-symbols-outlined text-sm text-primary dark:text-[#a7c8ff]">table_chart</span> Tabel Amortisasi
+                                    </button>
                                     <button onClick={() => openEditModal(debt)} className="w-full px-4 py-2.5 text-xs font-bold text-left hover:bg-slate-50 dark:hover:bg-white/5 flex items-center gap-2 dark:text-white cursor-pointer">
                                       <span className="material-symbols-outlined text-sm">edit</span> Edit
                                     </button>
@@ -755,6 +760,11 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
         monthlyIncome={monthlyIncome}
         weightedInterest={weightedInterest}
         surplusCash={surplusCash}
+      />
+      <DebtAmortizationModal
+        isOpen={amortizationDebt !== null}
+        onClose={() => setAmortizationDebt(null)}
+        debt={amortizationDebt}
       />
     </div>
   );

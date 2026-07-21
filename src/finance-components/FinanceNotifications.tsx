@@ -1,6 +1,7 @@
 import React from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
+import { startOfToday, nextOccurrence, parseDateSafe, daysBetween, formatDayBadge, groupForDate, type CalendarGroup } from './calendarUtils';
 
 // ── Pengumuman sistem: pembaruan template (Juli 2026) ─────────────────────────
 // Kartu dismissible di panel Notifikasi. Auto-hide setelah ANNOUNCE_UNTIL.
@@ -9,6 +10,18 @@ const ANNOUNCE_ID = 'template_update_2026_07';
 const ANNOUNCE_KEY = `dompetku_announce_${ANNOUNCE_ID}_dismissed`;
 const ANNOUNCE_UNTIL = new Date('2026-10-31T23:59:59').getTime();
 const PANDUAN_URL = 'https://panduan.bantu-umkm.tech';
+
+// ── "Fitur Baru" v1.1 (Fase 1) — client-side, TANPA update Apps Script ────────
+const WHATSNEW_ID = 'features_v1_1_2026_07';
+const WHATSNEW_KEY = `dompetku_announce_${WHATSNEW_ID}_dismissed`;
+const WHATSNEW_UNTIL = new Date('2026-10-31T23:59:59').getTime();
+const WHATSNEW_ITEMS = [
+  { icon: 'volunteer_activism', text: 'Kalkulator Zakat Maal (Laporan)' },
+  { icon: 'calendar_month', text: 'Kalender Keuangan 60 hari (Notifikasi)' },
+  { icon: 'description', text: 'Ekspor Daftar Harta SPT (Aset)' },
+  { icon: 'table_chart', text: 'Tabel Amortisasi & konverter bunga (Utang)' },
+  { icon: 'balance', text: 'Rekonsiliasi saldo akun (Aset)' },
+];
 
 interface FinanceNotificationsProps {
   onShowCTA: (feature?: FeatureCTA) => void;
@@ -28,6 +41,16 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
   const dismissAnnouncement = () => {
     try { localStorage.setItem(ANNOUNCE_KEY, 'true'); } catch { /* ignore */ }
     setAnnounceDismissed(true);
+  };
+
+  // "Fitur Baru" v1.1 banner — dismissible + auto-expiring
+  const [whatsNewDismissed, setWhatsNewDismissed] = React.useState<boolean>(() => {
+    try { return localStorage.getItem(WHATSNEW_KEY) === 'true'; } catch { return false; }
+  });
+  const showWhatsNew = !whatsNewDismissed && Date.now() < WHATSNEW_UNTIL;
+  const dismissWhatsNew = () => {
+    try { localStorage.setItem(WHATSNEW_KEY, 'true'); } catch { /* ignore */ }
+    setWhatsNewDismissed(true);
   };
 
   // Helper to calculate days passed since date
@@ -223,8 +246,72 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
     return list;
   }, [activeReminders, showBudgetAlert, showBillReminder, onShowCTA, budgetCategories, transactions, debts, onNavigate, onClose]);
 
-  const filteredWarnings = visibleWarnings.filter(w => 
-    w.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  // ── F1.2 Kalender Keuangan ──────────────────────────────────────────────────
+  // Timeline kewajiban 60 hari ke depan (jatuh tempo cicilan, jatuh tempo instrumen,
+  // batas SPT). CATATAN: pengingat valuasi stale SENGAJA tidak diduplikasi di sini —
+  // sudah ditangani di seksi "Peringatan" (lihat acceptance F1.2).
+  const calendarEvents = React.useMemo(() => {
+    const today = startOfToday();
+    const horizon = new Date(today); horizon.setDate(horizon.getDate() + 60);
+    const fmtRp = (n: number) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
+
+    type CalEvent = {
+      id: string; date: Date; group: CalendarGroup; icon: string;
+      title: string; subtitle: string; accent: 'debt' | 'maturity' | 'tax'; onClick: () => void;
+    };
+    const events: CalEvent[] = [];
+    const go = (tab: string) => () => { if (onNavigate) { onNavigate(tab); if (onClose) onClose(); } };
+
+    // 1. Jatuh tempo cicilan utang aktif (dueDate 1–31 → kejadian bulanan berikutnya)
+    debts.forEach(debt => {
+      if ((debt.status || '').toLowerCase() === 'lunas') return;
+      if (!debt.dueDate || debt.dueDate < 1 || debt.dueDate > 31) return;
+      const date = nextOccurrence(debt.dueDate, today);
+      if (date > horizon) return;
+      events.push({
+        id: `cal-debt-${debt.id}`, date, group: groupForDate(date, today), icon: debt.icon || 'credit_card',
+        title: `Jatuh tempo: ${debt.name}`,
+        subtitle: debt.minPayment ? `Angsuran min. ${fmtRp(debt.minPayment)}` : (debt.type || 'Cicilan'),
+        accent: 'debt', onClick: go('rencana utang'),
+      });
+    });
+
+    // 2. Jatuh tempo instrumen (obligasi/deposito/P2P dengan maturityDate ≤ 60 hari)
+    assets.forEach(ast => {
+      if (ast.category !== 'investasi' || !ast.maturityDate) return;
+      const date = parseDateSafe(ast.maturityDate);
+      if (!date) return;
+      date.setHours(0, 0, 0, 0);
+      if (date < today || date > horizon) return;
+      events.push({
+        id: `cal-mat-${ast.id}`, date, group: groupForDate(date, today), icon: ast.icon || 'event_available',
+        title: `Jatuh tempo: ${ast.title}`,
+        subtitle: `Pokok ${fmtRp(ast.currentValue || ast.purchasePrice || 0)} cair`,
+        accent: 'maturity', onClick: go('aset'),
+      });
+    });
+
+    // 3. Batas Lapor SPT Tahunan (31 Maret tahun berjalan) — tampil mulai 1 Feb
+    const sptDate = new Date(today.getFullYear(), 2, 31); // 31 Maret
+    const febFirst = new Date(today.getFullYear(), 1, 1); // 1 Feb
+    if (today >= febFirst && today <= sptDate) {
+      events.push({
+        id: 'cal-spt', date: sptDate, group: groupForDate(sptDate, today), icon: 'receipt_long',
+        title: 'Batas Lapor SPT Tahunan', subtitle: 'Lapor pajak pribadi via e-Filing DJP',
+        accent: 'tax', onClick: go('laporan'),
+      });
+    }
+
+    events.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const groups: CalendarGroup[] = ['Minggu Ini', 'Bulan Ini', 'Mendatang'];
+    const grouped = groups
+      .map(g => ({ group: g, items: events.filter(e => e.group === g) }))
+      .filter(section => section.items.length > 0);
+    return { events, grouped, count: events.length };
+  }, [debts, assets, onNavigate, onClose]);
+
+  const filteredWarnings = visibleWarnings.filter(w =>
+    w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     w.message.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -335,6 +422,109 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
             </div>
           </div>
         )}
+
+        {/* Fitur Baru v1.1 */}
+        {showWhatsNew && (
+          <div className="relative overflow-hidden rounded-2xl lg:rounded-[24px] p-5 sm:p-6 bg-surface-container-lowest dark:bg-white/[0.03] border border-emerald-500/20 dark:border-emerald-400/15">
+            <button
+              onClick={dismissWhatsNew}
+              aria-label="Tutup"
+              className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant/60 hover:text-on-surface hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-lg">close</span>
+            </button>
+            <div className="flex items-start gap-3 pr-8">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-400/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Pembaruan v1.1 · Fitur Baru</span>
+                <h5 className="font-headline font-bold text-base sm:text-lg mt-0.5 text-on-surface dark:text-white">5 fitur perencanaan baru telah aktif</h5>
+                <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-1 mb-3">Langsung bisa dipakai — <strong>tanpa perlu memperbarui Google Sheet/Apps Script</strong>.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {WHATSNEW_ITEMS.map(item => (
+                    <div key={item.text} className="flex items-center gap-2 text-xs font-semibold text-on-surface dark:text-slate-200">
+                      <span className="material-symbols-outlined text-[15px] text-emerald-600 dark:text-emerald-400 shrink-0">{item.icon}</span>
+                      <span className="truncate">{item.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* F1.2 Kalender Keuangan */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-2 text-primary dark:text-[#a7c8ff]">
+              <span className="material-symbols-outlined">calendar_month</span>
+              <h4 className="font-headline font-bold tracking-tight uppercase text-sm">Kalender Keuangan</h4>
+            </div>
+            {calendarEvents.count > 0 && (
+              <span className="text-[10px] font-bold text-primary dark:text-[#a7c8ff] tabular-nums bg-primary/5 dark:bg-[#a7c8ff]/10 px-3 py-1.5 rounded-md uppercase tracking-wider">
+                {calendarEvents.count} agenda · 60 hari
+              </span>
+            )}
+          </div>
+
+          {calendarEvents.count === 0 ? (
+            <div className="bg-surface-container-lowest dark:bg-white/5 rounded-2xl lg:rounded-[24px] p-5 sm:p-6 lg:p-8 border border-outline-variant/10 dark:border-white/10 text-center flex flex-col items-center justify-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-primary/10 dark:bg-[#a7c8ff]/15 flex items-center justify-center text-primary dark:text-[#a7c8ff]">
+                <span className="material-symbols-outlined text-3xl">event_available</span>
+              </div>
+              <div>
+                <h5 className="font-bold text-on-surface dark:text-white text-base">Tidak ada agenda keuangan 🎉</h5>
+                <p className="text-xs text-outline mt-1 max-w-sm mx-auto">Belum ada jatuh tempo cicilan, instrumen investasi, atau batas pajak dalam 60 hari ke depan.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {calendarEvents.grouped.map(section => (
+                <div key={section.group} className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant dark:text-slate-400 px-2">{section.group}</p>
+                  <div className="space-y-1.5">
+                    {section.items.map(ev => {
+                      const badge = formatDayBadge(ev.date);
+                      const daysAway = daysBetween(startOfToday(), ev.date);
+                      const accentText =
+                        ev.accent === 'debt' ? 'text-error dark:text-[#ffb4ab]'
+                        : ev.accent === 'tax' ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-emerald-600 dark:text-emerald-400';
+                      const accentBg =
+                        ev.accent === 'debt' ? 'bg-error-container/20 dark:bg-error/15'
+                        : ev.accent === 'tax' ? 'bg-amber-500/10'
+                        : 'bg-emerald-500/10';
+                      return (
+                        <button
+                          key={ev.id}
+                          onClick={ev.onClick}
+                          className="w-full text-left bg-surface-container-lowest dark:bg-surface-variant/10 rounded-2xl border border-outline-variant/10 dark:border-white/5 p-3.5 md:p-4 flex items-center gap-4 hover:bg-surface-bright/50 dark:hover:bg-white/5 transition-colors group cursor-pointer"
+                        >
+                          {/* Date badge */}
+                          <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 ${accentBg} ${accentText}`}>
+                            <span className="text-base font-black leading-none tabular-nums">{badge.day}</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider leading-none mt-0.5">{badge.month}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-on-surface dark:text-white leading-tight truncate group-hover:text-primary dark:group-hover:text-[#a7c8ff] transition-colors">{ev.title}</p>
+                            <p className="text-[11px] text-on-surface-variant dark:text-slate-400 truncate mt-0.5">{ev.subtitle}</p>
+                          </div>
+                          <div className="flex flex-col items-end shrink-0">
+                            <span className={`text-[10px] font-black tabular-nums whitespace-nowrap ${accentText}`}>
+                              {daysAway === 0 ? 'Hari ini' : `${daysAway} hari`}
+                            </span>
+                            <span className="material-symbols-outlined text-on-surface-variant/40 dark:text-slate-500 text-base mt-0.5 group-hover:translate-x-0.5 transition-transform">chevron_right</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Peringatan */}
         <div className="space-y-4">

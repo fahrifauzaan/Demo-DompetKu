@@ -3,7 +3,9 @@ import { motion } from 'motion/react';
 import { FeatureCTA } from './MarketingCTAModal';
 import FinancePerformanceReport from './FinancePerformanceReport';
 import AssetCardVisual from './AssetCardVisual';
-import { useFinanceStore, formatDateString } from '../store/useFinanceStore';
+import { useFinanceStore, formatDateString, type Account } from '../store/useFinanceStore';
+import AccountReconcileModal from './AccountReconcileModal';
+import FinanceSPTExportModal from './FinanceSPTExportModal';
 
 interface FinanceAssetsProps {
   onShowCTA: (feature?: FeatureCTA) => void;
@@ -161,6 +163,23 @@ const getAssetGradient = (text: string) => {
   return gradients[index];
 };
 
+// F1.5: hari sejak rekonsiliasi terakhir (null bila belum pernah / tanggal invalid)
+const reconcileDaysSince = (dateStr?: string): number | null => {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  return Math.floor((now.getTime() - d.getTime()) / 86400000);
+};
+// Badge "perlu rekonsiliasi" hanya untuk akun likuid yang PERNAH direkonsiliasi & >45 hari.
+// (Akun tanpa lastValuationUpdate tidak di-nag agar tidak berisik; rekonsiliasi tetap bisa via menu.)
+const accountNeedsReconcile = (acc: Account): boolean => {
+  if (acc.type === 'investment') return false;
+  const d = reconcileDaysSince(acc.lastValuationUpdate);
+  return d !== null && d > 45;
+};
+
 const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'ikhtisar' | 'real-estat' | 'ekuitas' | 'koleksi'>('ikhtisar');
   const [subTab, setSubTab] = useState<'saham-reksa' | 'sbn-deposito' | 'analisis'>('saham-reksa');
@@ -181,6 +200,8 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
   // Account Action states
   const [accountActionId, setAccountActionId] = useState<string | null>(null);
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
+  const [reconcileAccount, setReconcileAccount] = useState<Account | null>(null);
+  const [isSptExportOpen, setIsSptExportOpen] = useState(false);
 
   // Physical Asset Action states
   const [assetActionId, setAssetActionId] = useState<string | null>(null);
@@ -954,6 +975,16 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
               <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
               <span className="hidden sm:block">Cetak (PDF)</span>
             </button>
+            <div className="w-px bg-outline-variant/20 dark:bg-white/10"></div>
+            <button
+              onClick={() => setIsSptExportOpen(true)}
+              className="px-3 sm:px-4 py-2.5 text-primary dark:text-[#a7c8ff] hover:bg-surface-container dark:hover:bg-white/10 transition-colors flex items-center gap-2 font-bold text-xs lg:text-sm"
+              title="Ekspor Daftar Harta untuk SPT Tahunan"
+              aria-label="Ekspor Daftar Harta SPT"
+            >
+              <span className="material-symbols-outlined text-[18px]">description</span>
+              <span className="hidden sm:block">Daftar Harta (SPT)</span>
+            </button>
           </div>
         </div>
       </section>
@@ -1110,8 +1141,20 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                         {accountActionId === acc.id && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setAccountActionId(null); }} />
-                            <div className="absolute right-0 top-8 w-36 bg-white dark:bg-[#191c1e] shadow-xl rounded-xl border border-slate-200 dark:border-white/10 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                              <button 
+                            <div className="absolute right-0 top-8 w-40 bg-white dark:bg-[#191c1e] shadow-xl rounded-xl border border-slate-200 dark:border-white/10 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                              {acc.type !== 'investment' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAccountActionId(null);
+                                    setReconcileAccount(acc);
+                                  }}
+                                  className="w-full px-4 py-2.5 text-xs font-bold text-left hover:bg-surface-container dark:hover:bg-white/10 text-on-surface dark:text-white flex items-center gap-2 border-b border-outline-variant/10 dark:border-white/5"
+                                >
+                                  <span className="material-symbols-outlined text-sm text-primary dark:text-[#a7c8ff]">balance</span> Rekonsiliasi
+                                </button>
+                              )}
+                              <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setAccountActionId(null);
@@ -1141,6 +1184,14 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                     </div>
                     <p className="text-on-surface-variant dark:text-outline text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1">{acc.name}</p>
                     <p className="font-headline text-xl lg:text-2xl font-bold tabular-nums dark:text-white">Rp {acc.balance.toLocaleString('id-ID')}</p>
+                    {accountNeedsReconcile(acc) && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setReconcileAccount(acc); }}
+                        className="mt-2 inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-md hover:bg-amber-500/20 transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[11px]">balance</span> Perlu rekonsiliasi
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -3172,6 +3223,17 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
           </div>
         </div>
       )}
+
+      <AccountReconcileModal
+        isOpen={reconcileAccount !== null}
+        onClose={() => setReconcileAccount(null)}
+        account={reconcileAccount}
+      />
+
+      <FinanceSPTExportModal
+        isOpen={isSptExportOpen}
+        onClose={() => setIsSptExportOpen(false)}
+      />
     </div>
   );
 };
