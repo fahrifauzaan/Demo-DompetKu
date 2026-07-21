@@ -20,7 +20,7 @@ const FinanceLogin: React.FC = () => {
   const setGoogleCredentials = useFinanceStore(state => state.setGoogleCredentials);
 
   // Detect if we are on the demo domain
-  const isDemoDomain = typeof window !== 'undefined' && window.location.hostname === 'demo-dompetku.vercel.app';
+  const isDemoDomain = typeof window !== 'undefined' && (window.location.hostname === 'demo-dompetku.vercel.app' || window.location.hostname === 'demo.bantu-umkm.tech');
 
   // Direct login for demo mode on demo website
   const handleDirectDemoLogin = () => {
@@ -309,12 +309,12 @@ const FinanceLogin: React.FC = () => {
   const selectDemoAccount = (email: string, name: string) => {
     const hostname = window.location.hostname;
     // Redirect if NOT on the demo domain or localhost
-    const isDemoHost = hostname === 'demo-dompetku.vercel.app';
-    
+    const isDemoHost = hostname === 'demo-dompetku.vercel.app' || hostname === 'demo.bantu-umkm.tech';
+
     if (!isDemoHost) {
       showToast('Membuka Website Demo DompetKu di tab baru...', 'info');
       setTimeout(() => {
-        window.open('https://demo-dompetku.vercel.app', '_blank');
+        window.open('https://demo.bantu-umkm.tech', '_blank');
       }, 1200);
       return;
     }
@@ -446,7 +446,7 @@ const FinanceLogin: React.FC = () => {
                       </button>
 
                       <a 
-                        href="https://dompetku-blush.vercel.app"
+                        href="https://dompetku.bantu-umkm.tech"
                         className="w-full text-center border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300 font-semibold py-3.5 px-6 rounded-2xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer mt-3"
                       >
                         <span>Kembali ke Aplikasi Utama</span>
