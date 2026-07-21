@@ -4,12 +4,11 @@ import { useFinanceStore } from '../store/useFinanceStore';
 
 // ── Pengumuman sistem: pembaruan template (Juli 2026) ─────────────────────────
 // Kartu dismissible di panel Notifikasi. Auto-hide setelah ANNOUNCE_UNTIL.
-// PENTING: ganti PANDUAN_URL dengan URL panduan PUBLIK Anda (artifact yang sudah
-// di-Share, atau hosting HTML sendiri) — jika masih privat, user akan diminta login.
+// PANDUAN_URL = halaman panduan publik (di-host di Hostinger, subdomain sendiri).
 const ANNOUNCE_ID = 'template_update_2026_07';
 const ANNOUNCE_KEY = `dompetku_announce_${ANNOUNCE_ID}_dismissed`;
 const ANNOUNCE_UNTIL = new Date('2026-10-31T23:59:59').getTime();
-const PANDUAN_URL = 'https://claude.ai/code/artifact/74d38b53-0a84-498e-be74-99b3989d8d98';
+const PANDUAN_URL = 'https://dompetku.bantu-umkm.tech';
 
 interface FinanceNotificationsProps {
   onShowCTA: (feature?: FeatureCTA) => void;
