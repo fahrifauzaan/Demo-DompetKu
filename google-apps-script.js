@@ -29,7 +29,7 @@ const HEADERS = {
   AssetsNonLiquid: ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate'],
   Saham: ['ID', 'Title', 'Ticker', 'Shares', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   Crypto: ['ID', 'Title', 'Ticker', 'Coins', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
-  Reksadana: ['ID', 'Title', 'Units', 'Nav Per Unit', 'Current_NAV', 'Purchase Date', 'Location', 'Icon', 'Notes']
+  Reksadana: ['ID', 'Title', 'Ticker', 'Units', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes']
 };
 
 // ===================== HELPER =====================
