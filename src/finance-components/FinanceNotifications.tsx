@@ -8,7 +8,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 const ANNOUNCE_ID = 'template_update_2026_07';
 const ANNOUNCE_KEY = `dompetku_announce_${ANNOUNCE_ID}_dismissed`;
 const ANNOUNCE_UNTIL = new Date('2026-10-31T23:59:59').getTime();
-const PANDUAN_URL = 'https://dompetku.bantu-umkm.tech';
+const PANDUAN_URL = 'https://panduan.bantu-umkm.tech';
 
 interface FinanceNotificationsProps {
   onShowCTA: (feature?: FeatureCTA) => void;
