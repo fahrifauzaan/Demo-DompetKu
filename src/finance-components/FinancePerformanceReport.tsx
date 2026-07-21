@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
+import PortfolioXirrCard from './PortfolioXirrCard';
+import PassiveIncomeCard from './PassiveIncomeCard';
 
 const getMonthsBetween = (startDateStr: string | undefined, maturityDateStr: string | undefined, totalTenorMonths: number) => {
   if (!startDateStr) return 0;
@@ -1050,6 +1052,16 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
               </div>
             </div>
           </div>
+        </section>
+
+        {/* F3.1 XIRR — Imbal Hasil Portofolio */}
+        <section className="col-span-1 lg:col-span-12">
+          <PortfolioXirrCard />
+        </section>
+
+        {/* F3.5 Kalender Pendapatan Pasif */}
+        <section className="col-span-1 lg:col-span-12">
+          <PassiveIncomeCard />
         </section>
 
         {/* Breakdown Performa Sektor Table */}

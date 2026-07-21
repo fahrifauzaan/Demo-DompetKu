@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
+import RebalancingCard from './RebalancingCard';
 
 interface FinancePortfolioReportProps {
   onShowCTA: (feature?: FeatureCTA) => void;
@@ -847,6 +848,9 @@ const FinancePortfolioReport: React.FC<FinancePortfolioReportProps> = ({ onShowC
           </div>
         </div>
       </div>
+
+      {/* F3.2 Rebalancing Advisor — target kustom tersimpan */}
+      <RebalancingCard />
 
       {/* Bottom Chart: Trend Diversification */}
       <div className="bg-surface-container-lowest dark:bg-transparent border border-outline-variant/10 dark:border-white/10 p-4 sm:p-6 lg:p-8 rounded-2xl lg:rounded-[24px] shadow-sm">

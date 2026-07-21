@@ -2,6 +2,7 @@ import React from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { motion, AnimatePresence } from 'motion/react';
+import { getUsdIdrRate, getUsdTickers, accountValueIDR, assetValueIDR } from './currencyUtils';
 
 interface FinanceDashboardProps {
   onShowCTA: (feature?: FeatureCTA) => void;
@@ -38,10 +39,13 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
 
   // ==================== CFP & CFA FINANCIAL CALCULATIONS ====================
 
-  // 1. Core Capital structure
-  const totalCash = accounts.reduce((sum, a) => sum + a.balance, 0);
-  const totalInvestments = assets.filter(a => a.category === 'investasi').reduce((sum, a) => sum + a.currentValue, 0);
-  const totalPhysical = assets.filter(a => a.category !== 'investasi').reduce((sum, a) => sum + a.currentValue, 0);
+  // 1. Core Capital structure — semua agregat dinormalisasi ke IDR (F3.3 multi-currency).
+  //    Untuk aset/akun IDR helper bersifat identity → tanpa perubahan nilai.
+  const usdRate = getUsdIdrRate(settings);
+  const usdTickers = getUsdTickers(settings);
+  const totalCash = accounts.reduce((sum, a) => sum + accountValueIDR(a, usdRate), 0);
+  const totalInvestments = assets.filter(a => a.category === 'investasi').reduce((sum, a) => sum + assetValueIDR(a, usdRate, usdTickers), 0);
+  const totalPhysical = assets.filter(a => a.category !== 'investasi').reduce((sum, a) => sum + assetValueIDR(a, usdRate, usdTickers), 0);
   const totalDebts = debts.reduce((sum, d) => sum + d.balance, 0);
   const totalAssets = totalCash + totalInvestments + totalPhysical;
   const netWorth = totalAssets - totalDebts;

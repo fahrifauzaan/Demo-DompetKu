@@ -9,6 +9,32 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [1.2.0] — 2026-07-22 · Fase 3: Kedalaman Investor
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Semua fitur sisi-aplikasi; konfigurasi
+opsional (kurs USD, target alokasi) disimpan di tab `Settings` yang sudah ada. Pengguna
+lama otomatis mendapatkannya begitu aplikasi dibuka.
+
+### Ditambahkan
+- **Skor Kesehatan Finansial Komposit** (Laporan › Ringkasan) — satu angka 0–100 dari 6 rasio
+  (dana darurat, tingkat tabungan, DTI, solvabilitas, diversifikasi, likuiditas) dengan gauge,
+  rincian bobot transparan, dan "1 langkah paling berdampak". Band: Rentan/Cukup/Sehat/Prima.
+- **Imbal Hasil Portofolio (XIRR)** (Laporan › Sektoral) — return tahunan tertimbang-uang per
+  holding + agregat, toggle XIRR/Sederhana, kartu Unrealized P/L & Income diterima; badge N/A
+  saat data belum cukup.
+- **Kalender Pendapatan Pasif** (Laporan › Sektoral) — proyeksi kupon bersih 12 bulan ke depan
+  (bar per bulan + rincian), rata-rata/bulan & rasio menutup pengeluaran; estimasi dividen historis.
+- **Rebalancing Advisor** (Laporan › Diversifikasi) — editor target alokasi (Σ=100) tersimpan,
+  tabel drift Aktual vs Target + status & saran ±Rp. Edukatif, tanpa tombol eksekusi.
+- **Multi-currency (fondasi USD)** — kurs `USDIDR_RATE` + daftar `usd_tickers` di Preferensi;
+  akun/aset USD (mis. VTI/SPY atau tag `[USD]`) dikonversi ke IDR pada net worth. Aset IDR tak berubah.
+
+### Catatan
+- Konversi USD diterapkan pada agregat net worth utama (Dasbor & Laporan). Konfigurasi kurs kini
+  manual/GOOGLEFINANCE; penautan otomatis penuh menyusul pada migrasi template (v2.0).
+
+---
+
 ## [1.1.0] — 2026-07-22 · Fase 1: Quick Wins
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Semua fitur murni sisi-aplikasi. Pengguna

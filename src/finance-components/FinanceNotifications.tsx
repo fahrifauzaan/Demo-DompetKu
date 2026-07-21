@@ -11,16 +11,16 @@ const ANNOUNCE_KEY = `dompetku_announce_${ANNOUNCE_ID}_dismissed`;
 const ANNOUNCE_UNTIL = new Date('2026-10-31T23:59:59').getTime();
 const PANDUAN_URL = 'https://panduan.bantu-umkm.tech';
 
-// ── "Fitur Baru" v1.1 (Fase 1) — client-side, TANPA update Apps Script ────────
-const WHATSNEW_ID = 'features_v1_1_2026_07';
+// ── "Fitur Baru" v1.2 (Fase 3) — client-side, TANPA update Apps Script ────────
+const WHATSNEW_ID = 'features_v1_2_2026_07';
 const WHATSNEW_KEY = `dompetku_announce_${WHATSNEW_ID}_dismissed`;
-const WHATSNEW_UNTIL = new Date('2026-10-31T23:59:59').getTime();
+const WHATSNEW_UNTIL = new Date('2026-12-31T23:59:59').getTime();
 const WHATSNEW_ITEMS = [
-  { icon: 'volunteer_activism', text: 'Kalkulator Zakat Maal (Laporan)' },
-  { icon: 'calendar_month', text: 'Kalender Keuangan 60 hari (Notifikasi)' },
-  { icon: 'description', text: 'Ekspor Daftar Harta SPT (Aset)' },
-  { icon: 'table_chart', text: 'Tabel Amortisasi & konverter bunga (Utang)' },
-  { icon: 'balance', text: 'Rekonsiliasi saldo akun (Aset)' },
+  { icon: 'monitor_heart', text: 'Skor Kesehatan Finansial (Laporan)' },
+  { icon: 'show_chart', text: 'Imbal Hasil XIRR per aset (Laporan)' },
+  { icon: 'savings', text: 'Kalender Pendapatan Pasif (Laporan)' },
+  { icon: 'balance', text: 'Rebalancing Advisor target alokasi (Laporan)' },
+  { icon: 'currency_exchange', text: 'Aset USD → net worth IDR (Preferensi)' },
 ];
 
 interface FinanceNotificationsProps {
@@ -438,8 +438,8 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
               </div>
               <div className="min-w-0">
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Pembaruan v1.1 · Fitur Baru</span>
-                <h5 className="font-headline font-bold text-base sm:text-lg mt-0.5 text-on-surface dark:text-white">5 fitur perencanaan baru telah aktif</h5>
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Pembaruan v1.2 · Fitur Baru</span>
+                <h5 className="font-headline font-bold text-base sm:text-lg mt-0.5 text-on-surface dark:text-white">5 alat investor baru telah aktif</h5>
                 <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-1 mb-3">Langsung bisa dipakai — <strong>tanpa perlu memperbarui Google Sheet/Apps Script</strong>.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {WHATSNEW_ITEMS.map(item => (

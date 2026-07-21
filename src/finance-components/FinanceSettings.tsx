@@ -77,6 +77,8 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
   const [profileJob, setProfileJob] = useState(getSetting('pekerjaan', ''));
   const [currency, setCurrency] = useState(getSetting('currency', 'IDR'));
   const [language, setLanguage] = useState(getSetting('language', 'Bahasa Indonesia'));
+  const [usdRate, setUsdRate] = useState(getSetting('USDIDR_RATE', '16300'));
+  const [usdTickers, setUsdTickers] = useState(getSetting('usd_tickers', 'VTI,SPY,VOO,QQQ'));
   const [profilePassword, setProfilePassword] = useState(getSetting('last_password', 'password123'));
   const [lastPasswordUpdated, setLastPasswordUpdated] = useState(getSetting('last_password_updated', ''));
   const [isSaving, setIsSaving] = useState(false);
@@ -105,6 +107,8 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
     setProfileJob(getSetting('pekerjaan', ''));
     setCurrency(getSetting('currency', 'IDR'));
     setLanguage(getSetting('language', 'Bahasa Indonesia'));
+    setUsdRate(getSetting('USDIDR_RATE', '16300'));
+    setUsdTickers(getSetting('usd_tickers', 'VTI,SPY,VOO,QQQ'));
     setProfilePassword(getSetting('last_password', 'password123'));
     setLastPasswordUpdated(getSetting('last_password_updated', ''));
     setNotifications({
@@ -142,6 +146,8 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
     } else if (activeSection === 'preferensi') {
       upsertSetting('currency', currency);
       upsertSetting('language', language);
+      upsertSetting('USDIDR_RATE', String(Number(String(usdRate).replace(/[^0-9.]/g, '')) || 16300));
+      upsertSetting('usd_tickers', usdTickers);
     } else if (activeSection === 'notifikasi') {
       upsertSetting('notification_budgetAlert', String(notifications.budgetAlert));
       upsertSetting('notification_billReminder', String(notifications.billReminder));
@@ -409,6 +415,46 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
                     <div>
                       <h2 className="text-2xl font-bold text-on-surface dark:text-white mb-2">Preferensi Aplikasi</h2>
                       <p className="text-on-surface-variant dark:text-outline text-sm">Sesuaikan tampilan dan mata uang sistem.</p>
+                    </div>
+
+                    {/* F3.3 Kurs USD/IDR — untuk aset/akun berdenominasi USD */}
+                    <div className="p-5 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-400/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                          <span className="material-symbols-outlined">currency_exchange</span>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm dark:text-white">Kurs USD → IDR</h4>
+                          <p className="text-xs text-outline">Dipakai mengkonversi aset/akun USD (mis. VTI, SPY) ke net worth IDR.</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-outline uppercase ml-1">Kurs 1 USD (Rp)</label>
+                          <div className="flex items-center gap-2 bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 focus-within:border-primary">
+                            <span className="text-xs font-bold text-outline">Rp</span>
+                            <input
+                              type="text" inputMode="numeric"
+                              value={(Number(String(usdRate).replace(/[^0-9.]/g, '')) || 0).toLocaleString('id-ID')}
+                              onChange={(e) => setUsdRate(e.target.value.replace(/[^0-9]/g, ''))}
+                              className="w-full bg-transparent border-none p-0 text-sm font-bold dark:text-white tabular-nums focus:outline-none focus:ring-0"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-outline uppercase ml-1">Ticker USD (pisahkan koma)</label>
+                          <input
+                            type="text"
+                            value={usdTickers}
+                            onChange={(e) => setUsdTickers(e.target.value.toUpperCase())}
+                            placeholder="VTI,SPY,VOO,QQQ"
+                            className="w-full bg-surface-container dark:bg-white/5 border border-outline-variant/30 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-mono dark:text-white focus:outline-none focus:border-primary"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-outline ml-1">
+                        Aset dianggap USD bila ticker terdaftar di atas, atau catatan/lokasinya memuat tag <code className="font-mono bg-black/5 dark:bg-white/10 px-1 rounded">[USD]</code>. Simpan lewat tombol di bawah. (Di template Google, kurs bisa otomatis via <code className="font-mono bg-black/5 dark:bg-white/10 px-1 rounded">GOOGLEFINANCE</code>.)
+                      </p>
                     </div>
 
                     <div className="space-y-6">

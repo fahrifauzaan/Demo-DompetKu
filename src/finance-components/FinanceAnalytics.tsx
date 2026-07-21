@@ -11,6 +11,8 @@ import FinanceRatioSimulatorModal, { RatioType } from './FinanceRatioSimulatorMo
 import FinanceZakatModal from './FinanceZakatModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { computeZakat, readGoldPrice, readInclude, defaultDeduction } from './zakatUtils';
+import { getUsdIdrRate, getUsdTickers, accountValueIDR, assetValueIDR } from './currencyUtils';
+import HealthScoreCard from './HealthScoreCard';
 
 
 interface FinanceAnalyticsProps {
@@ -38,9 +40,11 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
   const settings = useFinanceStore((state) => state.settings);
   const budgetCategories = useFinanceStore((state) => state.budgetCategories);
 
-  // Calculate Net Worth
-  const totalCash = accounts.reduce((acc, curr) => acc + curr.balance, 0);
-  const totalAssets = assets.reduce((acc, curr) => acc + curr.currentValue, 0);
+  // Calculate Net Worth — dinormalisasi ke IDR (F3.3; identity untuk aset/akun IDR)
+  const usdRate = getUsdIdrRate(settings);
+  const usdTickers = getUsdTickers(settings);
+  const totalCash = accounts.reduce((acc, curr) => acc + accountValueIDR(curr, usdRate), 0);
+  const totalAssets = assets.reduce((acc, curr) => acc + assetValueIDR(curr, usdRate, usdTickers), 0);
   const totalDebts = debts.reduce((acc, curr) => acc + curr.balance, 0);
   const netWorth = totalCash + totalAssets - totalDebts;
 
@@ -678,6 +682,9 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
       {/* Conditional Content Rendering */}
       {activeSubTab === 'summary' && (
         <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-in slide-in-from-bottom-2 duration-300">
+              {/* F3.4 Skor Kesehatan Finansial Komposit */}
+              <HealthScoreCard />
+
               {/* --- NEW: CFO ADVISORY INSIGHT BENTO BOX --- */}
               <div className="bg-gradient-to-br from-primary-container/40 to-surface-container-lowest dark:from-[#a7c8ff]/10 dark:to-transparent border border-primary/20 dark:border-[#a7c8ff]/20 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
