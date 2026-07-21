@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 
 interface FinanceTransactionsProps {
@@ -22,8 +22,12 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
   const [showActionId, setShowActionId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PER_PAGE = 15;
 
-  const { transactions, deleteTransaction, accounts, setLedgerPrintTransactions, setPrintType, updateAccount } = useFinanceStore();
+  const { transactions, deleteTransaction, accounts, setLedgerPrintTransactions, setPrintType, updateAccount, budgetCategories } = useFinanceStore();
+
+  const formatRp = (n: number) => 'Rp ' + Math.round(n || 0).toLocaleString('id-ID');
 
   // Custom robust date parser for Indonesian & English date string formats in the database
   const parseDateString = (dateStr: string) => {
@@ -126,7 +130,6 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
   }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
-    console.log('[DompetKu Debug] filtering started. selectedMonth:', selectedMonth, 'selectedYear:', selectedYear);
     const res = transactions.filter(t => {
       const matchesSearch = t.desc.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           t.location.toLowerCase().includes(searchQuery.toLowerCase());
@@ -144,7 +147,6 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
         if (selectedYear !== 'Semua Tahun') {
           matchesYear = String(year).trim() === String(selectedYear).trim();
         }
-        console.log(`[DompetKu Debug] tx: ${t.desc} | raw date: ${t.date} | parsed: month=${month}, year=${year} | matchesMonth: ${matchesMonth}, matchesYear: ${matchesYear} | matchesTotal: ${matchesSearch && matchesAccount && matchesType && matchesMonth && matchesYear}`);
       } else if (selectedMonth !== 'Semua Bulan' || selectedYear !== 'Semua Tahun') {
         // Exclude missing dates if filter is active
         return false;
@@ -152,9 +154,71 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
       
       return matchesSearch && matchesAccount && matchesType && matchesMonth && matchesYear;
     });
-    console.log('[DompetKu Debug] filteredTransactions length:', res.length);
     return res;
   }, [searchQuery, selectedAccount, selectedType, selectedMonth, selectedYear, transactions]);
+
+  // ---- Pagination (15 per halaman) ----
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / PER_PAGE));
+  const clampedPage = Math.min(currentPage, totalPages);
+  const pageStart = (clampedPage - 1) * PER_PAGE;
+  const pagedTransactions = filteredTransactions.slice(pageStart, pageStart + PER_PAGE);
+  // Reset ke halaman 1 saat filter/pencarian berubah
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, selectedAccount, selectedType, selectedMonth, selectedYear]);
+  // Nomor halaman ringkas (window di sekitar halaman aktif)
+  const pageNumbers = useMemo(() => {
+    const win = 2;
+    const set = new Set<number>([1, totalPages]);
+    for (let p = clampedPage - win; p <= clampedPage + win; p++) if (p >= 1 && p <= totalPages) set.add(p);
+    return Array.from(set).sort((a, b) => a - b);
+  }, [clampedPage, totalPages]);
+
+  // ---- Ringkasan bulan aktif terakhir (dari data asli user) ----
+  const monthlyStats = useMemo(() => {
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+    const isExp = (t: any) => t.amount < 0 && t.type !== 'TRANSFER';
+    const totalBudget = (budgetCategories || [])
+      .filter((c: any) => c.type === 'Pengeluaran')
+      .reduce((s: number, c: any) => s + (Number(c.allocated) || 0), 0);
+    const parsed = transactions
+      .map((t) => {
+        const { month, year } = parseDateString(t.date || '');
+        const y = parseInt(year, 10);
+        const mi = MONTHS.indexOf(month);
+        return { t, key: !isNaN(y) && mi >= 0 ? y * 12 + mi : -1 };
+      })
+      .filter((x) => x.key >= 0);
+    if (parsed.length === 0) return { hasData: false as const, totalBudget };
+    const refKey = Math.max(...parsed.map((x) => x.key));
+    const refLabel = `${MONTHS[refKey % 12]} ${Math.floor(refKey / 12)}`;
+    const inRef = parsed.filter((x) => x.key === refKey).map((x) => x.t);
+    const inPrev = parsed.filter((x) => x.key === refKey - 1).map((x) => x.t);
+    const sumExp = (arr: any[]) => arr.filter(isExp).reduce((s, t) => s + Math.abs(t.amount), 0);
+    const refExp = sumExp(inRef);
+    const prevExp = sumExp(inPrev);
+    const payeeMap: Record<string, { total: number; count: number }> = {};
+    const catMap: Record<string, number> = {};
+    inRef.filter(isExp).forEach((t) => {
+      const p = (t.desc || 'Lainnya').trim();
+      (payeeMap[p] = payeeMap[p] || { total: 0, count: 0 });
+      payeeMap[p].total += Math.abs(t.amount);
+      payeeMap[p].count += 1;
+      const c = (t.category || 'Lainnya').trim();
+      catMap[c] = (catMap[c] || 0) + Math.abs(t.amount);
+    });
+    const topPayeeE = Object.entries(payeeMap).sort((a, b) => b[1].total - a[1].total)[0];
+    const topCatE = Object.entries(catMap).sort((a, b) => b[1] - a[1])[0];
+    return {
+      hasData: true as const,
+      refLabel,
+      refExp,
+      refCount: inRef.filter(isExp).length,
+      pctVs: prevExp > 0 ? Math.round(((refExp - prevExp) / prevExp) * 100) : null,
+      topPayee: topPayeeE ? { name: topPayeeE[0], total: topPayeeE[1].total, count: topPayeeE[1].count } : null,
+      topCat: topCatE ? { name: topCatE[0], total: topCatE[1], pct: refExp > 0 ? Math.round((topCatE[1] / refExp) * 100) : 0 } : null,
+      totalBudget,
+      budgetPct: totalBudget > 0 ? Math.round((refExp / totalBudget) * 100) : null,
+    };
+  }, [transactions, budgetCategories]);
 
   const executeDelete = async () => {
     const txToDelete = transactions.find(t => t.id === deletingId);
@@ -325,7 +389,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/20 dark:divide-white/5">
-              {filteredTransactions.map((t, idx) => (
+              {pagedTransactions.map((t, idx) => (
                 <tr key={`${t.id}-${idx}`} className="hover:bg-surface-container-lowest dark:hover:bg-white/10 transition-colors flex flex-col sm:table-row p-4 sm:p-0">
                   <td className="px-0 sm:px-4 lg:px-6 py-1 sm:py-5 font-bold text-xs lg:text-sm text-slate-900 dark:text-slate-200 order-2 sm:order-none whitespace-nowrap">{formatDate(t.date)}</td>
                   <td className="px-0 sm:px-4 lg:px-6 py-1 sm:py-5 order-1 sm:order-none w-full sm:w-auto">
@@ -400,13 +464,41 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
         
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-white/30 dark:bg-black/20 backdrop-blur-md border-t border-white/40 dark:border-white/10 gap-3 sm:gap-4">
-          <span className="text-xs lg:text-sm text-on-surface-variant dark:text-outline font-medium">Menampilkan {filteredTransactions.length > 0 ? 1 : 0} hingga {filteredTransactions.length} dari {transactions.length} transaksi</span>
+          <span className="text-xs lg:text-sm text-on-surface-variant dark:text-outline font-medium">
+            Menampilkan {filteredTransactions.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + PER_PAGE, filteredTransactions.length)} dari {filteredTransactions.length} transaksi
+          </span>
           <div className="flex items-center gap-1 lg:gap-2">
-            <button className="p-1 lg:p-2.5 text-on-surface-variant hover:text-primary disabled:opacity-30 rounded-lg hover:bg-surface-container dark:hover:bg-white/10 transition-colors" disabled>
+            <button
+              onClick={() => setCurrentPage(clampedPage - 1)}
+              disabled={clampedPage <= 1}
+              aria-label="Halaman sebelumnya"
+              className="p-1 lg:p-2.5 text-on-surface-variant hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed rounded-lg hover:bg-surface-container dark:hover:bg-white/10 transition-colors cursor-pointer"
+            >
               <span className="material-symbols-outlined text-sm lg:text-base">chevron_left</span>
             </button>
-            <button className="w-8 h-8 rounded-lg bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] text-xs font-bold shadow-sm">1</button>
-            <button className="p-1 lg:p-2.5 text-on-surface-variant hover:text-primary rounded-lg hover:bg-surface-container dark:hover:bg-white/10 transition-colors">
+            {pageNumbers.map((p, i) => (
+              <React.Fragment key={p}>
+                {i > 0 && p - pageNumbers[i - 1] > 1 && (
+                  <span className="px-1 text-on-surface-variant dark:text-outline text-xs select-none">…</span>
+                )}
+                <button
+                  onClick={() => setCurrentPage(p)}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                    p === clampedPage
+                      ? 'bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] shadow-sm'
+                      : 'text-on-surface-variant hover:text-primary hover:bg-surface-container dark:hover:bg-white/10'
+                  }`}
+                >
+                  {p}
+                </button>
+              </React.Fragment>
+            ))}
+            <button
+              onClick={() => setCurrentPage(clampedPage + 1)}
+              disabled={clampedPage >= totalPages}
+              aria-label="Halaman berikutnya"
+              className="p-1 lg:p-2.5 text-on-surface-variant hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed rounded-lg hover:bg-surface-container dark:hover:bg-white/10 transition-colors cursor-pointer"
+            >
               <span className="material-symbols-outlined text-sm lg:text-base">chevron_right</span>
             </button>
           </div>
@@ -417,14 +509,24 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="p-4 sm:p-5 lg:p-6 liquid-glass rounded-2xl sm:rounded-3xl space-y-3 sm:space-y-4 border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] lg:text-xs font-bold uppercase text-on-surface-variant dark:text-outline tracking-wider">Pengeluaran Bulanan</span>
-            <span className="text-[10px] lg:text-xs text-error dark:text-[#ffb4ab] font-bold">+12% vs bulan lalu</span>
+            <span className="text-[10px] lg:text-xs font-bold uppercase text-on-surface-variant dark:text-outline tracking-wider">Pengeluaran {monthlyStats.hasData ? monthlyStats.refLabel : 'Bulanan'}</span>
+            {monthlyStats.hasData && monthlyStats.pctVs !== null && (
+              <span className={`text-[10px] lg:text-xs font-bold ${monthlyStats.pctVs > 0 ? 'text-error dark:text-[#ffb4ab]' : 'text-emerald-600 dark:text-emerald-400'}`}>{monthlyStats.pctVs > 0 ? '+' : ''}{monthlyStats.pctVs}% vs bulan sebelumnya</span>
+            )}
           </div>
-          <div className="text-2xl lg:text-3xl font-headline font-extrabold text-on-surface dark:text-white tabular-nums">Rp 192.402.150</div>
+          <div className="text-2xl lg:text-3xl font-headline font-extrabold text-on-surface dark:text-white tabular-nums">{formatRp(monthlyStats.hasData ? monthlyStats.refExp : 0)}</div>
           <div className="h-2.5 w-full bg-white/50 dark:bg-black/30 backdrop-blur-md rounded-full overflow-hidden shadow-inner">
-            <div className="h-full bg-primary/80 dark:bg-primary/90 rounded-full" style={{ width: '74%' }}></div>
+            <div className={`h-full rounded-full ${monthlyStats.hasData && monthlyStats.budgetPct !== null && monthlyStats.budgetPct > 100 ? 'bg-error/80' : 'bg-primary/80 dark:bg-primary/90'}`} style={{ width: `${monthlyStats.hasData && monthlyStats.budgetPct !== null ? Math.min(100, monthlyStats.budgetPct) : 0}%` }}></div>
           </div>
-          <p className="text-[10px] lg:text-xs text-on-surface-variant dark:text-outline font-medium">Anda telah menggunakan 74% dari anggaran bulanan Anda.</p>
+          <p className="text-[10px] lg:text-xs text-on-surface-variant dark:text-outline font-medium">
+            {!monthlyStats.hasData
+              ? 'Belum ada transaksi tercatat.'
+              : monthlyStats.budgetPct !== null
+              ? monthlyStats.budgetPct > 100
+                ? `Melebihi total anggaran bulanan (${formatRp(monthlyStats.totalBudget)}).`
+                : `Memakai ${monthlyStats.budgetPct}% dari total anggaran bulanan.`
+              : `${monthlyStats.refCount} transaksi pengeluaran pada bulan ini.`}
+          </p>
         </div>
         
         <div className="p-4 sm:p-5 lg:p-6 liquid-glass rounded-2xl sm:rounded-3xl space-y-3 sm:space-y-4 border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
@@ -437,11 +539,11 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
               <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]">store</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-on-surface dark:text-white text-sm lg:text-base">Amazon.com</span>
-              <span className="text-[10px] lg:text-xs text-on-surface-variant dark:text-outline font-medium">14 Transaksi bulan ini</span>
+              <span className="font-bold text-on-surface dark:text-white text-sm lg:text-base truncate max-w-[170px]">{monthlyStats.topPayee ? monthlyStats.topPayee.name : '—'}</span>
+              <span className="text-[10px] lg:text-xs text-on-surface-variant dark:text-outline font-medium">{monthlyStats.topPayee ? `${monthlyStats.topPayee.count} transaksi bulan ini` : 'Belum ada data'}</span>
             </div>
           </div>
-          <div className="text-xl lg:text-2xl font-headline font-bold text-on-surface dark:text-white tabular-nums">Rp 12.842.200</div>
+          <div className="text-xl lg:text-2xl font-headline font-bold text-on-surface dark:text-white tabular-nums">{formatRp(monthlyStats.topPayee ? monthlyStats.topPayee.total : 0)}</div>
         </div>
         
         <div className="p-4 sm:p-5 lg:p-6 liquid-glass rounded-2xl sm:rounded-3xl flex flex-col justify-between border border-white/20 dark:border-white/10 lg:col-span-1 md:col-span-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
@@ -450,10 +552,14 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
               <span className="material-symbols-outlined text-sm text-tertiary-fixed">tips_and_updates</span>
               Wawasan Cepat
             </span>
-            <p className="text-sm text-on-surface dark:text-slate-300 leading-relaxed font-medium">Biaya langganan berulang meningkat sebesar <strong className="dark:text-white">Rp 215.000</strong> bulan ini. Evaluasi subscription Netflix dan iCloud Anda.</p>
+            <p className="text-sm text-on-surface dark:text-slate-300 leading-relaxed font-medium">
+              {monthlyStats.hasData && monthlyStats.topCat
+                ? <>Kategori <strong className="dark:text-white">{monthlyStats.topCat.name}</strong> menyerap pengeluaran terbesar Anda: <strong className="dark:text-white">{formatRp(monthlyStats.topCat.total)}</strong> ({monthlyStats.topCat.pct}% dari pengeluaran {monthlyStats.refLabel}).</>
+                : 'Tambahkan transaksi untuk melihat wawasan pengeluaran otomatis Anda di sini.'}
+            </p>
           </div>
-          <button 
-            onClick={() => onShowCTA({ title: "Deep Financial Analytics", description: "Audit menyeluruh terhadap kebiasaan belanja Anda dengan rekomendasi pengurangan biaya langganan " })}
+          <button
+            onClick={() => onNavigate ? onNavigate('analytics') : onShowCTA({ title: "Deep Financial Analytics", description: "Audit menyeluruh terhadap kebiasaan belanja Anda." })}
             className="mt-6 text-xs font-bold text-primary dark:text-[#a7c8ff] flex items-center gap-1 hover:underline active:opacity-80 transition-opacity w-fit"
           >
             LIHAT ANALITIK DETAIL
