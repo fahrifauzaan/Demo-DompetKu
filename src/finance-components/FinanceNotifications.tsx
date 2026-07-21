@@ -2,6 +2,15 @@ import React from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 
+// ── Pengumuman sistem: pembaruan template (Juli 2026) ─────────────────────────
+// Kartu dismissible di panel Notifikasi. Auto-hide setelah ANNOUNCE_UNTIL.
+// PENTING: ganti PANDUAN_URL dengan URL panduan PUBLIK Anda (artifact yang sudah
+// di-Share, atau hosting HTML sendiri) — jika masih privat, user akan diminta login.
+const ANNOUNCE_ID = 'template_update_2026_07';
+const ANNOUNCE_KEY = `dompetku_announce_${ANNOUNCE_ID}_dismissed`;
+const ANNOUNCE_UNTIL = new Date('2026-10-31T23:59:59').getTime();
+const PANDUAN_URL = 'https://claude.ai/code/artifact/74d38b53-0a84-498e-be74-99b3989d8d98';
+
 interface FinanceNotificationsProps {
   onShowCTA: (feature?: FeatureCTA) => void;
   onNavigate?: (tab: string) => void;
@@ -11,6 +20,16 @@ interface FinanceNotificationsProps {
 const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, onNavigate, onClose }) => {
   const { accounts, assets, settings, promos, readPromos, markPromoRead, budgetCategories, transactions, debts } = useFinanceStore();
   const [searchQuery, setSearchQuery] = React.useState('');
+
+  // System announcement (template update) — dismissible + auto-expiring
+  const [announceDismissed, setAnnounceDismissed] = React.useState<boolean>(() => {
+    try { return localStorage.getItem(ANNOUNCE_KEY) === 'true'; } catch { return false; }
+  });
+  const showAnnouncement = !announceDismissed && Date.now() < ANNOUNCE_UNTIL;
+  const dismissAnnouncement = () => {
+    try { localStorage.setItem(ANNOUNCE_KEY, 'true'); } catch { /* ignore */ }
+    setAnnounceDismissed(true);
+  };
 
   // Helper to calculate days passed since date
   const getDaysPassed = (dateStr?: string) => {
@@ -276,6 +295,48 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
       </section>
 
       <div className="space-y-12">
+        {/* Pengumuman Sistem: Pembaruan Template */}
+        {showAnnouncement && (
+          <div className="relative overflow-hidden rounded-2xl lg:rounded-[24px] p-5 sm:p-6 bg-gradient-to-br from-primary/90 to-primary-container dark:from-[#0f1e33] dark:to-[#13233b] text-white border border-primary-container dark:border-[#a7c8ff]/15 shadow-md">
+            <button
+              onClick={dismissAnnouncement}
+              aria-label="Tutup pengumuman"
+              className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-lg">close</span>
+            </button>
+            <div className="flex items-start gap-3 pr-8">
+              <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined">campaign</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Pembaruan Template · Juli 2026</span>
+                <h5 className="font-headline font-bold text-base sm:text-lg mt-0.5 text-white">Template DompetKu Diperbarui</h5>
+                <p className="text-xs sm:text-sm text-white/85 mt-1.5 leading-relaxed max-w-xl">
+                  Kami memperbaiki bug Reksadana &amp; merapikan template. Agar aktif, perbarui Apps Script Anda sekali saja — ± 3 menit, data Anda tetap aman.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <a
+                    href={PANDUAN_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-primary dark:text-[#0b3b6f] font-bold text-xs hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">menu_book</span>
+                    Lihat Panduan
+                  </a>
+                  <button
+                    onClick={dismissAnnouncement}
+                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    Nanti Saja
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Peringatan */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
