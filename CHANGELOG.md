@@ -9,6 +9,23 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [2.1.0] — 2026-07-23 · Polish (Wave A)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA** (untuk fitur aplikasi). Sisi-aplikasi saja.
+
+### Ditambahkan
+- **Panduan in-app** kini punya topik **Tujuan** (konsep, template, PMT/setoran ideal, sinking fund,
+  FAQ) dan **Proteksi** (piramida CFP, jenis asuransi, kalkulator UP jiwa, FAQ) — lengkap dengan
+  callout CFP®/CFA® seperti topik lain.
+
+### Template (untuk pengguna BARU)
+- Master template diperbarui ke **v3** (`scratch/dompetku_template_v3.xlsx` + starter) — sudah
+  berisi tab `Goals`/`Recurring`/`Insurance` + baris contoh, header 100% cocok dengan `HEADERS[]`
+  (diaudit). Pengguna baru yang menyalin template langsung punya 3 tab tersebut. (Pengguna lama tetap
+  aman: tab dibuat otomatis oleh `ensureSheetExists` — tak perlu file ini.)
+
+---
+
 ## [2.0.0] — 2026-07-22 · Fase 2: Inti Perencanaan ⭐ (migrasi template)
 
 **Dampak Google Sheet/Apps Script: YA — pengguna lama WAJIB memperbarui Apps Script sekali.**

@@ -4,18 +4,22 @@ import FinanceGuideAsetSection from './FinanceGuideAsetSection';
 import FinanceGuideUtangSection from './FinanceGuideUtangSection';
 import FinanceGuideAnggaranSection from './FinanceGuideAnggaranSection';
 import FinanceGuideLaporanSection from './FinanceGuideLaporanSection';
+import FinanceGuideTujuanSection from './FinanceGuideTujuanSection';
+import FinanceGuideProteksiSection from './FinanceGuideProteksiSection';
 
 interface FinanceGuideProps {
   onNavigate: (tab: string) => void;
 }
 
-type Topic = 'transaksi' | 'anggaran' | 'aset' | 'utang' | 'laporan';
+type Topic = 'transaksi' | 'anggaran' | 'aset' | 'utang' | 'tujuan' | 'proteksi' | 'laporan';
 
 const TOPICS: { key: Topic; label: string; icon: string; desc: string }[] = [
   { key: 'transaksi', label: 'Transaksi', icon: 'receipt_long', desc: 'Catat uang masuk, keluar & transfer' },
   { key: 'anggaran', label: 'Anggaran', icon: 'payments', desc: 'Atur budget 50/30/20 & pantau realisasi' },
   { key: 'aset', label: 'Aset', icon: 'account_balance', desc: 'Aset Lancar, Investasi & Fisik' },
   { key: 'utang', label: 'Rencana Utang', icon: 'leaderboard', desc: 'Catat utang & strategi pelunasan' },
+  { key: 'tujuan', label: 'Tujuan', icon: 'flag', desc: 'Rencanakan tujuan & setoran ideal (PMT)' },
+  { key: 'proteksi', label: 'Proteksi', icon: 'shield', desc: 'Asuransi & kebutuhan Uang Pertanggungan' },
   { key: 'laporan', label: 'Laporan', icon: 'query_stats', desc: 'Net worth, rasio, portofolio & benchmark' },
 ];
 
@@ -99,6 +103,8 @@ const FinanceGuide: React.FC<FinanceGuideProps> = ({ onNavigate }) => {
       {topic === 'anggaran' && <FinanceGuideAnggaranSection onNavigate={onNavigate} />}
       {topic === 'aset' && <FinanceGuideAsetSection onNavigate={onNavigate} />}
       {topic === 'utang' && <FinanceGuideUtangSection onNavigate={onNavigate} />}
+      {topic === 'tujuan' && <FinanceGuideTujuanSection onNavigate={onNavigate} />}
+      {topic === 'proteksi' && <FinanceGuideProteksiSection onNavigate={onNavigate} />}
       {topic === 'laporan' && <FinanceGuideLaporanSection onNavigate={onNavigate} />}
     </div>
   );
