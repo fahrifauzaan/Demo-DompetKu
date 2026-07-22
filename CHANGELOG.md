@@ -9,6 +9,28 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [2.2.0] — 2026-07-23 · Jual Aset + Realized Gain (Wave B)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; penjualan tercatat sebagai
+transaksi biasa (tab Transactions).
+
+### Ditambahkan
+- **Jual Aset first-class** — tombol "Jual" pada kartu holding saham/reksadana. Modal jual:
+  pilih jumlah unit (parsial/semua) + harga jual + akun tujuan → otomatis (a) membuat transaksi
+  PEMASUKAN kategori "Capital Gain" (saldo akun bertambah), dan (b) memangkas holding
+  (unit/pokok/nilai) atau menandai "Terjual" bila habis — atomik dalam satu aksi.
+- **Laporan Realized Gain** (Aset › Analisis Investasi) — ringkasan hasil jual, modal, dan
+  realized gain/loss + daftar transaksi penjualan. Cost basis memakai **average cost** (standar
+  broker ritel; FIFO ketat butuh pelacakan lot — di backlog). (`realizedGainUtils.ts`,
+  `RealizedGainCard.tsx`, `AssetSellModal.tsx`)
+
+### Catatan
+- Logika inti diuji unit (cost tag round-trip, realized gain/loss, agregasi). UI penjualan
+  belum bisa diverifikasi otomatis di sesi demo lokal (data demo tak tersambung tak punya
+  holding ber-subType) — verifikasi visual disarankan pada akun tersambung.
+
+---
+
 ## [2.1.0] — 2026-07-23 · Polish (Wave A)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA** (untuk fitur aplikasi). Sisi-aplikasi saja.

@@ -7,6 +7,8 @@ import { useFinanceStore, formatDateString, type Account } from '../store/useFin
 import AccountReconcileModal from './AccountReconcileModal';
 import FinanceSPTExportModal from './FinanceSPTExportModal';
 import FinanceInsuranceSection from './FinanceInsuranceSection';
+import AssetSellModal from './AssetSellModal';
+import RealizedGainCard from './RealizedGainCard';
 
 interface FinanceAssetsProps {
   onShowCTA: (feature?: FeatureCTA) => void;
@@ -203,6 +205,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null);
   const [reconcileAccount, setReconcileAccount] = useState<Account | null>(null);
   const [isSptExportOpen, setIsSptExportOpen] = useState(false);
+  const [sellAsset, setSellAsset] = useState<any>(null);
 
   // Physical Asset Action states
   const [assetActionId, setAssetActionId] = useState<string | null>(null);
@@ -1936,6 +1939,16 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                               {isProfit ? '+' : '-'}Rp {Math.abs(asset.pl).toLocaleString('id-ID')} ({isProfit ? '+' : ''}{asset.plPercent.toFixed(1)}%)
                             </span>
                           </div>
+
+                          {/* Wave B: Jual holding */}
+                          {asset.currentValue > 0 && (
+                            <button
+                              onClick={() => setSellAsset(asset)}
+                              className="mt-2 w-full py-2 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-sm">sell</span> Jual
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -2136,7 +2149,8 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
             {/* Sub-tab Content: Kinerja & Benchmark */}
             {subTab === 'analisis' && (
-              <div className="animate-in fade-in duration-500">
+              <div className="animate-in fade-in duration-500 space-y-6">
+                <RealizedGainCard />
                 <FinancePerformanceReport onShowCTA={onShowCTA} onNavigate={onNavigate} hideHeader={true} />
               </div>
             )}
@@ -2197,7 +2211,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                                     >
                                       <span className="material-symbols-outlined text-sm">edit</span> Edit Valuasi
                                     </button>
-                                    <button 
+                                    <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setAssetActionId(null);
@@ -2314,7 +2328,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                                     >
                                       <span className="material-symbols-outlined text-sm">edit</span> Edit Valuasi
                                     </button>
-                                    <button 
+                                    <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setAssetActionId(null);
@@ -3239,6 +3253,12 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
       <FinanceSPTExportModal
         isOpen={isSptExportOpen}
         onClose={() => setIsSptExportOpen(false)}
+      />
+
+      <AssetSellModal
+        isOpen={sellAsset !== null}
+        onClose={() => setSellAsset(null)}
+        asset={sellAsset}
       />
     </div>
   );
