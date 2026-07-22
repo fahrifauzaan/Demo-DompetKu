@@ -9,6 +9,36 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [2.0.0] — 2026-07-22 · Fase 2: Inti Perencanaan ⭐ (migrasi template)
+
+**Dampak Google Sheet/Apps Script: YA — pengguna lama WAJIB memperbarui Apps Script sekali.**
+Menambah 3 tab: `Goals`, `Recurring`, `Insurance`. Berkat `ensureSheetExists()` di Apps Script,
+tab **dibuat otomatis** saat pertama diakses — pengguna TIDAK perlu mengedit spreadsheet, dan
+data lama tetap aman. Langkah update ada di halaman Panduan (salin kode → Deploy new version).
+
+### Ditambahkan
+- **Tujuan Keuangan** (menu baru "Tujuan") — target + tenggat dengan setoran bulanan ideal (PMT)
+  dihitung otomatis, badge On/Off-Track, ringkasan komitmen vs sisa kas, preset (DP Rumah,
+  Pendidikan, Pensiun, Dana Darurat), dan **Sinking Fund** (THR/pajak/qurban) di seksi terpisah.
+- **Transaksi Berulang + Proyeksi Arus Kas** — kelola dari Transaksi ("Berulang"), pengingat
+  jatuh tempo dengan **posting satu-ketuk** (tanpa auto-post diam-diam), dan grafik proyeksi
+  saldo 30/60/90 hari di Dasbor dengan peringatan "kas minus".
+- **Proteksi/Asuransi** (seksi di Aset) — registry polis (no. polis tersamar •••1234), premi/bln,
+  rasio premi, badge renewal < 30 hari, + **Kalkulator Kebutuhan UP Jiwa** (income replacement
+  8–12× & metode pengeluaran+utang) dengan analisis kesenjangan proteksi.
+- Jatuh tempo cicilan berulang & renewal asuransi otomatis muncul di **Kalender Keuangan**.
+
+### Backend (Apps Script)
+- `HEADERS` untuk `Goals`/`Recurring`/`Insurance` + `AUTO_CREATE_SHEETS` + `ensureSheetExists()`
+  yang membuat tab+header otomatis; dipanggil di `readSheet`/`append`/`update`/`delete` khusus tab
+  baru; `VALID_SHEETS` menyertakan ketiganya (agregasi `doGet`). Perilaku tab lama tidak berubah.
+
+### Migrasi untuk pengguna lama
+1. Buka Panduan → salin Apps Script terbaru. 2. Extensions → Apps Script → tempel → Deploy →
+Manage deployments → Edit → New version. 3. Selesai — buka DompetKu, tab baru terbuat sendiri.
+
+---
+
 ## [1.2.0] — 2026-07-22 · Fase 3: Kedalaman Investor
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Semua fitur sisi-aplikasi; konfigurasi

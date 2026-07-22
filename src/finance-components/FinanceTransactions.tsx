@@ -8,6 +8,8 @@ interface FinanceTransactionsProps {
 }
 import { useFinanceStore } from '../store/useFinanceStore';
 import FinancePinModal from './FinancePinModal';
+import RecurringManagerModal from './RecurringManagerModal';
+import { dueRecurrings } from './recurringUtils';
 
 const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, onNavigate, onEditTransaction }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -22,7 +24,10 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
   const [showActionId, setShowActionId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isRecurringOpen, setIsRecurringOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const recurring = useFinanceStore((s) => s.recurring);
+  const recurringDueCount = useMemo(() => dueRecurrings(recurring).length, [recurring]);
   const PER_PAGE = 15;
 
   const { transactions, deleteTransaction, accounts, setLedgerPrintTransactions, setPrintType, updateAccount, budgetCategories } = useFinanceStore();
@@ -291,6 +296,16 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
           <p className="text-on-surface-variant dark:text-outline max-w-md text-[13px] sm:text-sm lg:text-base">Tinjau dan kelola aktivitas keuangan Anda di semua akun dan entitas yang terhubung.</p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 self-start md:self-auto">
+          <button
+            onClick={() => setIsRecurringOpen(true)}
+            className="relative px-3 sm:px-4 lg:px-5 py-2.5 bg-surface-container-highest dark:bg-white/10 text-on-surface-variant dark:text-white font-semibold rounded-lg flex items-center gap-2 hover:bg-surface-variant dark:hover:bg-white/20 transition-colors text-xs sm:text-sm"
+          >
+            <span className="material-symbols-outlined text-[1.2rem]">sync</span>
+            <span className="hidden sm:inline">Berulang</span>
+            {recurringDueCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center">{recurringDueCount}</span>
+            )}
+          </button>
           <button
             onClick={() => setIsExportModalOpen(true)}
             className="px-3 sm:px-4 lg:px-5 py-2.5 bg-surface-container-highest dark:bg-white/10 text-on-surface-variant dark:text-white font-semibold rounded-lg flex items-center gap-2 hover:bg-surface-variant dark:hover:bg-white/20 transition-colors text-xs sm:text-sm"
@@ -662,6 +677,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
         title="Otorisasi Hapus"
         subtitle="Masukkan PIN Anda untuk menghapus transaksi ini."
       />
+      <RecurringManagerModal isOpen={isRecurringOpen} onClose={() => setIsRecurringOpen(false)} />
     </div>
   );
 };

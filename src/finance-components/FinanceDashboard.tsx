@@ -3,6 +3,8 @@ import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { getUsdIdrRate, getUsdTickers, accountValueIDR, assetValueIDR } from './currencyUtils';
+import CashProjectionCard from './CashProjectionCard';
+import RecurringManagerModal from './RecurringManagerModal';
 
 interface FinanceDashboardProps {
   onShowCTA: (feature?: FeatureCTA) => void;
@@ -13,6 +15,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
   const [chartPeriod, setChartPeriod] = React.useState<'6B' | '1T' | 'SEMUA'>('1T');
   const [hoveredPoint, setHoveredPoint] = React.useState<number | null>(null);
   const [activeTab, setActiveTab] = React.useState<'overview' | 'ratios' | 'balanceSheet'>('overview');
+  const [isRecurringOpen, setIsRecurringOpen] = React.useState(false);
 
   // Fetch all dynamic data from Zustand store
   const { transactions, accounts, assets, debts, settings } = useFinanceStore();
@@ -434,6 +437,9 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
                   </h3>
                 </div>
               </section>
+
+              {/* F2.2 Proyeksi Arus Kas (dari transaksi berulang) */}
+              <CashProjectionCard onManage={() => setIsRecurringOpen(true)} />
 
               {/* Net Worth Trend Graph and Portfolio Allocation breakdown */}
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
@@ -1141,7 +1147,8 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
 
         </motion.div>
       </AnimatePresence>
-      
+
+      <RecurringManagerModal isOpen={isRecurringOpen} onClose={() => setIsRecurringOpen(false)} />
     </div>
   );
 };

@@ -6,6 +6,7 @@ import AssetCardVisual from './AssetCardVisual';
 import { useFinanceStore, formatDateString, type Account } from '../store/useFinanceStore';
 import AccountReconcileModal from './AccountReconcileModal';
 import FinanceSPTExportModal from './FinanceSPTExportModal';
+import FinanceInsuranceSection from './FinanceInsuranceSection';
 
 interface FinanceAssetsProps {
   onShowCTA: (feature?: FeatureCTA) => void;
@@ -2492,6 +2493,11 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
         </div>
       </section>
       )}
+
+      {/* F2.3 Proteksi / Asuransi */}
+      <div className="mt-8 pt-8 border-t border-outline-variant/10 dark:border-white/10">
+        <FinanceInsuranceSection />
+      </div>
 
       {/* Liquidation Confirmation Modal */}
       {isLiquidationOpen && (

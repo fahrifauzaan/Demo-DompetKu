@@ -2,25 +2,26 @@ import React from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { startOfToday, nextOccurrence, parseDateSafe, daysBetween, formatDayBadge, groupForDate, type CalendarGroup } from './calendarUtils';
+import { generateOccurrences } from './recurringUtils';
 
 // ── Pengumuman sistem: pembaruan template (Juli 2026) ─────────────────────────
 // Kartu dismissible di panel Notifikasi. Auto-hide setelah ANNOUNCE_UNTIL.
 // PANDUAN_URL = halaman panduan publik (di-host di Hostinger, subdomain sendiri).
-const ANNOUNCE_ID = 'template_update_2026_07';
+const ANNOUNCE_ID = 'planning_update_2026_07';
 const ANNOUNCE_KEY = `dompetku_announce_${ANNOUNCE_ID}_dismissed`;
-const ANNOUNCE_UNTIL = new Date('2026-10-31T23:59:59').getTime();
+const ANNOUNCE_UNTIL = new Date('2027-01-31T23:59:59').getTime();
 const PANDUAN_URL = 'https://panduan.bantu-umkm.tech';
 
-// ── "Fitur Baru" v1.2 (Fase 3) — client-side, TANPA update Apps Script ────────
-const WHATSNEW_ID = 'features_v1_2_2026_07';
+// ── "Fitur Baru" v2.0 (Fase 2) — butuh update Apps Script (tab auto-create) ────
+const WHATSNEW_ID = 'features_v2_0_2026_07';
 const WHATSNEW_KEY = `dompetku_announce_${WHATSNEW_ID}_dismissed`;
-const WHATSNEW_UNTIL = new Date('2026-12-31T23:59:59').getTime();
+const WHATSNEW_UNTIL = new Date('2027-01-31T23:59:59').getTime();
 const WHATSNEW_ITEMS = [
-  { icon: 'monitor_heart', text: 'Skor Kesehatan Finansial (Laporan)' },
-  { icon: 'show_chart', text: 'Imbal Hasil XIRR per aset (Laporan)' },
-  { icon: 'savings', text: 'Kalender Pendapatan Pasif (Laporan)' },
-  { icon: 'balance', text: 'Rebalancing Advisor target alokasi (Laporan)' },
-  { icon: 'currency_exchange', text: 'Aset USD → net worth IDR (Preferensi)' },
+  { icon: 'flag', text: 'Tujuan Keuangan + Sinking Fund (menu Tujuan)' },
+  { icon: 'sync', text: 'Transaksi Berulang + proyeksi kas (Transaksi/Dasbor)' },
+  { icon: 'shield', text: 'Proteksi/Asuransi + kalkulator UP (Aset)' },
+  { icon: 'calculate', text: 'Setoran bulanan ideal dihitung otomatis (PMT)' },
+  { icon: 'notifications_active', text: 'Pengingat jatuh tempo di Kalender Keuangan' },
 ];
 
 interface FinanceNotificationsProps {
@@ -30,7 +31,7 @@ interface FinanceNotificationsProps {
 }
 
 const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, onNavigate, onClose }) => {
-  const { accounts, assets, settings, promos, readPromos, markPromoRead, budgetCategories, transactions, debts } = useFinanceStore();
+  const { accounts, assets, settings, promos, readPromos, markPromoRead, budgetCategories, transactions, debts, insurance, recurring } = useFinanceStore();
   const [searchQuery, setSearchQuery] = React.useState('');
 
   // System announcement (template update) — dismissible + auto-expiring
@@ -291,7 +292,37 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
       });
     });
 
-    // 3. Batas Lapor SPT Tahunan (31 Maret tahun berjalan) — tampil mulai 1 Feb
+    // 3. Renewal asuransi (F2.3) dalam 60 hari
+    insurance.forEach(pol => {
+      if ((pol.status || 'Aktif').toLowerCase() !== 'aktif' || !pol.renewalDate) return;
+      const date = parseDateSafe(pol.renewalDate);
+      if (!date) return;
+      date.setHours(0, 0, 0, 0);
+      if (date < today || date > horizon) return;
+      events.push({
+        id: `cal-ins-${pol.id}`, date, group: groupForDate(date, today), icon: 'shield',
+        title: `Perpanjangan: ${pol.name}`,
+        subtitle: `Renewal polis ${pol.insType}`,
+        accent: 'tax', onClick: go('aset'),
+      });
+    });
+
+    // 4. Transaksi berulang (F2.2) yang jatuh dalam 60 hari
+    recurring.forEach(rec => {
+      const recEnd = parseDateSafe(rec.endDate);
+      if (recEnd && recEnd < today) return;
+      generateOccurrences(rec, today, horizon).slice(0, 3).forEach((date, i) => {
+        events.push({
+          id: `cal-rec-${rec.id}-${i}`, date, group: groupForDate(date, today),
+          icon: rec.type === 'PEMASUKAN' ? 'trending_up' : 'sync',
+          title: `${rec.name}`,
+          subtitle: `${rec.type === 'PEMASUKAN' ? 'Pemasukan' : 'Pengeluaran'} berulang ${fmtRp(rec.amount)}`,
+          accent: rec.type === 'PEMASUKAN' ? 'maturity' : 'debt', onClick: go('transactions'),
+        });
+      });
+    });
+
+    // 5. Batas Lapor SPT Tahunan (31 Maret tahun berjalan) — tampil mulai 1 Feb
     const sptDate = new Date(today.getFullYear(), 2, 31); // 31 Maret
     const febFirst = new Date(today.getFullYear(), 1, 1); // 1 Feb
     if (today >= febFirst && today <= sptDate) {
@@ -308,7 +339,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
       .map(g => ({ group: g, items: events.filter(e => e.group === g) }))
       .filter(section => section.items.length > 0);
     return { events, grouped, count: events.length };
-  }, [debts, assets, onNavigate, onClose]);
+  }, [debts, assets, insurance, recurring, onNavigate, onClose]);
 
   const filteredWarnings = visibleWarnings.filter(w =>
     w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -396,10 +427,10 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
                 <span className="material-symbols-outlined">campaign</span>
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Pembaruan Template · Juli 2026</span>
-                <h5 className="font-headline font-bold text-base sm:text-lg mt-0.5 text-white">Template DompetKu Diperbarui</h5>
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Pembaruan v2.0 · Inti Perencanaan</span>
+                <h5 className="font-headline font-bold text-base sm:text-lg mt-0.5 text-white">Fitur Baru: Tujuan, Transaksi Berulang &amp; Proteksi</h5>
                 <p className="text-xs sm:text-sm text-white/85 mt-1.5 leading-relaxed max-w-xl">
-                  Kami memperbaiki bug Reksadana &amp; merapikan template. Agar aktif, perbarui Apps Script Anda sekali saja — ± 3 menit, data Anda tetap aman.
+                  Perbarui Apps Script Anda sekali saja (± 3 menit) agar 3 tab baru (Goals, Recurring, Insurance) aktif. Tab dibuat <strong>otomatis</strong> — Anda tak perlu mengedit spreadsheet, dan data lama tetap aman.
                 </p>
                 <div className="flex flex-wrap gap-2 mt-4">
                   <a
@@ -438,9 +469,9 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
                 <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
               </div>
               <div className="min-w-0">
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Pembaruan v1.2 · Fitur Baru</span>
-                <h5 className="font-headline font-bold text-base sm:text-lg mt-0.5 text-on-surface dark:text-white">5 alat investor baru telah aktif</h5>
-                <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-1 mb-3">Langsung bisa dipakai — <strong>tanpa perlu memperbarui Google Sheet/Apps Script</strong>.</p>
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">Pembaruan v2.0 · Fitur Baru</span>
+                <h5 className="font-headline font-bold text-base sm:text-lg mt-0.5 text-on-surface dark:text-white">Perencanaan: Tujuan, Berulang &amp; Proteksi</h5>
+                <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-1 mb-3">Perbarui Apps Script Anda sekali (lihat Panduan) — tab baru dibuat <strong>otomatis</strong>, data lama aman.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {WHATSNEW_ITEMS.map(item => (
                     <div key={item.text} className="flex items-center gap-2 text-xs font-semibold text-on-surface dark:text-slate-200">

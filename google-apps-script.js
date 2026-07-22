@@ -16,7 +16,11 @@
  */
 
 // ===================== KONFIGURASI =====================
-const VALID_SHEETS = ['Transactions', 'Accounts', 'Fixed Income Investment', 'BudgetCategories', 'Debts', 'Settings', 'AssetsNonLiquid', 'Saham', 'Crypto', 'Reksadana'];
+const VALID_SHEETS = ['Transactions', 'Accounts', 'Fixed Income Investment', 'BudgetCategories', 'Debts', 'Settings', 'AssetsNonLiquid', 'Saham', 'Crypto', 'Reksadana', 'Goals', 'Recurring', 'Insurance'];
+
+// Tab baru (Fase 2) yang dibuat OTOMATIS saat pertama diakses — user lama TIDAK perlu
+// menyentuh spreadsheet. Jangan masukkan tab lama ke sini (perilaku tab lama tak berubah).
+const AUTO_CREATE_SHEETS = ['Goals', 'Recurring', 'Insurance'];
 
 // Header kolom untuk setiap tab (urutan HARUS sama dengan di Spreadsheet)
 const HEADERS = {
@@ -29,16 +33,41 @@ const HEADERS = {
   AssetsNonLiquid: ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate'],
   Saham: ['ID', 'Title', 'Ticker', 'Shares', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   Crypto: ['ID', 'Title', 'Ticker', 'Coins', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
-  Reksadana: ['ID', 'Title', 'Ticker', 'Units', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes']
+  Reksadana: ['ID', 'Title', 'Ticker', 'Units', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
+  // ── Fase 2 (v2.0) — tab baru, dibuat otomatis oleh ensureSheetExists() ──
+  Goals: ['id', 'name', 'icon', 'color', 'goalType', 'targetAmount', 'targetDate', 'startDate', 'initialAmount', 'expectedReturn', 'monthlyContribution', 'priority', 'status', 'notes'],
+  Recurring: ['id', 'name', 'type', 'amount', 'category', 'account', 'frequency', 'dayOfMonth', 'startDate', 'endDate', 'lastPostedDate', 'autoPost', 'notes'],
+  Insurance: ['id', 'name', 'insType', 'provider', 'policyNumber', 'premium', 'premiumFrequency', 'coverageAmount', 'startDate', 'renewalDate', 'insured', 'beneficiary', 'status', 'notes']
 };
 
 // ===================== HELPER =====================
+
+/**
+ * Fase 2: buat tab baru + header otomatis bila belum ada (hanya untuk AUTO_CREATE_SHEETS).
+ * Membuat user lama TIDAK perlu mengedit spreadsheet — cukup update Apps Script.
+ */
+function ensureSheetExists(sheetName) {
+  if (AUTO_CREATE_SHEETS.indexOf(sheetName) === -1) return null; // jangan sentuh tab lama
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    var headers = HEADERS[sheetName];
+    if (headers && headers.length) {
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
+  }
+  return sheet;
+}
 
 /** Membaca semua data dari sebuah tab dan mengembalikannya sebagai array of objects */
 function readSheet(sheetName) {
   if (sheetName === 'Fixed Income Investment') {
     return readFixedIncomeSheet();
   }
+  ensureSheetExists(sheetName);
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
   if (!sheet) return [];
 
@@ -118,6 +147,7 @@ function appendToSheet(sheetName, data) {
   if (sheetName === 'Fixed Income Investment') {
     return appendFixedIncome(data);
   }
+  ensureSheetExists(sheetName);
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
   if (!sheet) throw new Error('Tab "' + sheetName + '" tidak ditemukan');
 
@@ -134,6 +164,7 @@ function updateInSheet(sheetName, id, data) {
   if (sheetName === 'Fixed Income Investment') {
     return updateFixedIncome(id, data);
   }
+  ensureSheetExists(sheetName);
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
   if (!sheet) throw new Error('Tab "' + sheetName + '" tidak ditemukan');
 
@@ -158,6 +189,7 @@ function deleteFromSheet(sheetName, id) {
   if (sheetName === 'Fixed Income Investment') {
     return deleteFixedIncome(id);
   }
+  ensureSheetExists(sheetName);
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
   if (!sheet) throw new Error('Tab "' + sheetName + '" tidak ditemukan');
 

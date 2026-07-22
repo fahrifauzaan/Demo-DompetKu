@@ -109,6 +109,57 @@ export interface Setting {
   value: string;
 }
 
+// ── Fase 2 (v2.0) ──────────────────────────────────────────────────────────
+export interface Goal {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  goalType: 'goal' | 'sinking';
+  targetAmount: number;
+  targetDate: string;
+  startDate: string;
+  initialAmount: number;
+  expectedReturn: number; // % tahunan
+  monthlyContribution: number;
+  priority: number; // 1 Tinggi · 2 Sedang · 3 Rendah
+  status: string; // Aktif | Tercapai | Dibatalkan
+  notes: string;
+}
+
+export interface Recurring {
+  id: string;
+  name: string;
+  type: 'PEMASUKAN' | 'PENGELUARAN';
+  amount: number;
+  category: string;
+  account: string;
+  frequency: 'MONTHLY' | 'WEEKLY' | 'YEARLY';
+  dayOfMonth: number; // MONTHLY:1-31 · WEEKLY:1-7 (Sen-Min)
+  startDate: string;
+  endDate: string;
+  lastPostedDate: string;
+  autoPost: boolean; // v1 selalu false
+  notes: string;
+}
+
+export interface Insurance {
+  id: string;
+  name: string;
+  insType: 'Jiwa' | 'Kesehatan' | 'Kendaraan' | 'Properti' | 'Lainnya';
+  provider: string;
+  policyNumber: string;
+  premium: number;
+  premiumFrequency: 'Bulanan' | 'Tahunan';
+  coverageAmount: number; // Uang Pertanggungan (UP)
+  startDate: string;
+  renewalDate: string;
+  insured: string;
+  beneficiary: string;
+  status: string; // Aktif | Lapse | Selesai
+  notes: string;
+}
+
 export interface Promo {
   id: string;
   title: string;
@@ -128,6 +179,9 @@ interface FinanceState {
   assets: Asset[];
   budgetCategories: BudgetCategory[];
   debts: Debt[];
+  goals: Goal[];
+  recurring: Recurring[];
+  insurance: Insurance[];
   settings: Setting[];
   promos: Promo[];
   readPromos: string[];
@@ -162,6 +216,15 @@ interface FinanceState {
   addDebt: (debt: Omit<Debt, 'id'>) => Promise<void>;
   updateDebt: (debt: Debt) => Promise<void>;
   deleteDebt: (id: string) => Promise<void>;
+  addGoal: (goal: Omit<Goal, 'id'>) => Promise<void>;
+  updateGoal: (goal: Goal) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
+  addRecurring: (rec: Omit<Recurring, 'id'>) => Promise<void>;
+  updateRecurring: (rec: Recurring) => Promise<void>;
+  deleteRecurring: (id: string) => Promise<void>;
+  addInsurance: (ins: Omit<Insurance, 'id'>) => Promise<void>;
+  updateInsurance: (ins: Insurance) => Promise<void>;
+  deleteInsurance: (id: string) => Promise<void>;
   updateSettings: (settings: Setting[]) => Promise<void>;
   monthlyBudgets: Record<string, Record<string, number>>;
   updateMonthlyBudget: (yearMonth: string, categoryName: string, amount: number) => Promise<void>;
@@ -392,6 +455,9 @@ export const useFinanceStore = create<FinanceState>()(
       assets: DEFAULT_ASSETS,
       budgetCategories: DEFAULT_BUDGET_CATEGORIES,
       debts: DEBTS_DATA as Debt[],
+      goals: [],
+      recurring: [],
+      insurance: [],
       settings: DEFAULT_SETTINGS,
       promos: [],
       readPromos: [],
@@ -585,6 +651,51 @@ export const useFinanceStore = create<FinanceState>()(
           debts: state.debts.filter(d => d.id !== id)
         }));
         await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Debts', 'delete', { id });
+      },
+
+      // ── Fase 2: Goals ──
+      addGoal: async (goal) => {
+        const newGoal = { ...goal, id: generateId() } as Goal;
+        set((state) => ({ goals: [...state.goals, newGoal] }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Goals', 'add', newGoal as unknown as Record<string, unknown>);
+      },
+      updateGoal: async (goal) => {
+        set((state) => ({ goals: state.goals.map(g => g.id === goal.id ? goal : g) }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Goals', 'update', goal as unknown as Record<string, unknown>);
+      },
+      deleteGoal: async (id) => {
+        set((state) => ({ goals: state.goals.filter(g => g.id !== id) }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Goals', 'delete', { id });
+      },
+
+      // ── Fase 2: Recurring ──
+      addRecurring: async (rec) => {
+        const newRec = { ...rec, id: generateId() } as Recurring;
+        set((state) => ({ recurring: [...state.recurring, newRec] }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Recurring', 'add', newRec as unknown as Record<string, unknown>);
+      },
+      updateRecurring: async (rec) => {
+        set((state) => ({ recurring: state.recurring.map(r => r.id === rec.id ? rec : r) }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Recurring', 'update', rec as unknown as Record<string, unknown>);
+      },
+      deleteRecurring: async (id) => {
+        set((state) => ({ recurring: state.recurring.filter(r => r.id !== id) }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Recurring', 'delete', { id });
+      },
+
+      // ── Fase 2: Insurance ──
+      addInsurance: async (ins) => {
+        const newIns = { ...ins, id: generateId() } as Insurance;
+        set((state) => ({ insurance: [...state.insurance, newIns] }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Insurance', 'add', newIns as unknown as Record<string, unknown>);
+      },
+      updateInsurance: async (ins) => {
+        set((state) => ({ insurance: state.insurance.map(i => i.id === ins.id ? ins : i) }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Insurance', 'update', ins as unknown as Record<string, unknown>);
+      },
+      deleteInsurance: async (id) => {
+        set((state) => ({ insurance: state.insurance.filter(i => i.id !== id) }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Insurance', 'delete', { id });
       },
 
       updateSettings: async (newSettings) => {
@@ -903,6 +1014,33 @@ export const useFinanceStore = create<FinanceState>()(
                 minPayment: parseNumber(d.minPayment),
               }));
             }
+            // ── Fase 2: Goals / Recurring / Insurance ──
+            if (result.data.Goals) {
+              updates.goals = result.data.Goals.map((g: Record<string, unknown>) => ({
+                ...g,
+                goalType: g.goalType === 'sinking' ? 'sinking' : 'goal',
+                targetAmount: parseNumber(g.targetAmount),
+                initialAmount: parseNumber(g.initialAmount),
+                expectedReturn: parseNumber(g.expectedReturn),
+                monthlyContribution: parseNumber(g.monthlyContribution),
+                priority: parseNumber(g.priority) || 2,
+              })) as Goal[];
+            }
+            if (result.data.Recurring) {
+              updates.recurring = result.data.Recurring.map((r: Record<string, unknown>) => ({
+                ...r,
+                amount: parseNumber(r.amount),
+                dayOfMonth: parseNumber(r.dayOfMonth) || 1,
+                autoPost: r.autoPost === true || r.autoPost === 'TRUE' || r.autoPost === 'true',
+              })) as Recurring[];
+            }
+            if (result.data.Insurance) {
+              updates.insurance = result.data.Insurance.map((i: Record<string, unknown>) => ({
+                ...i,
+                premium: parseNumber(i.premium),
+                coverageAmount: parseNumber(i.coverageAmount),
+              })) as Insurance[];
+            }
             if (result.data.Settings) {
               const settingsList = result.data.Settings as Setting[];
               updates.settings = settingsList;
@@ -964,6 +1102,9 @@ export const useFinanceStore = create<FinanceState>()(
           assets: DEFAULT_ASSETS,
           budgetCategories: DEFAULT_BUDGET_CATEGORIES,
           debts: DEBTS_DATA as Debt[],
+          goals: [],
+          recurring: [],
+          insurance: [],
           settings: DEFAULT_SETTINGS,
           googleSheetUrl: import.meta.env.VITE_DEFAULT_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzhD4TrmhBhb1484U7thVyEJDvZAFYtAbiG0bRK_jcWCiLKwy1EtBFCOQKikaj9l6yL2Q/exec',
           googleAccessToken: null,
