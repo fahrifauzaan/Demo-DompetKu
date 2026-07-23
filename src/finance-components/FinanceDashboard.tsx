@@ -3,6 +3,7 @@ import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { getUsdIdrRate, getUsdTickers, accountValueIDR, assetValueIDR } from './currencyUtils';
+import { isAssetAllocation } from './financeClassify';
 import CashProjectionCard from './CashProjectionCard';
 import RecurringManagerModal from './RecurringManagerModal';
 
@@ -53,30 +54,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({ onShowCTA, onNaviga
   const totalAssets = totalCash + totalInvestments + totalPhysical;
   const netWorth = totalAssets - totalDebts;
 
-  // Helper to distinguish between consumption and asset allocation
-  const isAssetAllocation = (catName: string): boolean => {
-    const norm = (catName || '').toLowerCase();
-    if (norm.includes('income') || norm.includes('dividend') || norm.includes('kupon') || norm.includes('bunga')) {
-      return false;
-    }
-    return (
-      norm.includes('saving') || 
-      norm.includes('tabungan') || 
-      norm.includes('darurat') || 
-      norm.includes('emergency') || 
-      norm.includes('sinking') ||
-      norm.includes('invest') || 
-      norm.includes('saham') || 
-      norm.includes('crypto') || 
-      norm.includes('reksa') || 
-      norm.includes('bond') || 
-      norm.includes('emas') || 
-      norm.includes('gold') || 
-      norm.includes('kripto') ||
-      norm.includes('deposito') ||
-      norm.includes('transfer')
-    );
-  };
+  // isAssetAllocation kini dari util bersama ./financeClassify (perilaku identik).
 
   // 2. Average Monthly Expenses (CFP methodology)
   const expensesByMonth: Record<string, number> = {};

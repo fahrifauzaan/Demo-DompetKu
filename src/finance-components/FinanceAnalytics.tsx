@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis
 import { FeatureCTA } from './MarketingCTAModal';
 import FinancePortfolioReport from './FinancePortfolioReport';
 import FinancePerformanceReport from './FinancePerformanceReport';
+import { parseTxnMonth as parseTransactionMonth } from './financeClassify';
 import FinanceFIRECalculatorModal from './FinanceFIRECalculatorModal';
 import FinanceEmergencyModal from './FinanceEmergencyModal';
 import FinanceDebtFreedomModal from './FinanceDebtFreedomModal';
@@ -13,6 +14,9 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { computeZakat, readGoldPrice, readInclude, defaultDeduction } from './zakatUtils';
 import { getUsdIdrRate, getUsdTickers, accountValueIDR, assetValueIDR } from './currencyUtils';
 import HealthScoreCard from './HealthScoreCard';
+import CashFlowStatementCard from './CashFlowStatementCard';
+import SpendingInsightsCard from './SpendingInsightsCard';
+import FinancialIndependenceCard from './FinancialIndependenceCard';
 
 
 interface FinanceAnalyticsProps {
@@ -56,27 +60,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
     return `Rp ${(val / 1e6).toFixed(1)}Jt`;
   };
 
-  // Safe parse transaction month helper
-  const parseTransactionMonth = (dateStr: string): string => {
-    if (!dateStr) return '';
-    if (dateStr.includes('-')) {
-      return dateStr.slice(0, 7); // e.g. "2024-03"
-    }
-    const parts = dateStr.split(' ');
-    if (parts.length === 3) {
-      const monthStr = parts[1];
-      const year = parts[2];
-      const monthsMap: Record<string, string> = {
-        Jan: '01', Feb: '02', Mar: '03', Apr: '04', Mei: '05', Jun: '06',
-        Jul: '07', Agu: '08', Sep: '09', Okt: '10', Nov: '11', Des: '12',
-        Januari: '01', Februari: '02', Maret: '03', April: '04', Mei_long: '05', Juni: '06',
-        Juli: '07', Agustus: '08', September: '09', Oktober: '10', November: '11', Desember: '12'
-      };
-      const monthNorm = monthsMap[monthStr] || '01';
-      return `${year}-${monthNorm}`;
-    }
-    return '';
-  };
+  // parseTransactionMonth kini dari util bersama ./financeClassify (diimpor sebagai alias).
 
   // Generate 12-Month Historical Net Worth
   const getHistoricalNetWorth = () => {
@@ -684,6 +668,15 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
         <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-in slide-in-from-bottom-2 duration-300">
               {/* F3.4 Skor Kesehatan Finansial Komposit */}
               <HealthScoreCard />
+
+              {/* F4.1 Laporan Arus Kas + Burn Rate & Runway */}
+              <CashFlowStatementCard />
+
+              {/* F4.2 Wawasan Pengeluaran & Deteksi Anomali */}
+              <SpendingInsightsCard />
+
+              {/* F5.2 Pelacak Kemandirian Finansial (FIRE) */}
+              <FinancialIndependenceCard />
 
               {/* --- NEW: CFO ADVISORY INSIGHT BENTO BOX --- */}
               <div className="bg-gradient-to-br from-primary-container/40 to-surface-container-lowest dark:from-[#a7c8ff]/10 dark:to-transparent border border-primary/20 dark:border-[#a7c8ff]/20 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] shadow-sm relative overflow-hidden">

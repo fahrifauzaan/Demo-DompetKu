@@ -9,6 +9,31 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.0.0] — 2026-07-23 · Kecerdasan Arus Kas (Roadmap Jilid 2 · Gelombang 1)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Semua client-side; ambang di tab `Settings`
+yang sudah ada. Menganalisis data transaksi/aset yang sudah Anda punya.
+
+Awal roadmap **jilid 2** ("Dari Perencana → Kopilot Keuangan Cerdas"). Lihat `docs/prd/`.
+
+### Ditambahkan
+- **Laporan Arus Kas + Burn Rate & Runway** (Laporan › Ringkasan) — rekap masuk vs keluar per
+  bulan (grafik 6/12/24 bln), dikelompokkan **Operasi / Investasi / Pendanaan**, plus **burn rate**
+  (biaya hidup rutin/bln) dan **runway** ("tabungan bertahan ± N bulan tanpa pemasukan").
+  (`cashflowUtils.ts`, `CashFlowStatementCard.tsx`)
+- **Wawasan Pengeluaran & Deteksi Anomali** — insight otomatis: kategori yang **naik/turun**
+  vs rata-rata, **lonjakan tak biasa** (z-score), dan **proyeksi anggaran jebol** (pace) — dengan
+  nada positif untuk penghematan. Ambang bisa diatur di Pengaturan. (`insightsUtils.ts`, `SpendingInsightsCard.tsx`)
+- **Pelacak Kemandirian Finansial (FIRE)** — **%FI**, FI Number (SWR), **tahun-ke-FI**, **Coast/Lean/Fat
+  FIRE**, dan **tingkat menabung** (pengungkit terbesar). Menyambung biaya hidup dari Arus Kas.
+  (`fiUtils.ts`, `FinancialIndependenceCard.tsx`)
+
+### Internal
+- **`financeClassify.ts`** — util bersama (`parseTxnMonth`, `isAssetAllocation`, `signedAmount`,
+  `classifyFlow`); merapikan logika yang sebelumnya terduplikasi di Dashboard & Analytics.
+
+---
+
 ## [2.7.0] — 2026-07-23 · Anggaran Bulanan jadi tab tidy (MonthlyBudgets)
 
 **Dampak Google Sheet/Apps Script: YA — pengguna lama perlu memperbarui Apps Script sekali.**
