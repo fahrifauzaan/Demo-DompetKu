@@ -17,9 +17,16 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.11.0';
+export const CURRENT_VERSION = '3.11.1';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.11.1', date: '2026-07-23', title: 'Panduan Impor + Privasi Data', tag: 'feature', impact: 'none',
+    added: [
+      'Topik baru "Impor" di Panduan › Transaksi: cara mengimpor (Impor Cerdas & Template) plus penjelasan alur data & privasi.',
+      'Menjawab "ke mana file saya pergi?" — file CSV/Excel dibaca di browser Anda dan tidak diunggah ke mana pun; hanya baris transaksinya yang tersimpan, ke Google Sheet milik Anda sendiri. Nol data ke pengembang.',
+    ],
+  },
   {
     version: '3.11.0', date: '2026-07-23', title: 'Template Excel + Dropdown', tag: 'feature', impact: 'none',
     added: [

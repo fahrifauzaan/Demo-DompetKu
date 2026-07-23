@@ -9,6 +9,21 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.11.1] — 2026-07-23 · Panduan Impor + Privasi Data
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (dokumentasi in-app).
+
+### Ditambahkan
+- **Topik "Impor" baru di Panduan › Transaksi** — sub-tab khusus berisi: dua cara impor
+  (Impor Cerdas dari mutasi bank & Template berskema), langkah-langkah, dan yang utama:
+  **penjelasan alur data & privasi**. Menjawab pertanyaan "ke mana file yang saya unggah pergi?":
+  file CSV/Excel dibaca **100% di browser** (tidak diunggah sebagai file ke mana pun — tidak ke
+  Drive, tidak ke server kami), yang tersimpan permanen **hanya baris transaksinya** dan tujuannya
+  **Google Sheet milik pengguna sendiri** (lewat Apps Script mereka). **Nol data ke pengembang**
+  — konsisten dengan prinsip zero-knowledge DompetKu. Termasuk kartu "Alur data impor" & satu FAQ baru.
+
+---
+
 ## [3.11.0] — 2026-07-23 · Template Excel + Dropdown
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

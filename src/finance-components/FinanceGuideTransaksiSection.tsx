@@ -5,12 +5,13 @@ interface SectionProps {
   onNavigate: (tab: string) => void;
 }
 
-type TransaksiSection = 'overview' | 'howto' | 'manage' | 'faq';
+type TransaksiSection = 'overview' | 'howto' | 'manage' | 'impor' | 'faq';
 
 const SECTIONS: { key: TransaksiSection; label: string; icon: string }[] = [
   { key: 'overview', label: 'Ringkasan', icon: 'receipt_long' },
   { key: 'howto', label: 'Cara Mencatat', icon: 'edit_note' },
   { key: 'manage', label: 'Kelola & Cari', icon: 'filter_list' },
+  { key: 'impor', label: 'Impor', icon: 'upload_file' },
   { key: 'faq', label: 'Tips & FAQ', icon: 'help' },
 ];
 
@@ -52,6 +53,28 @@ const FIELDS = [
   { icon: 'notes', label: 'Deskripsi', desc: 'Catatan singkat agar mudah dikenali saat ditelusuri nanti.' },
 ];
 
+// The two ways to bring transactions in bulk (the Impor feature).
+const IMPORT_METHODS = [
+  {
+    icon: 'auto_awesome',
+    title: 'Impor Cerdas (mutasi bank)',
+    desc: 'Unggah file CSV/Excel hasil unduhan m-banking. Kolom terdeteksi otomatis, ada preset bank populer (BCA, Mandiri, BNI, BRI, Jago, Jenius, SeaBank, blu), dan pemetaan bisa disimpan jadi profil — impor bulan berikutnya cukup 1 klik.',
+  },
+  {
+    icon: 'table_view',
+    title: 'Template berskema',
+    desc: 'Unduh template (Excel dengan dropdown Tipe/Kategori/Akun, atau CSV) lalu isi di Excel/Sheets. Cocok untuk input massal atau migrasi dari aplikasi lain — kolomnya sudah sesuai isian transaksi, jadi langsung rapi & terkategori.',
+  },
+];
+
+// Where an uploaded file actually goes — the zero-knowledge data flow.
+const IMPORT_PRIVACY = [
+  { icon: 'devices', t: 'Dibaca di perangkat Anda', d: 'File CSV/Excel dibaca 100% di dalam browser untuk diurai jadi angka & teks. File-nya tidak pernah diunggah sebagai file ke mana pun.' },
+  { icon: 'table_chart', t: 'Hanya datanya yang disimpan', d: 'Yang tersimpan permanen hanyalah baris transaksinya — dan tujuannya Google Sheet milik Anda sendiri (lewat Apps Script Anda), bukan server kami.' },
+  { icon: 'visibility_off', t: 'Nol ke pengembang', d: 'Kami tidak punya server yang menampung data (hosting statis). Tidak ada satu byte pun data impor yang mengalir ke pengembang aplikasi.' },
+  { icon: 'delete_sweep', t: 'File mentah langsung hilang', d: 'Begitu modal ditutup atau halaman di-refresh, isi file lenyap dari memori — tidak disimpan di browser, tidak di Drive sebagai file.' },
+];
+
 const FAQS = [
   {
     q: 'Kenapa Transfer tidak menambah atau mengurangi kekayaan?',
@@ -80,6 +103,10 @@ const FAQS = [
   {
     q: 'Bagaimana mencari transaksi lama atau mengekspornya?',
     a: 'Gunakan kolom Cari (berdasarkan deskripsi/lokasi) dan filter Akun, Tipe, Bulan, serta Tahun. Hasil yang terfilter bisa diekspor ke CSV atau dicetak sebagai ledger.',
+  },
+  {
+    q: 'Kalau saya impor file CSV/Excel, file itu disimpan di mana? Apakah aman?',
+    a: 'Aman. File-nya dibaca 100% di browser Anda untuk diurai, lalu dibuang — tidak diunggah ke mana pun (tidak ke Google Drive sebagai file, tidak ke server kami). Yang tersimpan permanen hanyalah baris transaksinya, dan tujuannya Google Sheet milik Anda sendiri. Pengembang tidak menerima data apa pun. Lihat tab "Impor" untuk rinciannya.',
   },
 ];
 
@@ -271,6 +298,97 @@ const FinanceGuideTransaksiSection: React.FC<SectionProps> = ({ onNavigate }) =>
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ IMPOR ============ */}
+      {active === 'impor' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <p className="text-sm text-on-surface-variant dark:text-slate-300 leading-relaxed">
+            <strong className="text-on-surface dark:text-white">Impor</strong> memasukkan banyak transaksi sekaligus tanpa mengetik satu per satu. Buka lewat tombol <strong className="text-on-surface dark:text-white">Impor</strong> di halaman Transaksi. Ada dua cara:
+          </p>
+
+          {/* Two methods */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {IMPORT_METHODS.map(m => (
+              <div key={m.title} className="rounded-2xl bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-5 shadow-sm">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 dark:bg-[#a7c8ff]/15 flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]" style={{ fontVariationSettings: "'FILL' 1" }}>{m.icon}</span>
+                </div>
+                <h4 className="font-bold text-on-surface dark:text-white">{m.title}</h4>
+                <p className="text-xs text-on-surface-variant dark:text-slate-400 mt-1.5 leading-relaxed">{m.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Steps */}
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-base text-primary dark:text-[#a7c8ff]">list_alt</span>
+              Langkah mengimpor
+            </h4>
+            <div className="relative border-l border-outline-variant/30 dark:border-white/10 pl-6 ml-3 space-y-5">
+              {[
+                'Di halaman Transaksi, klik tombol Impor.',
+                'Pilih cara: unggah file mutasi bank, atau unduh Template dulu lalu isi.',
+                'Unggah file CSV/Excel Anda (atau tempel tabel dari statement PDF).',
+                'Cocokkan kolom (Tanggal, Nominal, dll.) — preset bank & profil tersimpan mempercepat ini.',
+                'Periksa pratinjau, lalu klik Impor. Transaksi masuk ke Log & tersimpan ke Google Sheet Anda.',
+              ].map((step, i) => (
+                <div key={i} className="relative">
+                  <span className="absolute -left-[37px] top-0 w-6 h-6 rounded-full bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] flex items-center justify-center text-[11px] font-extrabold shadow-sm">{i + 1}</span>
+                  <p className="text-sm text-on-surface dark:text-slate-200 leading-relaxed font-medium">{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Privacy / data-flow — the key reassurance */}
+          <div className="rounded-2xl border border-emerald-200/60 dark:border-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-900/10 p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400" style={{ fontVariationSettings: "'FILL' 1" }}>shield_lock</span>
+              <h4 className="font-bold text-on-surface dark:text-white text-sm">Ke mana file yang Anda unggah pergi?</h4>
+            </div>
+            <p className="text-xs text-on-surface-variant dark:text-slate-300 leading-relaxed mb-4 sm:pl-9">
+              Singkatnya: <strong className="text-on-surface dark:text-white">file-nya tidak disimpan di mana pun</strong> — tidak di browser secara permanen, tidak di Google Drive sebagai file, dan tidak ke pengembang. Hanya <strong className="text-on-surface dark:text-white">data transaksinya</strong> yang mendarat, dan rumahnya adalah Google Sheet milik Anda sendiri.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {IMPORT_PRIVACY.map(x => (
+                <div key={x.t} className="rounded-xl bg-white/70 dark:bg-white/[0.03] border border-outline-variant/10 dark:border-white/5 p-3.5 flex gap-3">
+                  <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-lg shrink-0">{x.icon}</span>
+                  <div>
+                    <p className="text-xs font-bold text-on-surface dark:text-white">{x.t}</p>
+                    <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-0.5 leading-relaxed">{x.d}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex gap-2.5 items-start">
+              <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-base shrink-0 mt-0.5">info</span>
+              <p className="text-[11px] text-on-surface-variant dark:text-slate-400 leading-relaxed">
+                <strong className="text-on-surface dark:text-white">"Simpan profil"</strong> hanya menyimpan <em>pemetaan kolom</em> (mis. "kolom 1 = Tanggal") sebagai catatan kecil di Sheet Anda — bukan isi file, bukan datanya.
+              </p>
+            </div>
+          </div>
+
+          {/* Data-flow chips */}
+          <div className="rounded-2xl bg-surface-container-lowest dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 p-5">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant dark:text-outline mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-base text-primary dark:text-[#a7c8ff]">route</span>
+              Alur data impor
+            </h4>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+              {['File CSV/Excel', 'Dibaca di browser (RAM)', 'Data transaksi', 'Google Sheet Anda'].map((node, i, arr) => (
+                <React.Fragment key={node}>
+                  <span className="px-3 py-1.5 rounded-lg bg-surface-container dark:bg-white/10 text-on-surface dark:text-white">{node}</span>
+                  {i < arr.length - 1 && <span className="material-symbols-outlined text-on-surface-variant dark:text-outline text-base">arrow_forward</span>}
+                </React.Fragment>
+              ))}
+            </div>
+            <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-3 leading-relaxed">
+              Tidak ada langkah yang menyentuh server pengembang. Konsisten dengan prinsip DompetKu: semua data hidup di Google milik Anda sendiri (<em>zero-knowledge</em>).
+            </p>
           </div>
         </div>
       )}
