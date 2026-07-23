@@ -9,6 +9,18 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.5.0] — 2026-07-23 · Utang Cerdas (Fase 7 · Gelombang 5)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Ditambahkan
+- **Kartu Kesehatan Utang** (Rencana Utang) — melengkapi Simulasi Akselerasi yang sudah ada dengan:
+  **rasio DTI** (cicilan/penghasilan, zona sehat ≤35% / waspada / bahaya), **perkiraan tanggal
+  bebas-utang**, **total bunga**, dan **urutan pelunasan** (metode avalanche). Mendeteksi kondisi
+  "cicilan tak menutup bunga". (`debtStrategyUtils.ts` simulasi snowball/avalanche rollover, `DebtHealthCard.tsx`)
+
+---
+
 ## [3.4.0] — 2026-07-23 · Dana Pensiun Indonesia (Roadmap Jilid 2 · Gelombang 4)
 
 **Dampak Google Sheet/Apps Script: YA — pengguna lama perlu memperbarui Apps Script sekali.**

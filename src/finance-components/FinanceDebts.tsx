@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import DebtFormModal, { Debt } from './DebtFormModal';
 import DebtSimulatorModal from './DebtSimulatorModal';
 import DebtAmortizationModal from './DebtAmortizationModal';
+import DebtHealthCard from './DebtHealthCard';
 
 // interface Debt removed as it is imported from DebtFormModal
 
@@ -515,7 +516,10 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
 
           {/* Right Column: Data Visualization & Debt List */}
           <div className="lg:col-span-8 space-y-4 sm:space-y-6 lg:space-y-8">
-            
+
+            {/* Fase 7 — Kesehatan Utang (DTI + bebas-utang + urutan) */}
+            <DebtHealthCard extraPayment={extraPayment} />
+
             {/* Debt Reduction Chart Area */}
             <div className="bg-white/40 dark:bg-white/[0.02] p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-black/[0.05] dark:border-white/[0.05] shadow-sm">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8">
