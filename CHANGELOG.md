@@ -9,6 +9,19 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.11.0] — 2026-07-23 · Template Excel + Dropdown
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Ditambahkan
+- **Template Excel (.xlsx) dengan dropdown** — tombol "Excel (dropdown)" di modal Impor menghasilkan
+  workbook dengan **data validation** pada kolom **Tipe** (Pemasukan/Pengeluaran), **Kategori**, dan
+  **Akun** — daftarnya diambil dari akun & kategori Anda sendiri (anti salah-ketik). Header ber-styling,
+  baris judul dibekukan, + sheet `Referensi` tersembunyi sebagai sumber dropdown. Dibuat via `exceljs`
+  yang **di-lazy-load** (chunk terpisah, tak membebani bundle utama). Opsi **CSV** tetap ada.
+
+---
+
 ## [3.10.0] — 2026-07-23 · Template Impor Transaksi
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side. Melengkapi Impor Cerdas (v3.9.0).

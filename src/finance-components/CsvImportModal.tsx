@@ -6,6 +6,7 @@ import {
   BANK_PRESETS, readImportProfiles, serializeImportProfiles, buildTemplateCSV,
   type CsvMapping, type ImportProfile,
 } from './csvImportUtils';
+import { buildTemplateXLSXBlob } from './importTemplate';
 
 interface CsvImportModalProps { isOpen: boolean; onClose: () => void }
 
@@ -13,8 +14,17 @@ const formatRp = (n: number) => `${n < 0 ? '−' : '+'}Rp ${Math.round(Math.abs(
 
 export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose }) => {
   const accounts = useFinanceStore((s) => s.accounts);
+  const budgetCategories = useFinanceStore((s) => s.budgetCategories);
+  const transactions = useFinanceStore((s) => s.transactions);
   const settings = useFinanceStore((s) => s.settings);
   const updateSettings = useFinanceStore((s) => s.updateSettings);
+
+  const categoryList = useMemo(() => {
+    const set = new Set<string>();
+    budgetCategories.forEach((c) => c.name && set.add(c.name));
+    transactions.forEach((t) => t.category && set.add(t.category));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [budgetCategories, transactions]);
 
   const [raw, setRaw] = useState('');
   const [rows, setRows] = useState<string[][]>([]);
@@ -32,14 +42,28 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
 
   const reset = () => { setRaw(''); setRows([]); setMap(null); setDone(null); setSkipped(0); };
 
-  const downloadTemplate = () => {
-    const acc = accounts.find((a) => a.type === 'bank')?.name || accounts[0]?.name || 'Nama Akun Anda';
-    const blob = new Blob(['﻿' + buildTemplateCSV(acc)], { type: 'text/csv;charset=utf-8' });
+  const [xlsxBusy, setXlsxBusy] = useState(false);
+
+  const triggerDownload = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'template-transaksi-dompetku.csv';
+    a.href = url; a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const downloadTemplateCSV = () => {
+    const acc = accounts.find((a) => a.type === 'bank')?.name || accounts[0]?.name || 'Nama Akun Anda';
+    triggerDownload(new Blob(['﻿' + buildTemplateCSV(acc)], { type: 'text/csv;charset=utf-8' }), 'template-transaksi-dompetku.csv');
+  };
+
+  const downloadTemplateExcel = async () => {
+    setXlsxBusy(true);
+    try {
+      const blob = await buildTemplateXLSXBlob(accounts, categoryList);
+      triggerDownload(blob, 'template-transaksi-dompetku.xlsx');
+    } catch { alert('Gagal membuat template Excel. Coba unduh versi CSV.'); }
+    setXlsxBusy(false);
   };
 
   const templateMode = !!(map && ((map.categoryCol ?? -1) >= 0 || (map.accountCol ?? -1) >= 0 || (map.typeCol ?? -1) >= 0));
@@ -192,13 +216,23 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
                 )}
 
                 {/* Template DompetKu — untuk input massal / migrasi */}
-                <div className="flex items-center gap-3 rounded-xl bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 p-3">
-                  <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] shrink-0">table_view</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-bold text-on-surface dark:text-white">Input massal / migrasi?</p>
-                    <p className="text-[11px] text-on-surface-variant dark:text-slate-400">Unduh template berkolom <b>Tanggal · Deskripsi · Jumlah · Tipe · Kategori · Akun</b>, isi di Excel/Sheets, lalu impor kembali — kategori &amp; akun ikut terbaca.</p>
+                <div className="rounded-xl bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 p-3 space-y-2.5">
+                  <div className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] shrink-0">table_view</span>
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-bold text-on-surface dark:text-white">Input massal / migrasi?</p>
+                      <p className="text-[11px] text-on-surface-variant dark:text-slate-400">Unduh template berkolom <b>Tanggal · Deskripsi · Jumlah · Tipe · Kategori · Akun</b>, isi di Excel/Sheets, lalu impor kembali — kategori &amp; akun ikut terbaca.</p>
+                    </div>
                   </div>
-                  <button onClick={downloadTemplate} className="shrink-0 px-3 py-2 rounded-lg bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] text-[11px] font-bold flex items-center gap-1 cursor-pointer"><span className="material-symbols-outlined text-[16px]">download</span>Template</button>
+                  <div className="flex gap-2">
+                    <button onClick={downloadTemplateExcel} disabled={xlsxBusy} className="flex-1 px-3 py-2 rounded-lg bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50">
+                      <span className="material-symbols-outlined text-[16px]">{xlsxBusy ? 'hourglass_top' : 'grid_on'}</span>{xlsxBusy ? 'Membuat…' : 'Excel (dropdown)'}
+                    </button>
+                    <button onClick={downloadTemplateCSV} className="flex-1 px-3 py-2 rounded-lg bg-surface-container dark:bg-white/10 text-on-surface dark:text-white text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer">
+                      <span className="material-symbols-outlined text-[16px]">description</span>CSV
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-on-surface-variant/60 dark:text-slate-500">Excel dilengkapi <b>dropdown Tipe/Kategori/Akun</b> (anti salah ketik) dari data akun &amp; kategori Anda.</p>
                 </div>
               </>
             ) : (

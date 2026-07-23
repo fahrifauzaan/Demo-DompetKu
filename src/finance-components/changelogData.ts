@@ -17,9 +17,16 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.10.0';
+export const CURRENT_VERSION = '3.11.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.11.0', date: '2026-07-23', title: 'Template Excel + Dropdown', tag: 'feature', impact: 'none',
+    added: [
+      'Template impor kini tersedia format Excel (.xlsx) — dengan dropdown Tipe/Kategori/Akun agar pengisian anti salah-ketik (daftar diambil dari akun & kategori Anda sendiri).',
+      'Tetap ada opsi CSV untuk yang lebih ringkas.',
+    ],
+  },
   {
     version: '3.10.0', date: '2026-07-23', title: 'Template Impor Transaksi', tag: 'feature', impact: 'none',
     added: [
