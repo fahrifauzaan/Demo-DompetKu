@@ -9,6 +9,22 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.6.0] — 2026-07-23 · Investor Pro: DCA & DRIP (Fase 7 · Gelombang 6)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Ditambahkan
+- **Perencana Investasi** (Laporan) — dua alat edukatif:
+  - **DCA (nabung rutin)** — simulasi setoran berkala (bulanan/mingguan): total disetor, nilai
+    akhir, keuntungan, + grafik akumulasi. Menekankan disiplin di atas timing.
+  - **DRIP (reinvestasi dividen/kupon)** — bandingkan nilai akhir bila dividen direinvestasi vs
+    diambil tunai, memvisualkan kekuatan bunga-berbunga. (`dcaUtils.ts`, `DcaPlannerModal.tsx`)
+
+> Catatan: benchmark vs IHSG ditunda (tumpang tindih dengan kartu XIRR yang sudah ada + butuh
+> data indeks live yang rapuh).
+
+---
+
 ## [3.5.0] — 2026-07-23 · Utang Cerdas (Fase 7 · Gelombang 5)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
