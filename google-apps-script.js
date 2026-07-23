@@ -16,11 +16,11 @@
  */
 
 // ===================== KONFIGURASI =====================
-const VALID_SHEETS = ['Transactions', 'Accounts', 'Fixed Income Investment', 'BudgetCategories', 'Debts', 'Settings', 'AssetsNonLiquid', 'Saham', 'Crypto', 'Reksadana', 'Goals', 'Recurring', 'Insurance', 'MonthlyBudgets'];
+const VALID_SHEETS = ['Transactions', 'Accounts', 'Fixed Income Investment', 'BudgetCategories', 'Debts', 'Settings', 'AssetsNonLiquid', 'Saham', 'Crypto', 'Reksadana', 'Goals', 'Recurring', 'Insurance', 'MonthlyBudgets', 'Retirement'];
 
 // Tab baru yang dibuat OTOMATIS saat pertama diakses — user lama TIDAK perlu
 // menyentuh spreadsheet. Jangan masukkan tab lama ke sini (perilaku tab lama tak berubah).
-const AUTO_CREATE_SHEETS = ['Goals', 'Recurring', 'Insurance', 'MonthlyBudgets'];
+const AUTO_CREATE_SHEETS = ['Goals', 'Recurring', 'Insurance', 'MonthlyBudgets', 'Retirement'];
 
 // Header kolom untuk setiap tab (urutan HARUS sama dengan di Spreadsheet)
 const HEADERS = {
@@ -40,7 +40,9 @@ const HEADERS = {
   Insurance: ['id', 'name', 'insType', 'provider', 'policyNumber', 'premium', 'premiumFrequency', 'coverageAmount', 'startDate', 'renewalDate', 'insured', 'beneficiary', 'status', 'notes'],
   // Anggaran bulanan per-kategori (format tidy, menggantikan blob JSON 'monthlyBudgets' di Settings).
   // id = "<month>__<category>" (mis. "2026-03__Bond"), month = "YYYY-MM".
-  MonthlyBudgets: ['id', 'month', 'category', 'amount']
+  MonthlyBudgets: ['id', 'month', 'category', 'amount'],
+  // ── Jilid 2 (v3.2) — Dana Pensiun Indonesia (BPJS TK/JHT/JP/DPLK) ──
+  Retirement: ['id', 'name', 'progType', 'provider', 'currentBalance', 'monthlyContribution', 'contributionType', 'employerContribution', 'startDate', 'targetAge', 'expectedReturn', 'status', 'notes']
 };
 
 // ===================== HELPER =====================

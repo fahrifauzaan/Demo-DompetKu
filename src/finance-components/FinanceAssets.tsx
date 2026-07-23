@@ -7,6 +7,7 @@ import { useFinanceStore, formatDateString, type Account } from '../store/useFin
 import AccountReconcileModal from './AccountReconcileModal';
 import FinanceSPTExportModal from './FinanceSPTExportModal';
 import FinanceInsuranceSection from './FinanceInsuranceSection';
+import FinanceRetirementSection from './FinanceRetirementSection';
 import AssetSellModal from './AssetSellModal';
 import RealizedGainCard from './RealizedGainCard';
 
@@ -2511,6 +2512,8 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
       {/* F2.3 Proteksi / Asuransi */}
       <div className="mt-8 pt-8 border-t border-outline-variant/10 dark:border-white/10">
         <FinanceInsuranceSection />
+
+        <FinanceRetirementSection />
       </div>
 
       {/* Liquidation Confirmation Modal */}

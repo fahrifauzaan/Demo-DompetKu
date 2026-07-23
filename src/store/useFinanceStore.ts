@@ -160,6 +160,23 @@ export interface Insurance {
   notes: string;
 }
 
+// Dana Pensiun Indonesia (F5.3): BPJS Ketenagakerjaan (JHT/JP), DPLK/DPPK, dsb.
+export interface Retirement {
+  id: string;
+  name: string;
+  progType: 'JHT' | 'JP' | 'DPLK' | 'DPPK' | 'Lainnya';
+  provider: string;             // BPJS TK, pengelola DPLK, dst.
+  currentBalance: number;
+  monthlyContribution: number;
+  contributionType: 'nominal' | 'persen'; // nominal/bln atau % gaji
+  employerContribution: number; // kontribusi pemberi kerja (nominal/bln)
+  startDate: string;
+  targetAge: number;            // usia target pensiun (mis. 56/58)
+  expectedReturn: number;       // % per tahun
+  status: string;               // Aktif | Nonaktif
+  notes: string;
+}
+
 export interface Promo {
   id: string;
   title: string;
@@ -195,6 +212,7 @@ interface FinanceState {
   goals: Goal[];
   recurring: Recurring[];
   insurance: Insurance[];
+  retirement: Retirement[];
   settings: Setting[];
   promos: Promo[];
   readPromos: string[];
@@ -250,6 +268,9 @@ interface FinanceState {
   addInsurance: (ins: Omit<Insurance, 'id'>) => Promise<void>;
   updateInsurance: (ins: Insurance) => Promise<void>;
   deleteInsurance: (id: string) => Promise<void>;
+  addRetirement: (r: Omit<Retirement, 'id'>) => Promise<void>;
+  updateRetirement: (r: Retirement) => Promise<void>;
+  deleteRetirement: (id: string) => Promise<void>;
   updateSettings: (settings: Setting[]) => Promise<void>;
   monthlyBudgets: Record<string, Record<string, number>>;
   updateMonthlyBudget: (yearMonth: string, categoryName: string, amount: number) => Promise<void>;
@@ -490,6 +511,7 @@ export const useFinanceStore = create<FinanceState>()(
       goals: [],
       recurring: [],
       insurance: [],
+      retirement: [],
       settings: DEFAULT_SETTINGS,
       promos: [],
       readPromos: [],
@@ -775,6 +797,21 @@ export const useFinanceStore = create<FinanceState>()(
       deleteInsurance: async (id) => {
         set((state) => ({ insurance: state.insurance.filter(i => i.id !== id) }));
         await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Insurance', 'delete', { id });
+      },
+
+      // ── F5.3: Retirement (Dana Pensiun) ──
+      addRetirement: async (r) => {
+        const newR = { ...r, id: generateId() } as Retirement;
+        set((state) => ({ retirement: [...state.retirement, newR] }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Retirement', 'add', newR as unknown as Record<string, unknown>);
+      },
+      updateRetirement: async (r) => {
+        set((state) => ({ retirement: state.retirement.map(x => x.id === r.id ? r : x) }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Retirement', 'update', r as unknown as Record<string, unknown>);
+      },
+      deleteRetirement: async (id) => {
+        set((state) => ({ retirement: state.retirement.filter(x => x.id !== id) }));
+        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Retirement', 'delete', { id });
       },
 
       updateSettings: async (newSettings) => {
@@ -1143,6 +1180,16 @@ export const useFinanceStore = create<FinanceState>()(
                 premium: parseNumber(i.premium),
                 coverageAmount: parseNumber(i.coverageAmount),
               })) as Insurance[];
+            }
+            if (result.data.Retirement) {
+              updates.retirement = result.data.Retirement.map((r: Record<string, unknown>) => ({
+                ...r,
+                currentBalance: parseNumber(r.currentBalance),
+                monthlyContribution: parseNumber(r.monthlyContribution),
+                employerContribution: parseNumber(r.employerContribution),
+                targetAge: parseNumber(r.targetAge) || 56,
+                expectedReturn: parseNumber(r.expectedReturn),
+              })) as Retirement[];
             }
             if (result.data.Settings) {
               const settingsList = result.data.Settings as Setting[];

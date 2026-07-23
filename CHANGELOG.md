@@ -9,6 +9,28 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.4.0] — 2026-07-23 · Dana Pensiun Indonesia (Roadmap Jilid 2 · Gelombang 4)
+
+**Dampak Google Sheet/Apps Script: YA — pengguna lama perlu memperbarui Apps Script sekali.**
+Menambah 1 tab: `Retirement`. Berkat `ensureSheetExists()`, tab **dibuat otomatis** saat pertama
+diakses. Salin Apps Script terbaru dari Panduan → Deploy → New version. Data lama aman.
+
+### Ditambahkan
+- **Dana Pensiun** (Aset) — registry program pensiun Indonesia: **BPJS Ketenagakerjaan (JHT/JP)**,
+  **DPLK/DPPK**. Catat saldo, iuran karyawan & pemberi kerja, usia target, return asumsi → lihat
+  **proyeksi saldo saat pensiun** + total masuk net worth. (`FinanceRetirementSection.tsx`)
+
+### Backend (Apps Script)
+- Tab `Retirement` ditambahkan ke `VALID_SHEETS` + `HEADERS` + `AUTO_CREATE_SHEETS`
+  (`['id','name','progType','provider','currentBalance','monthlyContribution','contributionType','employerContribution','startDate','targetAge','expectedReturn','status','notes']`).
+  Store: interface `Retirement` + state + CRUD + parsing sync. Template → **v4** (+ tab Retirement).
+
+### Migrasi untuk pengguna lama
+1. Buka Panduan → salin Apps Script terbaru. 2. Extensions → Apps Script → tempel → Deploy →
+Manage deployments → Edit → New version. 3. Buka DompetKu → sync; tab `Retirement` terbuat sendiri.
+
+---
+
 ## [3.3.0] — 2026-07-23 · Pajak & Zakat Indonesia (Roadmap Jilid 2 · Gelombang 3)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; tarif/PTKP = konstanta ber-tahun.
