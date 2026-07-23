@@ -102,7 +102,7 @@ export function parseCsvDate(raw: string): string | null {
 }
 
 /** Kata kunci header umum (untuk deteksi baris header & auto-skip metadata). */
-const HEADER_KW = /tanggal|tgl|date|waktu|keterangan|uraian|desc|description|berita|remark|narasi|catatan|debet|debit|kredit|credit|mutasi|amount|nominal|jumlah|saldo|balance|tipe|type/i;
+const HEADER_KW = /tanggal|tgl|date|waktu|keterangan|deskripsi|uraian|desc|description|berita|remark|narasi|catatan|debet|debit|kredit|credit|mutasi|amount|nominal|jumlah|saldo|balance|tipe|type|jenis|kategori|category|akun|account|rekening/i;
 
 /** Temukan indeks baris header (baris dgn ≥2 sel cocok kata kunci) di antara `maxScan` baris awal; -1 bila tak ada. */
 export function findHeaderRow(rows: string[][], maxScan = 25): number {
@@ -121,9 +121,13 @@ export interface CsvMapping {
   amountCol: number;  // kolom nominal bertanda (-1 bila pakai debit/kredit)
   debitCol: number;   // -1 bila tak dipakai
   creditCol: number;  // -1 bila tak dipakai
+  // Mode template (opsional) — kolom kaya bila tersedia:
+  typeCol?: number;      // kolom Tipe (Pemasukan/Pengeluaran) → menentukan tanda
+  categoryCol?: number;  // kolom Kategori
+  accountCol?: number;   // kolom Akun (override akun per baris)
 }
 
-export interface ParsedTxn { date: string; desc: string; amount: number; valid: boolean }
+export interface ParsedTxn { date: string; desc: string; amount: number; valid: boolean; category?: string; account?: string }
 
 /** Bangun transaksi dari baris CSV + mapping. */
 export function buildTransactions(rows: string[][], map: CsvMapping): ParsedTxn[] {
@@ -138,17 +142,27 @@ export function buildTransactions(rows: string[][], map: CsvMapping): ParsedTxn[
       const credit = map.creditCol >= 0 ? Math.abs(parseAmount(r[map.creditCol] || '')) : 0;
       amount = credit - debit;
     }
-    return { date, desc, amount, valid: !!date && amount !== 0 };
+    // Mode template: kolom Tipe menentukan tanda dari nominal positif.
+    if (map.typeCol != null && map.typeCol >= 0) {
+      const t = (r[map.typeCol] || '').toLowerCase();
+      const mag = Math.abs(amount);
+      if (/pemasukan|masuk|income|kredit|credit|\bcr\b|\bin\b/.test(t)) amount = mag;
+      else if (/pengeluaran|keluar|expense|debit|debet|\bdb\b|\bout\b/.test(t)) amount = -mag;
+    }
+    const category = map.categoryCol != null && map.categoryCol >= 0 ? (r[map.categoryCol] || '').trim() || undefined : undefined;
+    const account = map.accountCol != null && map.accountCol >= 0 ? (r[map.accountCol] || '').trim() || undefined : undefined;
+    return { date, desc, amount, category, account, valid: !!date && amount !== 0 };
   });
 }
 
-/** Ubah ParsedTxn → payload Transaction untuk addTransaction. */
-export function toTransactionPayload(p: ParsedTxn, account: string): Omit<Transaction, 'id'> {
+/** Ubah ParsedTxn → payload Transaction. Pakai kategori/akun per-baris bila ada (mode template). */
+export function toTransactionPayload(p: ParsedTxn, defaultAccount: string): Omit<Transaction, 'id'> {
+  const income = p.amount >= 0;
   return {
-    date: p.date, desc: p.desc, location: 'Impor CSV', amount: p.amount,
-    category: p.amount >= 0 ? 'Pemasukan Lain' : 'Lainnya',
-    icon: p.amount >= 0 ? 'download' : 'upload', status: 'Selesai', account,
-    type: p.amount >= 0 ? 'PEMASUKAN' : 'PENGELUARAN',
+    date: p.date, desc: p.desc, location: 'Impor', amount: p.amount,
+    category: p.category || (income ? 'Pemasukan Lain' : 'Lainnya'),
+    icon: income ? 'download' : 'upload', status: 'Selesai', account: p.account || defaultAccount,
+    type: income ? 'PEMASUKAN' : 'PENGELUARAN',
   };
 }
 
@@ -182,12 +196,35 @@ export function guessMapping(rows: string[][], preset?: BankPreset): CsvMapping 
   };
 
   const dateCol = looksHeader ? Math.max(0, firstOf(preset?.dateKw, /tanggal|date|tgl|waktu/i)) : 0;
-  const descCol = looksHeader ? Math.max(0, firstOf(preset?.descKw, /keterangan|desc|uraian|berita|remark|narasi|catatan/i)) : 1;
+  const descCol = looksHeader ? Math.max(0, firstOf(preset?.descKw, /deskripsi|keterangan|uraian|berita|remark|narasi|description|catatan/i)) : 1;
   const debitCol = looksHeader ? firstOf(preset?.debitKw, /debet|debit|keluar/i) : -1;
   const creditCol = looksHeader ? firstOf(preset?.creditKw, /kredit|credit|masuk/i) : -1;
   let amountCol = looksHeader ? firstOf(preset?.amountKw, /mutasi|amount|nominal|jumlah/i) : (first.length > 2 ? 2 : 1);
   if (debitCol >= 0 || creditCol >= 0) amountCol = -1;
-  return { hasHeader: looksHeader, dateCol, descCol, amountCol, debitCol, creditCol };
+  // Deteksi kolom kaya (Template DompetKu / spreadsheet terstruktur):
+  const typeCol = looksHeader ? firstOf(/^tipe$|^type$|jenis/i) : -1;
+  const categoryCol = looksHeader ? firstOf(/kategori|category/i) : -1;
+  const accountCol = looksHeader ? firstOf(/^akun$|^account$|rekening/i) : -1;
+  // Bila ada kolom Tipe, nominal (Jumlah) dibaca positif & tandanya dari Tipe.
+  if (typeCol >= 0 && amountCol < 0 && (debitCol >= 0 || creditCol >= 0)) { /* biarkan debit/kredit */ }
+  return { hasHeader: looksHeader, dateCol, descCol, amountCol, debitCol, creditCol, typeCol, categoryCol, accountCol };
+}
+
+/* ===================== Template DompetKu (unduh untuk input massal / migrasi) ===================== */
+
+export const TEMPLATE_HEADERS = ['Tanggal', 'Deskripsi', 'Jumlah', 'Tipe', 'Kategori', 'Akun', 'Catatan'];
+
+/** Escape sel CSV. */
+const csvCell = (v: string) => (/[",\n;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+/** Bangun isi CSV template (header + 2 baris contoh). `sampleAccount` = nama akun user (agar contoh valid). */
+export function buildTemplateCSV(sampleAccount = 'Nama Akun Anda'): string {
+  const rows = [
+    TEMPLATE_HEADERS,
+    ['2026-07-01', 'CONTOH — hapus baris ini · Gaji bulanan', '10000000', 'Pemasukan', 'Salary', sampleAccount, 'opsional'],
+    ['2026-07-02', 'CONTOH — hapus baris ini · Belanja Indomaret', '150000', 'Pengeluaran', 'Food', sampleAccount, 'opsional'],
+  ];
+  return rows.map((r) => r.map((c) => csvCell(String(c))).join(',')).join('\r\n');
 }
 
 /* ===================== Profil impor tersimpan (di Settings) ===================== */

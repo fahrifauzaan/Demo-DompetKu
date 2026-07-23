@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import {
   parseCSV, parseSpreadsheetFile, findHeaderRow, buildTransactions, guessMapping, toTransactionPayload,
-  BANK_PRESETS, readImportProfiles, serializeImportProfiles,
+  BANK_PRESETS, readImportProfiles, serializeImportProfiles, buildTemplateCSV,
   type CsvMapping, type ImportProfile,
 } from './csvImportUtils';
 
@@ -31,6 +31,18 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
   const profiles = useMemo(() => readImportProfiles(settings.find((s) => s.key === 'import_profiles')?.value), [settings]);
 
   const reset = () => { setRaw(''); setRows([]); setMap(null); setDone(null); setSkipped(0); };
+
+  const downloadTemplate = () => {
+    const acc = accounts.find((a) => a.type === 'bank')?.name || accounts[0]?.name || 'Nama Akun Anda';
+    const blob = new Blob(['﻿' + buildTemplateCSV(acc)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'template-transaksi-dompetku.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const templateMode = !!(map && ((map.categoryCol ?? -1) >= 0 || (map.accountCol ?? -1) >= 0 || (map.typeCol ?? -1) >= 0));
 
   const applyRows = (parsed: string[][], preset = presetKey) => {
     const hdr = findHeaderRow(parsed);
@@ -178,10 +190,21 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
                     <p className="text-on-surface-variant/70 dark:text-slate-500">Baris info rekening di atas otomatis dilewati; kolom akan Anda petakan di langkah berikut. Jika bank Anda bisa ekspor CSV/Excel, itu lebih rapi.</p>
                   </div>
                 )}
+
+                {/* Template DompetKu — untuk input massal / migrasi */}
+                <div className="flex items-center gap-3 rounded-xl bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 p-3">
+                  <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff] shrink-0">table_view</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-bold text-on-surface dark:text-white">Input massal / migrasi?</p>
+                    <p className="text-[11px] text-on-surface-variant dark:text-slate-400">Unduh template berkolom <b>Tanggal · Deskripsi · Jumlah · Tipe · Kategori · Akun</b>, isi di Excel/Sheets, lalu impor kembali — kategori &amp; akun ikut terbaca.</p>
+                  </div>
+                  <button onClick={downloadTemplate} className="shrink-0 px-3 py-2 rounded-lg bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] text-[11px] font-bold flex items-center gap-1 cursor-pointer"><span className="material-symbols-outlined text-[16px]">download</span>Template</button>
+                </div>
               </>
             ) : (
               <>
                 {skipped > 0 && <p className="text-[11px] text-on-surface-variant dark:text-slate-400 bg-surface-container-low dark:bg-white/5 rounded-lg px-3 py-1.5"><span className="material-symbols-outlined text-[14px] align-middle mr-1">info</span>{skipped} baris info rekening di atas dilewati otomatis.</p>}
+                {templateMode && <p className="text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-1.5"><span className="material-symbols-outlined text-[14px] align-middle mr-1">table_view</span>Template terdeteksi — Kategori, Akun &amp; Tipe dibaca langsung dari file.</p>}
 
                 {/* Mapping */}
                 <div className="rounded-2xl border border-outline-variant/10 dark:border-white/10 p-4 space-y-3">

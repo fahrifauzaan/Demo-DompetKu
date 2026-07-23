@@ -17,9 +17,16 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.9.0';
+export const CURRENT_VERSION = '3.10.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.10.0', date: '2026-07-23', title: 'Template Impor Transaksi', tag: 'feature', impact: 'none',
+    added: [
+      'Tombol "Unduh Template" di Impor — file CSV berkolom Tanggal · Deskripsi · Jumlah · Tipe · Kategori · Akun. Isi di Excel/Sheets (input massal atau migrasi dari app lain), lalu impor kembali.',
+      'Impor kini membaca kolom Kategori, Akun & Tipe langsung dari file bila ada — transaksi masuk sudah rapi & terkategori, tanpa perlu petakan ulang.',
+    ],
+  },
   {
     version: '3.9.0', date: '2026-07-23', title: 'Impor Cerdas', tag: 'feature', impact: 'none',
     added: [

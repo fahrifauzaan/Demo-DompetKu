@@ -9,6 +9,23 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.10.0] — 2026-07-23 · Template Impor Transaksi
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side. Melengkapi Impor Cerdas (v3.9.0).
+
+### Ditambahkan
+- **Unduh Template DompetKu** (tombol di modal Impor) — CSV berkolom **Tanggal · Deskripsi · Jumlah ·
+  Tipe · Kategori · Akun · Catatan** + 2 baris contoh. Untuk **input massal** atau **migrasi** dari
+  app/spreadsheet lain: isi di Excel/Sheets, lalu impor kembali. (Berbeda dari impor e-statement bank
+  — ini untuk data terstruktur yang Anda susun sendiri.)
+- **Impor sadar-template** — bila file punya kolom **Kategori/Akun/Tipe**, ketiganya dibaca langsung
+  (tanda ± dari kolom Tipe, kategori & akun per baris) → transaksi masuk sudah rapi & terkategori.
+
+### Diperbaiki
+- Deteksi kolom "Deskripsi" (ejaan Indonesia dgn k) — dulu tak terdeteksi sehingga kolom "Catatan" salah terpilih.
+
+---
+
 ## [3.9.0] — 2026-07-23 · Impor Cerdas (Mutasi Bank)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side. Menyempurnakan Impor (v2.5.0).
