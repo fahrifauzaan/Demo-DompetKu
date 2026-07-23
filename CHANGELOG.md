@@ -9,6 +9,27 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [2.5.0] — 2026-07-23 · Impor Mutasi Bank CSV (Wave D)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; baris CSV yang diimpor menjadi
+transaksi biasa di tab `Transactions` yang sudah ada (lewat alur `addTransaction` standar).
+
+### Ditambahkan
+- **Impor CSV mutasi rekening** (Transaksi › tombol "Impor") — unggah file `.csv` dari
+  internet/mobile banking **atau** tempel isinya, lalu:
+  - **Deteksi otomatis** delimiter (`,` `;` tab `|`), tanda kutip, dan BOM; **tebak kolom**
+    dari baris judul (Tanggal/Keterangan/Debit/Kredit/Mutasi).
+  - **Pemetaan kolom** manual: pilih kolom Tanggal & Keterangan, lalu mode **1 kolom nominal
+    bertanda (±)** atau **Debit & Kredit terpisah**, plus akun tujuan impor.
+  - **Normalisasi** beragam format tanggal (`dd/mm/yyyy`, `dd-mm-yyyy`, `yyyy-mm-dd`) → ISO,
+    dan nominal IDR (pemisah ribuan `.`/`,`, kurung `()` = negatif) → angka.
+  - **Pratinjau** transaksi hasil parse (hijau = masuk, merah = keluar) dengan hitung
+    valid/dilewati **sebelum** impor; baris tanpa tanggal/nominal valid otomatis dilewati.
+  - Saat impor: tiap baris jadi transaksi PEMASUKAN/PENGELUARAN + **saldo akun disesuaikan**
+    otomatis. (`csvImportUtils.ts`, `CsvImportModal.tsx`)
+
+---
+
 ## [2.4.0] — 2026-07-23 · Auto-post + Goal Linking (Wave C)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; goal-link disimpan via tag di
