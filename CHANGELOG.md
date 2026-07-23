@@ -9,6 +9,25 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.9.0] — 2026-07-23 · Impor Cerdas (Mutasi Bank)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side. Menyempurnakan Impor (v2.5.0).
+
+### Ditambahkan
+- **Dukungan Excel** — impor `.xlsx`/`.xls` (bukan hanya CSV), langsung dari internet/mobile banking.
+  Parser Excel dimuat *lazy* (code-split) — tak membebani bundle utama.
+- **Preset bank** — pilih bank (BCA/Mandiri/BNI/BRI/Jago/Jenius/SeaBank/blu) → kolom terpetakan
+  otomatis; jatuh ke pemeta manual untuk bank tak dikenal.
+- **Profil pemetaan tersimpan** — simpan mapping sekali (mis. "BCA Fakhri") → impor bulan depan 1-klik
+  (disimpan di tab `Settings` key `import_profiles`, tanpa migrasi).
+- **Panduan impor dari PDF** — instruksi salin-tempel tabel dari e-statement PDF.
+
+### Diperbaiki
+- **Baris metadata** (info rekening/periode) di atas data kini **dilewati otomatis**.
+- **Nominal desimal Indonesia** — `1.000.000,00` kini terbaca benar `1.000.000` (dulu salah jadi 100 juta).
+
+---
+
 ## [3.8.0] — 2026-07-23 · Riwayat Pembaruan In-App
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

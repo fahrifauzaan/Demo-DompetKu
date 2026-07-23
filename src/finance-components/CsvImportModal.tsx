@@ -1,45 +1,82 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFinanceStore } from '../store/useFinanceStore';
-import { parseCSV, buildTransactions, guessMapping, toTransactionPayload, type CsvMapping } from './csvImportUtils';
+import {
+  parseCSV, parseSpreadsheetFile, findHeaderRow, buildTransactions, guessMapping, toTransactionPayload,
+  BANK_PRESETS, readImportProfiles, serializeImportProfiles,
+  type CsvMapping, type ImportProfile,
+} from './csvImportUtils';
 
-interface CsvImportModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+interface CsvImportModalProps { isOpen: boolean; onClose: () => void }
 
 const formatRp = (n: number) => `${n < 0 ? '−' : '+'}Rp ${Math.round(Math.abs(n)).toLocaleString('id-ID')}`;
 
 export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose }) => {
   const accounts = useFinanceStore((s) => s.accounts);
-  const addTransaction = useFinanceStore((s) => s.addTransaction);
-  const updateAccount = useFinanceStore((s) => s.updateAccount);
+  const settings = useFinanceStore((s) => s.settings);
+  const updateSettings = useFinanceStore((s) => s.updateSettings);
 
   const [raw, setRaw] = useState('');
   const [rows, setRows] = useState<string[][]>([]);
   const [map, setMap] = useState<CsvMapping | null>(null);
   const [amountMode, setAmountMode] = useState<'signed' | 'debitcredit'>('signed');
   const [account, setAccount] = useState('');
+  const [presetKey, setPresetKey] = useState('auto');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showPdfHelp, setShowPdfHelp] = useState(false);
+  const [skipped, setSkipped] = useState(0);
 
-  const reset = () => { setRaw(''); setRows([]); setMap(null); setDone(null); };
+  const profiles = useMemo(() => readImportProfiles(settings.find((s) => s.key === 'import_profiles')?.value), [settings]);
 
-  const ingest = (text: string) => {
-    const parsed = parseCSV(text);
-    setRows(parsed);
-    const g = guessMapping(parsed);
+  const reset = () => { setRaw(''); setRows([]); setMap(null); setDone(null); setSkipped(0); };
+
+  const applyRows = (parsed: string[][], preset = presetKey) => {
+    const hdr = findHeaderRow(parsed);
+    const sliced = hdr > 0 ? parsed.slice(hdr) : parsed;
+    setSkipped(hdr > 0 ? hdr : 0);
+    setRows(sliced);
+    const p = BANK_PRESETS.find((b) => b.key === preset);
+    const g = guessMapping(sliced, p && p.key !== 'auto' ? p : undefined);
     setMap(g);
     setAmountMode(g.amountCol >= 0 ? 'signed' : 'debitcredit');
     if (!account) setAccount(accounts.find((a) => a.type === 'bank')?.name || accounts[0]?.name || '');
   };
 
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const ingest = (text: string) => applyRows(parseCSV(text));
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const r = new FileReader();
-    r.onload = () => { const t = String(r.result || ''); setRaw(t); ingest(t); };
-    r.readAsText(f);
+    setLoading(true);
+    try {
+      const parsed = await parseSpreadsheetFile(f);
+      applyRows(parsed);
+    } catch { alert('Gagal membaca file. Pastikan format CSV atau Excel (.xlsx/.xls) yang valid.'); }
+    setLoading(false);
+    e.target.value = '';
+  };
+
+  const onPreset = (key: string) => { setPresetKey(key); if (rows.length) applyRows(rows, key); };
+
+  const loadProfile = (name: string) => {
+    const pr = profiles.find((p) => p.name === name);
+    if (!pr) return;
+    setPresetKey(pr.preset);
+    setMap(pr.mapping);
+    setAmountMode(pr.amountMode);
+    if (pr.account) setAccount(pr.account);
+  };
+
+  const saveProfile = async () => {
+    if (!map) return;
+    const name = (window.prompt('Simpan pemetaan ini sebagai (mis. "BCA Fakhri"):', BANK_PRESETS.find((b) => b.key === presetKey)?.label || 'Profil impor') || '').trim();
+    if (!name) return;
+    const entry: ImportProfile = { name, preset: presetKey, mapping: map, amountMode, account };
+    const next = [...profiles.filter((p) => p.name !== name), entry];
+    const arr = settings.filter((s) => s.key !== 'import_profiles');
+    await updateSettings([...arr, { key: 'import_profiles', value: serializeImportProfiles(next) }]);
   };
 
   const header = rows[0] || [];
@@ -60,10 +97,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
     setBusy(true);
     const store = useFinanceStore.getState();
     let net = 0;
-    for (const p of valid) {
-      await store.addTransaction(toTransactionPayload(p, account));
-      net += p.amount;
-    }
+    for (const p of valid) { await store.addTransaction(toTransactionPayload(p, account)); net += p.amount; }
     const acc = useFinanceStore.getState().accounts.find((a) => a.name === account);
     if (acc) await store.updateAccount({ ...acc, balance: acc.balance + net });
     setBusy(false);
@@ -83,7 +117,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
           <div className="sticky top-0 z-10 flex items-center justify-between px-5 sm:px-6 py-4 bg-surface/95 dark:bg-[#121416]/95 backdrop-blur border-b border-outline-variant/10 dark:border-white/5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-primary/10 dark:bg-[#a7c8ff]/15 flex items-center justify-center text-primary dark:text-[#a7c8ff]"><span className="material-symbols-outlined">upload_file</span></div>
-              <h2 className="text-lg font-black font-headline text-on-surface dark:text-white">Impor Mutasi Bank (CSV)</h2>
+              <h2 className="text-lg font-black font-headline text-on-surface dark:text-white">Impor Mutasi Bank</h2>
             </div>
             <button onClick={onClose} className="w-9 h-9 rounded-full bg-surface-container dark:bg-white/5 flex items-center justify-center text-on-surface dark:text-white cursor-pointer"><span className="material-symbols-outlined text-lg">close</span></button>
           </div>
@@ -95,32 +129,72 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
                 <h3 className="text-lg font-black text-on-surface dark:text-white">{done} transaksi diimpor</h3>
                 <p className="text-xs text-on-surface-variant dark:text-slate-400 mt-1">Saldo akun {account} telah disesuaikan.</p>
                 <div className="flex gap-2 justify-center mt-5">
-                  <button onClick={() => { reset(); }} className="px-5 py-2.5 rounded-xl bg-surface-container dark:bg-white/10 text-on-surface dark:text-white font-bold text-sm cursor-pointer">Impor lagi</button>
+                  <button onClick={reset} className="px-5 py-2.5 rounded-xl bg-surface-container dark:bg-white/10 text-on-surface dark:text-white font-bold text-sm cursor-pointer">Impor lagi</button>
                   <button onClick={onClose} className="px-5 py-2.5 rounded-xl bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] font-bold text-sm cursor-pointer">Selesai</button>
                 </div>
               </div>
             ) : rows.length === 0 ? (
               <>
-                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-outline-variant/30 dark:border-white/15 rounded-2xl py-8 cursor-pointer hover:border-primary/50 transition-colors">
-                  <span className="material-symbols-outlined text-3xl text-primary dark:text-[#a7c8ff]">cloud_upload</span>
-                  <span className="text-sm font-bold text-on-surface dark:text-white">Pilih file CSV</span>
-                  <span className="text-[11px] text-on-surface-variant dark:text-slate-400">dari internet/mobile banking Anda</span>
-                  <input type="file" accept=".csv,text/csv,text/plain" onChange={onFile} className="hidden" />
+                {/* Preset bank + profil tersimpan */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400">Bank / sumber</label>
+                    <select value={presetKey} onChange={(e) => setPresetKey(e.target.value)} className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-xl px-2.5 py-2 text-xs font-bold text-on-surface dark:text-white outline-none focus:border-primary/50 cursor-pointer">
+                      {BANK_PRESETS.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400">Profil tersimpan</label>
+                    <select value="" onChange={(e) => e.target.value && loadProfile(e.target.value)} disabled={!profiles.length} className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-xl px-2.5 py-2 text-xs font-bold text-on-surface dark:text-white outline-none focus:border-primary/50 cursor-pointer disabled:opacity-50">
+                      <option value="">{profiles.length ? '— pilih profil —' : '(belum ada)'}</option>
+                      {profiles.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-outline-variant/30 dark:border-white/15 rounded-2xl py-7 cursor-pointer hover:border-primary/50 transition-colors">
+                  <span className="material-symbols-outlined text-3xl text-primary dark:text-[#a7c8ff]">{loading ? 'hourglass_top' : 'cloud_upload'}</span>
+                  <span className="text-sm font-bold text-on-surface dark:text-white">{loading ? 'Membaca file…' : 'Pilih file CSV atau Excel'}</span>
+                  <span className="text-[11px] text-on-surface-variant dark:text-slate-400">.csv · .xlsx · .xls — dari internet/mobile banking</span>
+                  <input type="file" accept=".csv,.xlsx,.xls,.xlsm,text/csv,text/plain" onChange={onFile} className="hidden" />
                 </label>
+
                 <div className="flex items-center gap-2"><div className="flex-1 h-px bg-outline-variant/20 dark:bg-white/10" /><span className="text-[10px] text-on-surface-variant dark:text-slate-500 font-bold">ATAU TEMPEL</span><div className="flex-1 h-px bg-outline-variant/20 dark:bg-white/10" /></div>
-                <textarea value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="Tempel isi CSV di sini…" rows={5}
+                <textarea value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="Tempel isi CSV, atau salin tabel dari statement PDF lalu tempel di sini…" rows={4}
                   className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-2xl px-3 py-2.5 text-xs font-mono text-on-surface dark:text-white outline-none focus:border-primary/50 resize-none" />
-                <button onClick={() => raw.trim() && ingest(raw)} disabled={!raw.trim()} className="w-full py-3 rounded-2xl bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] font-bold text-sm disabled:opacity-40 cursor-pointer">Baca CSV</button>
+                <button onClick={() => raw.trim() && ingest(raw)} disabled={!raw.trim()} className="w-full py-3 rounded-2xl bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] font-bold text-sm disabled:opacity-40 cursor-pointer">Baca Data</button>
+
+                {/* Panduan PDF */}
+                <button onClick={() => setShowPdfHelp((v) => !v)} className="w-full flex items-center justify-between text-[11px] font-bold text-on-surface-variant dark:text-slate-400 py-1 cursor-pointer">
+                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>Statement Anda berupa PDF?</span>
+                  <span className="material-symbols-outlined text-[18px]">{showPdfHelp ? 'expand_less' : 'expand_more'}</span>
+                </button>
+                {showPdfHelp && (
+                  <div className="rounded-xl bg-primary/5 dark:bg-[#a7c8ff]/10 border border-primary/15 dark:border-[#a7c8ff]/15 p-3 text-[11.5px] leading-relaxed text-on-surface-variant dark:text-slate-300 space-y-1">
+                    <p><b className="text-on-surface dark:text-white">Cara dari PDF:</b></p>
+                    <p>1. Buka PDF e-statement, blok (drag) area <b>tabel transaksi</b>-nya.</p>
+                    <p>2. Salin (Cmd/Ctrl+C).</p>
+                    <p>3. Tempel di kotak "ATAU TEMPEL" di atas → klik <b>Baca Data</b>.</p>
+                    <p className="text-on-surface-variant/70 dark:text-slate-500">Baris info rekening di atas otomatis dilewati; kolom akan Anda petakan di langkah berikut. Jika bank Anda bisa ekspor CSV/Excel, itu lebih rapi.</p>
+                  </div>
+                )}
               </>
             ) : (
               <>
+                {skipped > 0 && <p className="text-[11px] text-on-surface-variant dark:text-slate-400 bg-surface-container-low dark:bg-white/5 rounded-lg px-3 py-1.5"><span className="material-symbols-outlined text-[14px] align-middle mr-1">info</span>{skipped} baris info rekening di atas dilewati otomatis.</p>}
+
                 {/* Mapping */}
                 <div className="rounded-2xl border border-outline-variant/10 dark:border-white/10 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="text-[11px] font-black uppercase tracking-wide text-on-surface-variant dark:text-slate-400">Pemetaan kolom</span>
-                    <label className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface dark:text-white cursor-pointer">
-                      <input type="checkbox" checked={!!map?.hasHeader} onChange={(e) => setM({ hasHeader: e.target.checked })} /> Baris pertama = judul
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <select value={presetKey} onChange={(e) => onPreset(e.target.value)} className="bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-lg px-2 py-1 text-[11px] font-bold text-on-surface dark:text-white outline-none cursor-pointer">
+                        {BANK_PRESETS.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
+                      </select>
+                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface dark:text-white cursor-pointer">
+                        <input type="checkbox" checked={!!map?.hasHeader} onChange={(e) => setM({ hasHeader: e.target.checked })} /> Judul
+                      </label>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Sel label="Tanggal" value={map!.dateCol} onChange={(v) => setM({ dateCol: v })} options={colOptions} />
@@ -139,11 +213,14 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
                       <Sel label="Kredit (masuk)" value={map!.creditCol} onChange={(v) => setM({ creditCol: v })} options={colOptions} allowNone />
                     </div>
                   )}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400">Impor ke akun</label>
-                    <select value={account} onChange={(e) => setAccount(e.target.value)} className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-bold text-on-surface dark:text-white outline-none focus:border-primary/50 cursor-pointer">
-                      {accounts.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}
-                    </select>
+                  <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400">Impor ke akun</label>
+                      <select value={account} onChange={(e) => setAccount(e.target.value)} className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-bold text-on-surface dark:text-white outline-none focus:border-primary/50 cursor-pointer">
+                        {accounts.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}
+                      </select>
+                    </div>
+                    <button onClick={saveProfile} title="Simpan pemetaan agar impor berikutnya 1-klik" className="px-3 py-2 rounded-xl bg-surface-container dark:bg-white/10 text-on-surface dark:text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap"><span className="material-symbols-outlined text-[16px]">bookmark_add</span>Simpan profil</button>
                   </div>
                 </div>
 

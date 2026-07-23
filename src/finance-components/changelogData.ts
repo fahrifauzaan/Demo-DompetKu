@@ -17,9 +17,22 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.8.0';
+export const CURRENT_VERSION = '3.9.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.9.0', date: '2026-07-23', title: 'Impor Cerdas', tag: 'feature', impact: 'none',
+    added: [
+      'Dukungan file Excel (.xlsx/.xls) selain CSV — langsung dari internet/mobile banking tanpa konversi.',
+      'Preset bank (BCA, Mandiri, BNI, BRI, Jago, Jenius, SeaBank, blu) — kolom terpetakan otomatis; degrade mulus ke pemeta manual untuk bank lain.',
+      'Simpan pemetaan sebagai profil — impor bulanan berikutnya cukup pilih profil (1-klik).',
+      'Panduan impor dari statement PDF (salin tabel → tempel).',
+    ],
+    changed: [
+      'Baris info rekening di atas data kini dilewati otomatis.',
+      'Perbaikan baca nominal berdesimal Indonesia (1.000.000,00 kini benar = 1.000.000, bukan 100 juta).',
+    ],
+  },
   {
     version: '3.8.0', date: '2026-07-23', title: 'Riwayat Pembaruan In-App', tag: 'feature', impact: 'none',
     added: [
