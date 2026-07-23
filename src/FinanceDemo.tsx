@@ -25,6 +25,7 @@ import FinancePrintableLedger from './finance-components/FinancePrintableLedger'
 import FinancePrintableSPT from './finance-components/FinancePrintableSPT';
 import SaveIndicator from './finance-components/SaveIndicator';
 import AutoPostRunner from './finance-components/AutoPostRunner';
+import ProfileSwitcher from './finance-components/ProfileSwitcher';
 import { useAuthStore } from './store/useAuthStore';
 import FinanceOnboardingModal from './finance-components/FinanceOnboardingModal';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -528,7 +529,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
             
             <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 shrink-0">
               <div className="lg:hidden">
-                <span 
+                <span
                   onClick={() => setShowSearch(true)}
                   className="material-symbols-outlined p-1.5 sm:p-2 rounded-full cursor-pointer text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
@@ -536,7 +537,9 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
                 </span>
               </div>
 
-              <button 
+              <ProfileSwitcher />
+
+              <button
                 onClick={() => syncFromGoogleSheets()}
                 disabled={isSyncing}
                 title={lastSyncAt ? `Terakhir sinkronisasi: ${new Date(lastSyncAt).toLocaleTimeString('id-ID')}` : 'Sinkronkan data'}

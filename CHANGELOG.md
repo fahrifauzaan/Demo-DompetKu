@@ -9,6 +9,32 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [2.6.0] — 2026-07-23 · Multi-profil / Mode Keluarga (Wave E)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Daftar profil disimpan lokal di perangkat
+(localStorage) — bukan di Sheet mana pun. Tiap profil hanyalah *penunjuk* ke sebuah Google
+Sheet yang sudah ada. Tidak ada tab/kolom baru, tidak ada perubahan Apps Script.
+
+### Ditambahkan
+- **Pengalih profil di header** — kelola keuangan **beberapa orang/entitas** (mis. pasangan,
+  anak, usaha) dalam satu aplikasi, masing-masing memakai **Google Sheet-nya sendiri** (data
+  tidak tercampur). Pil profil + dropdown untuk berpindah cepat; menampilkan profil aktif.
+  (`ProfileSwitcher.tsx`)
+- **Kelola profil** — tambah/ubah/hapus profil (nama, avatar emoji, warna, URL Web App
+  Apps Script dan/atau ID Spreadsheet). Tombol **"Simpan koneksi saat ini"** untuk menjadikan
+  Sheet yang sedang terhubung sebagai profil pertama. Berpindah profil = mengganti koneksi
+  aktif lalu **menarik ulang** seluruh data dari Sheet tersebut.
+- Menghapus profil **tidak** menghapus Google Sheet-nya (hanya penunjuk lokal). Saat keluar
+  akun, daftar profil ikut dibersihkan agar tak bocor antar-pengguna di perangkat bersama.
+
+### Catatan
+- Cara pakai: buat dulu Sheet baru untuk tiap profil (salin file template
+  `dompetku_template_v3.xlsx`), lalu daftarkan URL/ID-nya. Token Google akun aktif dipakai
+  bersama untuk mode API/OAuth. Fondasi arsitektur "1 pengguna = 1 Sheet" tetap; multi-profil
+  menambah lapisan pengalih di sisi klien tanpa mengubah backend.
+
+---
+
 ## [2.5.0] — 2026-07-23 · Impor Mutasi Bank CSV (Wave D)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; baris CSV yang diimpor menjadi

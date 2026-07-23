@@ -170,6 +170,19 @@ export interface Promo {
   isActive: boolean | string;
 }
 
+// Multi-profil: tiap profil menunjuk ke SATU Google Sheet sendiri (mis. anggota
+// keluarga / entitas usaha). Daftar profil disimpan lokal (localStorage) — bukan di
+// Sheet mana pun — sehingga TIDAK perlu migrasi Apps Script. Beralih profil = mengganti
+// koneksi aktif (googleSheetUrl/spreadsheetId) lalu sinkron ulang dari Sheet tersebut.
+export interface Profile {
+  id: string;
+  name: string;
+  emoji: string;          // avatar sederhana (👤 👩 👨 🏢 …)
+  color: string;          // hex untuk aksen
+  googleSheetUrl: string; // URL Web App (mode makro)
+  spreadsheetId: string;  // ID spreadsheet (mode API/OAuth) — boleh kosong
+}
+
 // ===================== STORE STATE =====================
 
 interface FinanceState {
@@ -191,6 +204,8 @@ interface FinanceState {
   googleSheetUrl: string;
   googleAccessToken: string | null;
   spreadsheetId: string | null;
+  profiles: Profile[];
+  activeProfileId: string | null;
   isSyncing: boolean;
   lastSyncAt: string | null;
   syncError: string | null;
@@ -202,6 +217,13 @@ interface FinanceState {
   setGoogleSheetUrl: (url: string) => void;
   setGoogleCredentials: (token: string, sheetId: string) => void;
   setSpreadsheetId: (sheetId: string) => void;
+
+  // Actions — Multi-profil
+  addProfile: (p: Omit<Profile, 'id'>) => string;
+  updateProfile: (p: Profile) => void;
+  deleteProfile: (id: string) => void;
+  switchProfile: (id: string) => Promise<void>;
+  captureCurrentAsProfile: (name: string, emoji: string, color: string) => string;
 
   // Actions — Generic CRUD
   addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
@@ -473,6 +495,8 @@ export const useFinanceStore = create<FinanceState>()(
       googleSheetUrl: 'https://script.google.com/macros/s/AKfycbzhD4TrmhBhb1484U7thVyEJDvZAFYtAbiG0bRK_jcWCiLKwy1EtBFCOQKikaj9l6yL2Q/exec',
       googleAccessToken: null,
       spreadsheetId: null,
+      profiles: [],
+      activeProfileId: null,
       isSyncing: false,
       lastSyncAt: null,
       syncError: null,
@@ -553,6 +577,48 @@ export const useFinanceStore = create<FinanceState>()(
             }
           });
         } catch (e) { console.error(e); }
+      },
+
+      // ---- MULTI-PROFIL ----
+      addProfile: (p) => {
+        const id = generateId();
+        set((state) => ({ profiles: [...state.profiles, { ...p, id }] }));
+        return id;
+      },
+      updateProfile: (p) => {
+        set((state) => ({ profiles: state.profiles.map((x) => (x.id === p.id ? p : x)) }));
+        // Bila profil aktif yang diedit, terapkan koneksinya secara langsung.
+        if (get().activeProfileId === p.id) {
+          set({ googleSheetUrl: p.googleSheetUrl || '', spreadsheetId: p.spreadsheetId ? p.spreadsheetId : null });
+        }
+      },
+      deleteProfile: (id) => {
+        set((state) => ({
+          profiles: state.profiles.filter((x) => x.id !== id),
+          activeProfileId: state.activeProfileId === id ? null : state.activeProfileId,
+        }));
+      },
+      switchProfile: async (id) => {
+        const prof = get().profiles.find((p) => p.id === id);
+        if (!prof) return;
+        // Ganti koneksi aktif langsung (tanpa menyentuh catatan sheet user utama di authStore),
+        // lalu tarik ulang seluruh data dari Sheet profil tersebut.
+        set({
+          activeProfileId: id,
+          googleSheetUrl: prof.googleSheetUrl || '',
+          spreadsheetId: prof.spreadsheetId ? prof.spreadsheetId : null,
+        });
+        await get().syncFromGoogleSheets();
+      },
+      captureCurrentAsProfile: (name, emoji, color) => {
+        const id = generateId();
+        const prof: Profile = {
+          id, name, emoji, color,
+          googleSheetUrl: get().googleSheetUrl || '',
+          spreadsheetId: get().spreadsheetId || '',
+        };
+        set((state) => ({ profiles: [...state.profiles, prof], activeProfileId: id }));
+        return id;
       },
 
       // ---- TRANSACTIONS ----
@@ -1121,6 +1187,8 @@ export const useFinanceStore = create<FinanceState>()(
           googleSheetUrl: import.meta.env.VITE_DEFAULT_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzhD4TrmhBhb1484U7thVyEJDvZAFYtAbiG0bRK_jcWCiLKwy1EtBFCOQKikaj9l6yL2Q/exec',
           googleAccessToken: null,
           spreadsheetId: null,
+          profiles: [],
+          activeProfileId: null,
           isSyncing: false,
           lastSyncAt: null,
           monthlyBudgets: {},
