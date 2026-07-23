@@ -9,6 +9,20 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [2.6.1] — 2026-07-23 · Perbaikan tampilan modal profil
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.**
+
+### Diperbaiki
+- **Modal "Kelola profil" rusak/terpotong** — overlay hanya muncul sebagai strip di bagian
+  atas layar dan konten kartu tidak tampil penuh. Penyebab: header aplikasi memakai
+  `backdrop-blur`, yang membuat *containing block* baru sehingga elemen `position: fixed` di
+  dalamnya (modal profil) terkurung di area header (tinggi 64px), bukan seluruh viewport.
+  Solusi: modal kini dirender via **React portal ke `document.body`** sehingga menutupi layar
+  penuh dan kartunya tampil normal. (`ProfileSwitcher.tsx`)
+
+---
+
 ## [2.6.0] — 2026-07-23 · Multi-profil / Mode Keluarga (Wave E)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Daftar profil disimpan lokal di perangkat

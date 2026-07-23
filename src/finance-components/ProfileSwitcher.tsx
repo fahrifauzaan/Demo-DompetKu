@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFinanceStore, type Profile } from '../store/useFinanceStore';
 
@@ -128,7 +129,7 @@ const ProfileManagerModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
 
   const set = (patch: Partial<Omit<Profile, 'id'>>) => setForm((f) => ({ ...f, ...patch }));
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <div className="fixed inset-0 z-[130] flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
@@ -224,7 +225,8 @@ const ProfileManagerModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 
