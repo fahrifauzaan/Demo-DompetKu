@@ -194,6 +194,9 @@ interface FinanceState {
   isSyncing: boolean;
   lastSyncAt: string | null;
   syncError: string | null;
+  pendingWrites: number;      // jumlah penulisan ke Google Sheets yang sedang berjalan
+  saveError: string | null;   // pesan error penyimpanan terakhir
+  clearSaveError: () => void;
 
   // Actions — Google Sheets URL
   setGoogleSheetUrl: (url: string) => void;
@@ -321,6 +324,9 @@ function generateId(): string {
 }
 
 async function postToSheet(url: string, token: string | null, spreadsheetId: string | null, sheet: string, action: string, data: Record<string, unknown>) {
+  // Hanya lacak indikator loading bila ADA target tulis nyata (bukan mode demo tanpa sheet).
+  const hasTarget = !!((token && spreadsheetId) || url);
+  if (hasTarget) useFinanceStore.setState((s) => ({ pendingWrites: s.pendingWrites + 1, saveError: null }));
   try {
     if (token && spreadsheetId) {
       try {
@@ -346,6 +352,9 @@ async function postToSheet(url: string, token: string | null, spreadsheetId: str
     console.log(`[FinanceStore] ✅ ${action} → ${sheet} synced via Macro`);
   } catch (error) {
     console.error(`[FinanceStore] ❌ Gagal sync ${sheet}:`, error);
+    if (hasTarget) useFinanceStore.setState({ saveError: 'Gagal menyimpan ke Google Sheets — periksa koneksi Anda.' });
+  } finally {
+    if (hasTarget) useFinanceStore.setState((s) => ({ pendingWrites: Math.max(0, s.pendingWrites - 1) }));
   }
 }
 
@@ -467,6 +476,9 @@ export const useFinanceStore = create<FinanceState>()(
       isSyncing: false,
       lastSyncAt: null,
       syncError: null,
+      pendingWrites: 0,
+      saveError: null,
+      clearSaveError: () => set({ saveError: null }),
       monthlyBudgets: {},
       reportPrintMonth: new Date().getMonth(),
       reportPrintYear: new Date().getFullYear(),

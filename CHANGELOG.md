@@ -9,6 +9,21 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [2.3.0] — 2026-07-23 · Indikator Penyimpanan Global
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Sisi-aplikasi.
+
+### Ditambahkan
+- **Indikator loading penyimpanan global** — setiap aksi yang menulis ke Google Sheets
+  (tambah/ubah/hapus transaksi, aset, utang, tujuan, transaksi berulang, asuransi, jual aset,
+  pengaturan, dsb.) kini menampilkan pil status: **"Menyimpan ke Google Sheets…"** (dengan
+  spinner) selama proses, **"Tersimpan"** saat selesai, atau **"Gagal menyimpan…"** bila error.
+  Diinstrumentasi terpusat di `postToSheet` (satu titik) + counter `pendingWrites`/`saveError`
+  di store → berlaku OTOMATIS untuk seluruh fitur tanpa menyentuh tiap tombol. (`SaveIndicator.tsx`)
+- Senyap di mode demo tak tersambung (tak ada penulisan nyata), jadi tak ada indikator palsu.
+
+---
+
 ## [2.2.0] — 2026-07-23 · Jual Aset + Realized Gain (Wave B)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; penjualan tercatat sebagai
