@@ -1,4 +1,4 @@
-import type { Account, Asset } from '../store/useFinanceStore';
+import type { Account, Asset, Debt } from '../store/useFinanceStore';
 
 /**
  * F1.3 Ekspor Lampiran Harta SPT (Lampiran IV / Daftar Harta).
@@ -147,3 +147,45 @@ export function sptRowsToCSV(rows: SptRow[]): string {
 
 export const hartaCodeLabel = (code: string): string =>
   HARTA_CODES.find((c) => c.code === code)?.label || code;
+
+/* ===================== F6.3 — Daftar Utang/Kewajiban (Lampiran SPT) ===================== */
+
+export interface UtangRow {
+  id: string;
+  nama: string;             // nama utang
+  pemberiPinjaman: string;  // kreditur/lender
+  tahun: string;            // tahun peminjaman
+  jumlah: number;           // saldo terutang
+  keterangan: string;
+  excluded: boolean;
+}
+
+/** Bangun Daftar Utang dari tab Debts (hanya yang saldonya > 0). */
+export function buildUtangRows(debts: Debt[]): UtangRow[] {
+  return (debts || [])
+    .filter((d) => (d.balance || 0) > 0)
+    .map((d) => ({
+      id: d.id,
+      nama: d.name || '(tanpa nama)',
+      pemberiPinjaman: d.lender || d.name || '-',
+      tahun: yearOf(d.startDate),
+      jumlah: d.balance || 0,
+      keterangan: d.type || '',
+      excluded: false,
+    }));
+}
+
+export function utangRowsToCSV(rows: UtangRow[]): string {
+  const header = ['Nama Utang', 'Pemberi Pinjaman', 'Tahun Peminjaman', 'Jumlah', 'Keterangan'];
+  const lines = [header.map(csvEscape).join(',')];
+  rows.filter((r) => !r.excluded).forEach((r) => {
+    lines.push([
+      csvEscape(r.nama),
+      csvEscape(r.pemberiPinjaman),
+      csvEscape(r.tahun),
+      csvEscape(String(Math.round(r.jumlah || 0))),
+      csvEscape(r.keterangan),
+    ].join(','));
+  });
+  return lines.join('\r\n');
+}

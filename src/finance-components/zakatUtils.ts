@@ -178,6 +178,38 @@ export function readGoldPrice(settings: Setting[]): number {
   return v && v > 0 ? v : DEFAULT_GOLD_PRICE;
 }
 
+/* ===================== F6.2 — Zakat Penghasilan + Haul ===================== */
+
+export interface ZakatPenghasilanResult {
+  base: number;            // dasar zakat / bulan (bruto atau neto)
+  monthlyZakat: number;
+  annualZakat: number;
+  nisabAnnual: number;     // 85 g emas setahun
+  wajib: boolean;          // penghasilan tahunan ≥ nisab?
+}
+
+/**
+ * Zakat penghasilan/profesi 2,5%. Dua pendekatan: 'bruto' (dari penghasilan kotor) atau
+ * 'neto' (setelah kebutuhan pokok). Nisab = 85 g emas/tahun (setara nisab zakat maal).
+ */
+export function zakatPenghasilan(opts: { monthlyIncome: number; method: 'bruto' | 'neto'; basicNeeds?: number; goldPrice: number }): ZakatPenghasilanResult {
+  const monthlyIncome = Math.max(0, opts.monthlyIncome || 0);
+  const nisabAnnual = NISAB_GRAMS * (opts.goldPrice || DEFAULT_GOLD_PRICE);
+  const base = opts.method === 'neto' ? Math.max(0, monthlyIncome - (opts.basicNeeds || 0)) : monthlyIncome;
+  const wajib = monthlyIncome * 12 >= nisabAnnual;
+  const monthlyZakat = wajib ? base * ZAKAT_RATE : 0;
+  return { base, monthlyZakat, annualZakat: monthlyZakat * 12, nisabAnnual, wajib };
+}
+
+/** Tanggal jatuh haul zakat maal: +354 hari (± 1 tahun Hijriah) dari tanggal harta mencapai nisab. */
+export function haulDueDate(startDate: string): string {
+  if (!startDate) return '';
+  const d = new Date(startDate + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return '';
+  d.setUTCDate(d.getUTCDate() + 354);
+  return d.toISOString().slice(0, 10);
+}
+
 export function readInclude(settings: Setting[]): ZakatIncludeFlags {
   const flag = (key: ZakatClassKey, def: boolean): boolean => {
     const s = settings.find((x) => x.key === `zakat_include_${key}`);

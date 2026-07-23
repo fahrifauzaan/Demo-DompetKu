@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFinanceStore } from '../store/useFinanceStore';
-import { buildSptRows, sptRowsToCSV, HARTA_CODES, type SptRow } from './sptUtils';
+import { buildSptRows, sptRowsToCSV, HARTA_CODES, buildUtangRows, utangRowsToCSV, type SptRow, type UtangRow } from './sptUtils';
 
 interface FinanceSPTExportModalProps {
   isOpen: boolean;
@@ -13,19 +13,31 @@ const parseDigits = (s: string) => Number(s.replace(/\D/g, '')) || 0;
 export const FinanceSPTExportModal: React.FC<FinanceSPTExportModalProps> = ({ isOpen, onClose }) => {
   const accounts = useFinanceStore((s) => s.accounts);
   const assets = useFinanceStore((s) => s.assets);
+  const debts = useFinanceStore((s) => s.debts);
   const setPrintType = useFinanceStore((s) => s.setPrintType);
   const setSptPrintRows = useFinanceStore((s) => s.setSptPrintRows);
 
   const [rows, setRows] = useState<SptRow[]>([]);
+  const [utangRows, setUtangRows] = useState<UtangRow[]>([]);
   const [copied, setCopied] = useState(false);
+  const [utangCopied, setUtangCopied] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setRows(buildSptRows(accounts, assets));
+      setUtangRows(buildUtangRows(debts));
       setCopied(false);
+      setUtangCopied(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  const handleCopyUtangCSV = async () => {
+    const csv = utangRowsToCSV(utangRows);
+    try { await navigator.clipboard.writeText(csv); setUtangCopied(true); setTimeout(() => setUtangCopied(false), 2000); }
+    catch { window.prompt('Salin CSV Daftar Utang:', csv); }
+  };
+  const totalUtang = utangRows.reduce((s, r) => s + (r.jumlah || 0), 0);
 
   const update = (id: string, patch: Partial<SptRow>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -168,6 +180,39 @@ export const FinanceSPTExportModal: React.FC<FinanceSPTExportModalProps> = ({ is
                 </table>
               </div>
             </div>
+
+            {/* F6.3 Daftar Utang/Kewajiban */}
+            {utangRows.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-on-surface dark:text-white flex items-center gap-2"><span className="material-symbols-outlined text-[18px] text-primary dark:text-[#a7c8ff]">credit_card</span>Daftar Utang / Kewajiban</h3>
+                  <button onClick={handleCopyUtangCSV} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${utangCopied ? 'bg-emerald-500 text-white' : 'bg-surface-container dark:bg-white/10 text-on-surface dark:text-white border border-outline-variant/20 dark:border-white/10'}`}>
+                    <span className="material-symbols-outlined text-[15px]">{utangCopied ? 'check' : 'content_copy'}</span>{utangCopied ? 'Tersalin' : 'Salin CSV'}
+                  </button>
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-outline-variant/10 dark:border-white/5">
+                  <table className="w-full text-xs min-w-[520px]">
+                    <thead><tr className="bg-surface-container-low dark:bg-white/5 text-left text-on-surface-variant dark:text-slate-400">
+                      <th className="px-2.5 py-2 font-black">Nama Utang</th><th className="px-2.5 py-2 font-black">Pemberi Pinjaman</th><th className="px-2.5 py-2 font-black">Tahun</th><th className="px-2.5 py-2 font-black text-right">Jumlah</th>
+                    </tr></thead>
+                    <tbody>
+                      {utangRows.map((u) => (
+                        <tr key={u.id} className="border-t border-outline-variant/10 dark:border-white/5">
+                          <td className="px-2.5 py-2 text-on-surface dark:text-white font-semibold">{u.nama}</td>
+                          <td className="px-2.5 py-2 text-on-surface-variant dark:text-slate-300">{u.pemberiPinjaman}</td>
+                          <td className="px-2.5 py-2 text-on-surface-variant dark:text-slate-300 tabular-nums">{u.tahun}</td>
+                          <td className="px-2.5 py-2 text-right tabular-nums text-on-surface dark:text-white">Rp {Math.round(u.jumlah).toLocaleString('id-ID')}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t border-outline-variant/20 dark:border-white/10 bg-surface-container-low/60 dark:bg-white/[0.03] font-black">
+                        <td className="px-2.5 py-2 text-on-surface dark:text-white" colSpan={3}>Total Kewajiban</td>
+                        <td className="px-2.5 py-2 text-right tabular-nums text-on-surface dark:text-white">Rp {Math.round(totalUtang).toLocaleString('id-ID')}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Aksi */}
             <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">

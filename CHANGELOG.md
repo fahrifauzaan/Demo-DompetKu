@@ -9,6 +9,26 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.3.0] — 2026-07-23 · Pajak & Zakat Indonesia (Roadmap Jilid 2 · Gelombang 3)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; tarif/PTKP = konstanta ber-tahun.
+Semua **estimasi/edukasi**, bukan pengganti konsultan pajak / amil resmi.
+
+### Ditambahkan
+- **Estimator PPh 21** (Laporan) — hitung estimasi pajak penghasilan pribadi tahunan: input bruto,
+  status **PTKP** (TK/K + tanggungan), iuran pensiun/JHT & zakat sebagai pengurang → **Penghasilan
+  Neto → PKP → PPh terutang** (lapisan progresif UU HPP), **rincian lapisan**, tarif efektif, dan
+  **rekonsiliasi** vs potongan bulanan (kurang/lebih bayar). Tab **Perencanaan Pajak**: dampak
+  pengurang legal per Rp1jt + checklist akhir tahun. (`pph21Utils.ts`, `Pph21CalculatorModal.tsx`)
+- **Zakat Penghasilan + Pelacak Haul** (Laporan) — zakat profesi **2,5%** (metode bruto/neto),
+  cek **nisab** (85 g emas/th), status wajib, + **pelacak haul** zakat maal (± 354 hari).
+  (`zakatUtils.ts` `zakatPenghasilan`/`haulDueDate`, `ZakatPenghasilanModal.tsx`)
+- **SPT — Daftar Utang/Kewajiban** (Ekspor Harta SPT) — selain Daftar Harta, kini menampilkan
+  **daftar utang** (nama, pemberi pinjaman, tahun, jumlah) dari tab Utang + **Salin CSV** tersendiri.
+  (`sptUtils.ts` `buildUtangRows`/`utangRowsToCSV`)
+
+---
+
 ## [3.1.0] — 2026-07-23 · Cakrawala & Proaktif (Roadmap Jilid 2 · Gelombang 2)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; ambang di `Settings`.
