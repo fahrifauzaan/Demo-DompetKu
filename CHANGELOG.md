@@ -9,6 +9,19 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.8.0] — 2026-07-23 · Riwayat Pembaruan In-App
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Ditambahkan
+- **Riwayat Pembaruan (changelog) in-app** — kartu "Yang Baru di DompetKu vX.Y.Z" di halaman
+  Notifikasi membuka daftar **semua versi** (terbaru di atas) dalam bentuk timeline: judul rilis,
+  tanggal, perubahan terperinci (Baru/Diubah/Diperbaiki), dan penanda **"perlu update Apps Script"**
+  untuk rilis migrasi. (`changelogData.ts`, `ChangelogModal.tsx`)
+- Banner "Fitur Baru" lama (v2.0) dinonaktifkan — digantikan sumber tunggal changelog ini.
+
+---
+
 ## [3.7.0] — 2026-07-23 · Warisan & Rangkuman (Fase 7 · Gelombang 7)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

@@ -4,6 +4,8 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { startOfToday, nextOccurrence, parseDateSafe, daysBetween, formatDayBadge, groupForDate, type CalendarGroup } from './calendarUtils';
 import { generateOccurrences } from './recurringUtils';
 import { buildSmartAlerts, type AlertSeverity } from './smartAlertsUtils';
+import ChangelogModal from './ChangelogModal';
+import { CHANGELOG, CURRENT_VERSION } from './changelogData';
 
 // ── Pengumuman sistem: pembaruan template (Juli 2026) ─────────────────────────
 // Kartu dismissible di panel Notifikasi. Auto-hide setelah ANNOUNCE_UNTIL.
@@ -39,6 +41,8 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
     () => buildSmartAlerts({ transactions, accounts, recurring, budgetCategories, monthlyBudgets, settings }),
     [transactions, accounts, recurring, budgetCategories, monthlyBudgets, settings],
   );
+  const [changelogOpen, setChangelogOpen] = React.useState(false);
+  const latestRelease = CHANGELOG[0];
   const ALERT_STYLE: Record<AlertSeverity, { wrap: string; ic: string }> = {
     kritis: { wrap: 'border-error/30 bg-error/5 dark:bg-[#ffb4ab]/10', ic: 'text-error dark:text-[#ffb4ab]' },
     peringatan: { wrap: 'border-amber-500/25 bg-amber-500/5', ic: 'text-amber-600 dark:text-amber-400' },
@@ -50,7 +54,8 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
   const [announceDismissed, setAnnounceDismissed] = React.useState<boolean>(() => {
     try { return localStorage.getItem(ANNOUNCE_KEY) === 'true'; } catch { return false; }
   });
-  const showAnnouncement = !announceDismissed && Date.now() < ANNOUNCE_UNTIL;
+  // Banner v2.0 lama digantikan kartu "Yang Baru di DompetKu" + Riwayat Pembaruan (changelog penuh).
+  const showAnnouncement = false && !announceDismissed && Date.now() < ANNOUNCE_UNTIL;
   const dismissAnnouncement = () => {
     try { localStorage.setItem(ANNOUNCE_KEY, 'true'); } catch { /* ignore */ }
     setAnnounceDismissed(true);
@@ -60,7 +65,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
   const [whatsNewDismissed, setWhatsNewDismissed] = React.useState<boolean>(() => {
     try { return localStorage.getItem(WHATSNEW_KEY) === 'true'; } catch { return false; }
   });
-  const showWhatsNew = !whatsNewDismissed && Date.now() < WHATSNEW_UNTIL;
+  const showWhatsNew = false && !whatsNewDismissed && Date.now() < WHATSNEW_UNTIL;
   const dismissWhatsNew = () => {
     try { localStorage.setItem(WHATSNEW_KEY, 'true'); } catch { /* ignore */ }
     setWhatsNewDismissed(true);
@@ -391,6 +396,20 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
           />
         </div>
       </header>
+
+      {/* Riwayat Pembaruan — pemicu changelog detail */}
+      <button onClick={() => setChangelogOpen(true)}
+        className="w-full flex items-center gap-3 sm:gap-4 p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary/10 to-transparent dark:from-[#a7c8ff]/10 border border-primary/20 dark:border-[#a7c8ff]/20 hover:-translate-y-0.5 transition-transform text-left cursor-pointer">
+        <div className="w-11 h-11 rounded-2xl bg-primary/15 dark:bg-[#a7c8ff]/20 flex items-center justify-center text-primary dark:text-[#a7c8ff] shrink-0"><span className="material-symbols-outlined">auto_awesome</span></div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-black font-headline text-on-surface dark:text-white">Yang Baru di DompetKu</h2>
+            <span className="text-[10px] font-black text-white dark:text-[#001b3c] bg-primary dark:bg-[#a7c8ff] px-1.5 py-0.5 rounded-full tabular-nums">v{CURRENT_VERSION}</span>
+          </div>
+          <p className="text-[12px] text-on-surface-variant dark:text-slate-400 mt-0.5 truncate">{latestRelease.title} — ketuk untuk lihat semua pembaruan tiap versi</p>
+        </div>
+        <span className="material-symbols-outlined text-on-surface-variant dark:text-slate-400 shrink-0">chevron_right</span>
+      </button>
 
       {/* F4.5 Peringatan Cerdas */}
       {smartAlerts.length > 0 && (
@@ -764,6 +783,8 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
         )}
 
       </div>
+
+      <ChangelogModal isOpen={changelogOpen} onClose={() => setChangelogOpen(false)} />
     </div>
   );
 };
