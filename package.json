@@ -1,7 +1,7 @@
 {
   "name": "nam-wealth",
   "private": true,
-  "version": "2.6.1",
+  "version": "2.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3002 --host=0.0.0.0",

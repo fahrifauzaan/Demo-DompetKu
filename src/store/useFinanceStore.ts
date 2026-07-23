@@ -253,6 +253,7 @@ interface FinanceState {
   updateSettings: (settings: Setting[]) => Promise<void>;
   monthlyBudgets: Record<string, Record<string, number>>;
   updateMonthlyBudget: (yearMonth: string, categoryName: string, amount: number) => Promise<void>;
+  migrateMonthlyBudgetsToTab: (blob: Record<string, Record<string, number>>) => Promise<void>;
 
   // Print Settings
   reportPrintMonth: number;
@@ -797,34 +798,58 @@ export const useFinanceStore = create<FinanceState>()(
       setLedgerPrintTransactions: (txs) => set({ ledgerPrintTransactions: txs }),
       setSptPrintRows: (rows) => set({ sptPrintRows: rows }),
 
+      // Anggaran bulanan kini disimpan sebagai BARIS di tab MonthlyBudgets (format tidy),
+      // bukan lagi blob JSON di Settings. id = "<month>__<category>". Nilai 0/kosong → hapus
+      // baris (prune), sehingga tab tak menumpuk sampah.
       updateMonthlyBudget: async (yearMonth, categoryName, amount) => {
-        const currentBudgets = { ...get().monthlyBudgets };
-        if (!currentBudgets[yearMonth]) {
-          currentBudgets[yearMonth] = {};
-        }
-        currentBudgets[yearMonth][categoryName] = amount;
-        
-        set({ monthlyBudgets: currentBudgets });
-        
-        // Save to Settings
-        const stringified = JSON.stringify(currentBudgets);
-        
-        const currentSettings = get().settings;
-        const index = currentSettings.findIndex(s => s.key === 'monthlyBudgets');
-        
-        let newSettings = [...currentSettings];
-        let action: 'add' | 'update' = 'add';
-        
-        if (index !== -1) {
-          newSettings[index] = { key: 'monthlyBudgets', value: stringified };
-          action = 'update';
+        const rounded = Math.round(Number(amount) || 0);
+        const current = { ...get().monthlyBudgets };
+        const id = `${yearMonth}__${categoryName}`;
+        const existed = !!(current[yearMonth] && current[yearMonth][categoryName] !== undefined);
+
+        if (rounded > 0) {
+          current[yearMonth] = { ...(current[yearMonth] || {}), [categoryName]: rounded };
+          set({ monthlyBudgets: current });
+          await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'MonthlyBudgets', existed ? 'update' : 'add', { id, month: yearMonth, category: categoryName, amount: rounded });
         } else {
-          newSettings.push({ key: 'monthlyBudgets', value: stringified });
-          action = 'add';
+          // Prune: hapus override (jangan simpan nol).
+          if (current[yearMonth]) {
+            const clone = { ...current[yearMonth] };
+            delete clone[categoryName];
+            if (Object.keys(clone).length === 0) delete current[yearMonth];
+            else current[yearMonth] = clone;
+          }
+          set({ monthlyBudgets: current });
+          if (existed) {
+            await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'MonthlyBudgets', 'delete', { id });
+          }
         }
-        
-        set({ settings: newSettings });
-        await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Settings', action, { key: 'monthlyBudgets', value: stringified });
+      },
+
+      // Migrasi satu kali: pindahkan blob lama Settings.monthlyBudgets → baris tab MonthlyBudgets,
+      // hanya entri > 0 (buang sampah nol), lalu kosongkan blob Settings agar tak ganda.
+      migrateMonthlyBudgetsToTab: async (blob) => {
+        const url = get().googleSheetUrl, token = get().googleAccessToken, sid = get().spreadsheetId;
+        const clean: Record<string, Record<string, number>> = {};
+        const writes: Promise<unknown>[] = [];
+        for (const month of Object.keys(blob || {})) {
+          for (const category of Object.keys(blob[month] || {})) {
+            const amount = Math.round(Number(blob[month][category]) || 0);
+            if (amount <= 0) continue;
+            if (!clean[month]) clean[month] = {};
+            clean[month][category] = amount;
+            writes.push(postToSheet(url, token, sid, 'MonthlyBudgets', 'add', { id: `${month}__${category}`, month, category, amount }));
+          }
+        }
+        set({ monthlyBudgets: clean });
+        await Promise.all(writes);
+        // Bersihkan blob lama di Settings.
+        const idx = get().settings.findIndex(s => s.key === 'monthlyBudgets');
+        if (idx !== -1) {
+          set({ settings: get().settings.map(s => (s.key === 'monthlyBudgets' ? { ...s, value: '{}' } : s)) });
+          await postToSheet(url, token, sid, 'Settings', 'update', { key: 'monthlyBudgets', value: '{}' });
+        }
+        console.log(`[FinanceStore] Migrasi monthlyBudgets → tab MonthlyBudgets selesai (${writes.length} entri).`);
       },
 
       // ---- FULL SYNC (Pull dari Google Sheets) ----
@@ -1141,16 +1166,30 @@ export const useFinanceStore = create<FinanceState>()(
                 }
               }
 
-              const monthlyBudgetsSetting = settingsList.find(s => s.key === 'monthlyBudgets');
-              if (monthlyBudgetsSetting && monthlyBudgetsSetting.value) {
-                try {
-                  updates.monthlyBudgets = JSON.parse(monthlyBudgetsSetting.value);
-                } catch (e) {
-                  console.error('[App] Error parsing monthlyBudgets:', e);
-                  updates.monthlyBudgets = {};
-                }
-              } else {
-                updates.monthlyBudgets = {};
+            }
+
+            // ── Anggaran bulanan: sumber utama tab MonthlyBudgets (tidy); fallback blob Settings lama ──
+            {
+              const settingsArr = (result.data.Settings as Setting[] | undefined) || [];
+              const blobRaw = settingsArr.find((s) => s.key === 'monthlyBudgets')?.value;
+              let blobBudgets: Record<string, Record<string, number>> = {};
+              if (blobRaw) { try { blobBudgets = JSON.parse(blobRaw) || {}; } catch { blobBudgets = {}; } }
+
+              const mbRows = (result.data.MonthlyBudgets as Record<string, unknown>[] | undefined) || [];
+              const tabBudgets: Record<string, Record<string, number>> = {};
+              for (const row of mbRows) {
+                const mo = String(row.month || ''); const cat = String(row.category || '');
+                if (!mo || !cat) continue;
+                if (!tabBudgets[mo]) tabBudgets[mo] = {};
+                tabBudgets[mo][cat] = parseNumber(row.amount);
+              }
+              const tabHasData = Object.keys(tabBudgets).length > 0;
+              updates.monthlyBudgets = tabHasData ? tabBudgets : blobBudgets;
+
+              // Migrasi satu kali (tab kosong tetapi blob lama berisi) — non-blocking.
+              if (!tabHasData && Object.keys(blobBudgets).length > 0) {
+                const snapshot = blobBudgets;
+                setTimeout(() => { get().migrateMonthlyBudgetsToTab(snapshot).catch((e) => console.error('[App] Migrasi monthlyBudgets gagal:', e)); }, 0);
               }
             }
 

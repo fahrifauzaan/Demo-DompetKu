@@ -9,6 +9,34 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [2.7.0] — 2026-07-23 · Anggaran Bulanan jadi tab tidy (MonthlyBudgets)
+
+**Dampak Google Sheet/Apps Script: YA — pengguna lama perlu memperbarui Apps Script sekali.**
+Menambah 1 tab: `MonthlyBudgets`. Berkat `ensureSheetExists()`, tab **dibuat otomatis** saat
+pertama diakses — tak perlu mengedit spreadsheet manual. Salin Apps Script terbaru dari Panduan
+→ Deploy → New version. **Data lama aman:** selama tab belum terisi, aplikasi tetap membaca
+anggaran dari blob `monthlyBudgets` di Settings (fallback), lalu **migrasi otomatis sekali** ke
+tab begitu Apps Script baru aktif.
+
+### Diubah (rapikan data model)
+- **Anggaran bulanan per-kategori** tidak lagi disimpan sebagai **blob JSON di satu sel**
+  `Settings.monthlyBudgets`, melainkan sebagai **baris tidy** di tab baru **`MonthlyBudgets`**
+  (`id`, `month`, `category`, `amount`; `id = "<month>__<category>"`). Kini bisa dibaca, di-audit,
+  dan dijumlah dengan formula (`SUMIFS`) langsung di Sheet.
+- **Anti-sampah:** menyetel anggaran ke **0 kini menghapus barisnya** (dulu blob menumpuk entri
+  `{"Kategori":0}` tanpa henti). Migrasi otomatis juga **membuang entri 0** yang lama.
+- **Migrasi otomatis sekali jalan** dari blob Settings → tab `MonthlyBudgets`, lalu blob lama
+  dikosongkan (`{}`). Non-blocking, tidak mengganggu sinkronisasi.
+- Apps Script `setupBudgetingSheet()` kini membaca anggaran bulanan dari tab `MonthlyBudgets`
+  (fallback blob lama) via helper `getMonthlyBudgetsMap()`.
+
+### Template & kebersihan
+- Template v3 kini punya tab **`MonthlyBudgets`** (+contoh baris) dan README diperbarui; blob
+  `monthlyBudgets` di Settings di-reset ke `{}` dan **`last_password` dikosongkan** (jangan bawa
+  kata sandi di template).
+
+---
+
 ## [2.6.1] — 2026-07-23 · Perbaikan tampilan modal profil
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.**

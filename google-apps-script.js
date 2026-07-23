@@ -16,11 +16,11 @@
  */
 
 // ===================== KONFIGURASI =====================
-const VALID_SHEETS = ['Transactions', 'Accounts', 'Fixed Income Investment', 'BudgetCategories', 'Debts', 'Settings', 'AssetsNonLiquid', 'Saham', 'Crypto', 'Reksadana', 'Goals', 'Recurring', 'Insurance'];
+const VALID_SHEETS = ['Transactions', 'Accounts', 'Fixed Income Investment', 'BudgetCategories', 'Debts', 'Settings', 'AssetsNonLiquid', 'Saham', 'Crypto', 'Reksadana', 'Goals', 'Recurring', 'Insurance', 'MonthlyBudgets'];
 
-// Tab baru (Fase 2) yang dibuat OTOMATIS saat pertama diakses — user lama TIDAK perlu
+// Tab baru yang dibuat OTOMATIS saat pertama diakses — user lama TIDAK perlu
 // menyentuh spreadsheet. Jangan masukkan tab lama ke sini (perilaku tab lama tak berubah).
-const AUTO_CREATE_SHEETS = ['Goals', 'Recurring', 'Insurance'];
+const AUTO_CREATE_SHEETS = ['Goals', 'Recurring', 'Insurance', 'MonthlyBudgets'];
 
 // Header kolom untuk setiap tab (urutan HARUS sama dengan di Spreadsheet)
 const HEADERS = {
@@ -37,7 +37,10 @@ const HEADERS = {
   // ── Fase 2 (v2.0) — tab baru, dibuat otomatis oleh ensureSheetExists() ──
   Goals: ['id', 'name', 'icon', 'color', 'goalType', 'targetAmount', 'targetDate', 'startDate', 'initialAmount', 'expectedReturn', 'monthlyContribution', 'priority', 'status', 'notes'],
   Recurring: ['id', 'name', 'type', 'amount', 'category', 'account', 'frequency', 'dayOfMonth', 'startDate', 'endDate', 'lastPostedDate', 'autoPost', 'notes'],
-  Insurance: ['id', 'name', 'insType', 'provider', 'policyNumber', 'premium', 'premiumFrequency', 'coverageAmount', 'startDate', 'renewalDate', 'insured', 'beneficiary', 'status', 'notes']
+  Insurance: ['id', 'name', 'insType', 'provider', 'policyNumber', 'premium', 'premiumFrequency', 'coverageAmount', 'startDate', 'renewalDate', 'insured', 'beneficiary', 'status', 'notes'],
+  // Anggaran bulanan per-kategori (format tidy, menggantikan blob JSON 'monthlyBudgets' di Settings).
+  // id = "<month>__<category>" (mis. "2026-03__Bond"), month = "YYYY-MM".
+  MonthlyBudgets: ['id', 'month', 'category', 'amount']
 };
 
 // ===================== HELPER =====================
@@ -60,6 +63,34 @@ function ensureSheetExists(sheetName) {
     }
   }
   return sheet;
+}
+
+/**
+ * Anggaran bulanan sebagai peta {month: {category: amount}} dari tab MonthlyBudgets (format tidy).
+ * Fallback: bila tab masih kosong tetapi Settings menyimpan blob lama 'monthlyBudgets', pakai itu
+ * (kompatibilitas mundur untuk user yang belum termigrasi). Dipakai setupBudgetingSheet().
+ */
+function getMonthlyBudgetsMap() {
+  var map = {};
+  var rows = readSheet('MonthlyBudgets'); // auto-create bila belum ada
+  for (var i = 0; i < rows.length; i++) {
+    var mo = rows[i].month, cat = rows[i].category;
+    if (!mo || !cat) continue;
+    if (!map[mo]) map[mo] = {};
+    map[mo][cat] = Number(rows[i].amount) || 0;
+  }
+  var empty = true;
+  for (var k in map) { if (map.hasOwnProperty(k)) { empty = false; break; } }
+  if (empty) {
+    var settingsData = readSheet('Settings');
+    for (var s = 0; s < settingsData.length; s++) {
+      if (settingsData[s].key === 'monthlyBudgets') {
+        try { map = JSON.parse(settingsData[s].value) || {}; } catch (e) {}
+        break;
+      }
+    }
+  }
+  return map;
 }
 
 /** Membaca semua data dari sebuah tab dan mengembalikannya sebagai array of objects */
@@ -492,17 +523,9 @@ function setupBudgetingSheet() {
   
   // 2. Baca data pendukung dari tab lain
   var catData = readSheet('BudgetCategories');
-  var settingsData = readSheet('Settings');
-  
-  // Cari custom monthly budgets di settings jika ada
-  var monthlyBudgets = {};
-  for (var i = 0; i < settingsData.length; i++) {
-    if (settingsData[i].key === 'monthlyBudgets') {
-      try {
-        monthlyBudgets = JSON.parse(settingsData[i].value);
-      } catch (e) {}
-    }
-  }
+
+  // Anggaran bulanan per-kategori — dari tab MonthlyBudgets (fallback ke blob Settings lama).
+  var monthlyBudgets = getMonthlyBudgetsMap();
   
   // 3. Setup Header & Kolom Bulan (E s/d P)
   // Merge B2:D3 untuk judul Annual Budget
