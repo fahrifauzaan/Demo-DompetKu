@@ -10,6 +10,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import FinancePinModal from './FinancePinModal';
 import RecurringManagerModal from './RecurringManagerModal';
 import CsvImportModal from './CsvImportModal';
+import SubscriptionScannerModal from './SubscriptionScannerModal';
 import { dueRecurrings } from './recurringUtils';
 
 const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, onNavigate, onEditTransaction }) => {
@@ -27,6 +28,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isRecurringOpen, setIsRecurringOpen] = useState(false);
   const [isCsvOpen, setIsCsvOpen] = useState(false);
+  const [isSubScanOpen, setIsSubScanOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const recurring = useFinanceStore((s) => s.recurring);
   const recurringDueCount = useMemo(() => dueRecurrings(recurring).length, [recurring]);
@@ -321,6 +323,14 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
           >
             <span className="material-symbols-outlined text-[1.2rem]">upload_file</span>
             <span className="hidden sm:inline">Impor</span>
+          </button>
+          <button
+            onClick={() => setIsSubScanOpen(true)}
+            title="Pindai langganan berulang"
+            className="px-3 sm:px-4 lg:px-5 py-2.5 bg-surface-container-highest dark:bg-white/10 text-on-surface-variant dark:text-white font-semibold rounded-lg flex items-center gap-2 hover:bg-surface-variant dark:hover:bg-white/20 transition-colors text-xs sm:text-sm"
+          >
+            <span className="material-symbols-outlined text-[1.2rem]">frame_inspect</span>
+            <span className="hidden sm:inline">Langganan</span>
           </button>
           <button onClick={() => onNavigate && onNavigate('add-transaction')} className="bg-gradient-to-r from-primary to-primary-container dark:from-[#a7c8ff] dark:to-[#82b1ff] text-white dark:text-[#001b3c] px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold shadow-lg shadow-primary-container/20 dark:shadow-[#a7c8ff]/20 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center gap-2 text-xs sm:text-sm">
             <span className="material-symbols-outlined text-lg sm:text-xl">add</span>
@@ -688,6 +698,7 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
       />
       <RecurringManagerModal isOpen={isRecurringOpen} onClose={() => setIsRecurringOpen(false)} />
       <CsvImportModal isOpen={isCsvOpen} onClose={() => setIsCsvOpen(false)} />
+      <SubscriptionScannerModal isOpen={isSubScanOpen} onClose={() => setIsSubScanOpen(false)} />
     </div>
   );
 };

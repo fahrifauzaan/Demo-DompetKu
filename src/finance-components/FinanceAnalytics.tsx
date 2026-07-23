@@ -17,6 +17,8 @@ import HealthScoreCard from './HealthScoreCard';
 import CashFlowStatementCard from './CashFlowStatementCard';
 import SpendingInsightsCard from './SpendingInsightsCard';
 import FinancialIndependenceCard from './FinancialIndependenceCard';
+import NetWorthProjectionCard from './NetWorthProjectionCard';
+import ScenarioPlannerModal from './ScenarioPlannerModal';
 
 
 interface FinanceAnalyticsProps {
@@ -26,6 +28,7 @@ interface FinanceAnalyticsProps {
 
 const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNavigate }) => {
   const [activeSubTab, setActiveSubTab] = useState<'summary' | 'diversification' | 'sector'>('summary');
+  const [isScenarioOpen, setIsScenarioOpen] = useState(false);
   const [hoveredCashFlowIndex, setHoveredCashFlowIndex] = useState<number | null>(null);
   const [isFIREModalOpen, setIsFIREModalOpen] = useState(false);
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
@@ -677,6 +680,20 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
 
               {/* F5.2 Pelacak Kemandirian Finansial (FIRE) */}
               <FinancialIndependenceCard />
+
+              {/* F5.1 Proyeksi Kekayaan Bersih */}
+              <NetWorthProjectionCard />
+
+              {/* F5.4 Perencana Skenario What-If (pemicu modal) */}
+              <button onClick={() => setIsScenarioOpen(true)}
+                className="w-full flex items-center gap-4 p-4 sm:p-5 rounded-2xl sm:rounded-[28px] liquid-glass border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:-translate-y-0.5 transition-transform text-left cursor-pointer">
+                <div className="w-11 h-11 rounded-2xl bg-primary/10 dark:bg-[#a7c8ff]/15 flex items-center justify-center text-primary dark:text-[#a7c8ff] shrink-0"><span className="material-symbols-outlined">alt_route</span></div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-black font-headline text-on-surface dark:text-white">Perencana Skenario "What-If"</h3>
+                  <p className="text-[12px] text-on-surface-variant dark:text-slate-400 mt-0.5">Uji dampak resign, beli rumah, biaya naik, atau tambahan penghasilan ke runway & net worth</p>
+                </div>
+                <span className="material-symbols-outlined text-on-surface-variant dark:text-slate-400">chevron_right</span>
+              </button>
 
               {/* --- NEW: CFO ADVISORY INSIGHT BENTO BOX --- */}
               <div className="bg-gradient-to-br from-primary-container/40 to-surface-container-lowest dark:from-[#a7c8ff]/10 dark:to-transparent border border-primary/20 dark:border-[#a7c8ff]/20 p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-[28px] lg:rounded-[32px] shadow-sm relative overflow-hidden">
@@ -1375,6 +1392,8 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
         initialAssets={totalAssets}
         initialLiabilities={totalDebts}
       />
+
+      <ScenarioPlannerModal isOpen={isScenarioOpen} onClose={() => setIsScenarioOpen(false)} />
     </div>
   );
 };

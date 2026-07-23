@@ -9,6 +9,26 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.1.0] — 2026-07-23 · Cakrawala & Proaktif (Roadmap Jilid 2 · Gelombang 2)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; ambang di `Settings`.
+
+### Ditambahkan
+- **Proyeksi Kekayaan Bersih** (Laporan › Ringkasan) — proyeksi net worth 10/20/30 tahun dengan
+  **rentang** (Konservatif/Basis/Optimis) + **simulasi Monte Carlo** (persentil 10/median/90) dan
+  penanda **tahun mencapai angka kemandirian (FI)**. (`netWorthProjectionUtils.ts`, `NetWorthProjectionCard.tsx`)
+- **Perencana Skenario "What-If"** (Laporan) — uji dampak **kehilangan pekerjaan** (runway), **beli
+  rumah/kendaraan** (DP + cicilan + DTI), **biaya naik**, atau **tambahan penghasilan** ke surplus,
+  runway, dan net worth — sebelum vs sesudah. (`scenarioUtils.ts`, `ScenarioPlannerModal.tsx`)
+- **Pemindai Langganan** (Transaksi › "Langganan") — deteksi otomatis pembayaran berulang dari
+  riwayat (bulanan/tahunan), estimasi **kebocoran/bulan**, dan satu-klik **"Jadikan Berulang"**.
+  (`subscriptionDetectUtils.ts`, `SubscriptionScannerModal.tsx`)
+- **Peringatan Cerdas** (Notifikasi) — nudge prediktif: **runway rendah**, **saldo diproyeksikan
+  minus**, **anggaran akan jebol**, **tagihan jatuh tempo**, **langganan baru terdeteksi**. Tiap
+  jenis bisa dimatikan di Pengaturan. (`smartAlertsUtils.ts`)
+
+---
+
 ## [3.0.0] — 2026-07-23 · Kecerdasan Arus Kas (Roadmap Jilid 2 · Gelombang 1)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Semua client-side; ambang di tab `Settings`

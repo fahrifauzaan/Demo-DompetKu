@@ -3,6 +3,7 @@ import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { startOfToday, nextOccurrence, parseDateSafe, daysBetween, formatDayBadge, groupForDate, type CalendarGroup } from './calendarUtils';
 import { generateOccurrences } from './recurringUtils';
+import { buildSmartAlerts, type AlertSeverity } from './smartAlertsUtils';
 
 // ── Pengumuman sistem: pembaruan template (Juli 2026) ─────────────────────────
 // Kartu dismissible di panel Notifikasi. Auto-hide setelah ANNOUNCE_UNTIL.
@@ -31,7 +32,18 @@ interface FinanceNotificationsProps {
 }
 
 const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, onNavigate, onClose }) => {
-  const { accounts, assets, settings, promos, readPromos, markPromoRead, budgetCategories, transactions, debts, insurance, recurring } = useFinanceStore();
+  const { accounts, assets, settings, promos, readPromos, markPromoRead, budgetCategories, transactions, debts, insurance, recurring, monthlyBudgets } = useFinanceStore();
+
+  // F4.5 — Peringatan Cerdas (prediktif)
+  const smartAlerts = React.useMemo(
+    () => buildSmartAlerts({ transactions, accounts, recurring, budgetCategories, monthlyBudgets, settings }),
+    [transactions, accounts, recurring, budgetCategories, monthlyBudgets, settings],
+  );
+  const ALERT_STYLE: Record<AlertSeverity, { wrap: string; ic: string }> = {
+    kritis: { wrap: 'border-error/30 bg-error/5 dark:bg-[#ffb4ab]/10', ic: 'text-error dark:text-[#ffb4ab]' },
+    peringatan: { wrap: 'border-amber-500/25 bg-amber-500/5', ic: 'text-amber-600 dark:text-amber-400' },
+    info: { wrap: 'border-primary/20 dark:border-[#a7c8ff]/20 bg-primary/5 dark:bg-[#a7c8ff]/10', ic: 'text-primary dark:text-[#a7c8ff]' },
+  };
   const [searchQuery, setSearchQuery] = React.useState('');
 
   // System announcement (template update) — dismissible + auto-expiring
@@ -379,6 +391,32 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
           />
         </div>
       </header>
+
+      {/* F4.5 Peringatan Cerdas */}
+      {smartAlerts.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]">notifications_active</span>
+            <h2 className="text-lg font-black font-headline text-on-surface dark:text-white">Peringatan Cerdas</h2>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/10 dark:bg-[#a7c8ff]/15 text-primary dark:text-[#a7c8ff]">{smartAlerts.length}</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {smartAlerts.map((a) => {
+              const st = ALERT_STYLE[a.severity];
+              return (
+                <div key={a.id} className={`flex gap-3 p-3.5 rounded-2xl border ${st.wrap}`}>
+                  <span className={`material-symbols-outlined shrink-0 ${st.ic}`}>{a.icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-on-surface dark:text-white leading-snug">{a.title}</p>
+                    <p className="text-[12px] text-on-surface-variant dark:text-slate-400 mt-0.5 leading-relaxed">{a.detail}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-on-surface-variant/60 dark:text-slate-500">Nudge prediktif dari pola Anda — tiap jenis bisa dimatikan di Pengaturan. Bukan nasihat keuangan personal.</p>
+        </section>
+      )}
 
       {/* Quick Stats Bento */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
