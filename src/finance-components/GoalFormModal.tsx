@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFinanceStore, type Goal } from '../store/useFinanceStore';
-import { computeGoal, GOAL_PRESETS } from './goalUtils';
+import { computeGoal, GOAL_PRESETS, parseGoalLink, encodeGoalLink } from './goalUtils';
 
 interface GoalFormModalProps {
   isOpen: boolean;
@@ -18,6 +18,20 @@ const RETURN_PRESETS = [{ label: 'Konservatif', v: 4 }, { label: 'Moderat', v: 8
 export const GoalFormModal: React.FC<GoalFormModalProps> = ({ isOpen, onClose, editingGoal }) => {
   const addGoal = useFinanceStore((s) => s.addGoal);
   const updateGoal = useFinanceStore((s) => s.updateGoal);
+  const accounts = useFinanceStore((s) => s.accounts);
+  const assets = useFinanceStore((s) => s.assets);
+
+  const [linkedId, setLinkedId] = useState<string>('');
+  const linkTargets = [
+    ...accounts.map((a) => ({ id: a.id, label: `${a.name} · ${formatRp(a.balance)}`, group: 'Akun' })),
+    ...assets.filter((a) => a.category === 'investasi' && (a.currentValue || 0) > 0).map((a) => ({ id: a.id, label: `${a.title} · ${formatRp(a.currentValue)}`, group: 'Investasi' })),
+  ];
+  const linkedValue = (() => {
+    const acc = accounts.find((a) => a.id === linkedId);
+    if (acc) return acc.balance || 0;
+    const ast = assets.find((a) => a.id === linkedId);
+    return ast ? (ast.currentValue || 0) : 0;
+  })();
 
   const [form, setForm] = useState<Omit<Goal, 'id'>>({
     name: '', icon: 'flag', color: '#2563eb', goalType: 'goal', targetAmount: 0,
@@ -27,12 +41,19 @@ export const GoalFormModal: React.FC<GoalFormModalProps> = ({ isOpen, onClose, e
 
   useEffect(() => {
     if (!isOpen) return;
-    if (editingGoal) setForm({ ...editingGoal });
-    else setForm({ name: '', icon: 'flag', color: '#2563eb', goalType: 'goal', targetAmount: 0, targetDate: addMonthsISO(24), startDate: new Date().toISOString().slice(0, 10), initialAmount: 0, expectedReturn: 8, monthlyContribution: 0, priority: 2, status: 'Aktif', notes: '' });
+    if (editingGoal) {
+      const { linkedId: lid, cleanNotes } = parseGoalLink(editingGoal.notes);
+      setForm({ ...editingGoal, notes: cleanNotes });
+      setLinkedId(lid || '');
+    } else {
+      setForm({ name: '', icon: 'flag', color: '#2563eb', goalType: 'goal', targetAmount: 0, targetDate: addMonthsISO(24), startDate: new Date().toISOString().slice(0, 10), initialAmount: 0, expectedReturn: 8, monthlyContribution: 0, priority: 2, status: 'Aktif', notes: '' });
+      setLinkedId('');
+    }
   }, [isOpen, editingGoal]);
 
   const set = (patch: Partial<Goal>) => setForm((f) => ({ ...f, ...patch }));
-  const math = computeGoal({ ...form, id: 'preview' } as Goal);
+  const effectiveInitial = linkedId ? linkedValue : form.initialAmount;
+  const math = computeGoal({ ...form, initialAmount: effectiveInitial, id: 'preview' } as Goal);
 
   const applyPreset = (key: string) => {
     const p = GOAL_PRESETS.find((x) => x.key === key);
@@ -42,7 +63,12 @@ export const GoalFormModal: React.FC<GoalFormModalProps> = ({ isOpen, onClose, e
 
   const handleSave = async () => {
     if (!form.name.trim() || form.targetAmount <= 0) return;
-    const payload = { ...form, expectedReturn: form.goalType === 'sinking' ? 0 : form.expectedReturn };
+    const payload = {
+      ...form,
+      expectedReturn: form.goalType === 'sinking' ? 0 : form.expectedReturn,
+      initialAmount: linkedId ? linkedValue : form.initialAmount,
+      notes: encodeGoalLink(form.notes, linkedId || null),
+    };
     if (editingGoal) await updateGoal({ ...payload, id: editingGoal.id });
     else await addGoal(payload);
     onClose();
@@ -93,8 +119,8 @@ export const GoalFormModal: React.FC<GoalFormModalProps> = ({ isOpen, onClose, e
                 <input type="text" inputMode="numeric" value={form.targetAmount.toLocaleString('id-ID')} onChange={(e) => set({ targetAmount: parseDigits(e.target.value) })} className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-bold text-on-surface dark:text-white tabular-nums outline-none focus:border-primary/50" />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400">Sudah terkumpul (Rp)</label>
-                <input type="text" inputMode="numeric" value={form.initialAmount.toLocaleString('id-ID')} onChange={(e) => set({ initialAmount: parseDigits(e.target.value) })} className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-bold text-on-surface dark:text-white tabular-nums outline-none focus:border-primary/50" />
+                <label className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400">Sudah terkumpul (Rp){linkedId && ' · otomatis'}</label>
+                <input type="text" inputMode="numeric" disabled={!!linkedId} value={(linkedId ? linkedValue : form.initialAmount).toLocaleString('id-ID')} onChange={(e) => set({ initialAmount: parseDigits(e.target.value) })} className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-bold text-on-surface dark:text-white tabular-nums outline-none focus:border-primary/50 disabled:opacity-60" />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400">Tanggal target</label>
@@ -114,6 +140,21 @@ export const GoalFormModal: React.FC<GoalFormModalProps> = ({ isOpen, onClose, e
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Tautkan progres ke akun/aset */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400 flex items-center gap-1"><span className="material-symbols-outlined text-[13px]">link</span> Tautkan progres ke (opsional)</label>
+              <select value={linkedId} onChange={(e) => setLinkedId(e.target.value)} className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/10 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-bold text-on-surface dark:text-white outline-none focus:border-primary/50 cursor-pointer">
+                <option value="">Tidak ditautkan (isi manual)</option>
+                <optgroup label="Akun">
+                  {linkTargets.filter((t) => t.group === 'Akun').map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </optgroup>
+                <optgroup label="Investasi">
+                  {linkTargets.filter((t) => t.group === 'Investasi').map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </optgroup>
+              </select>
+              {linkedId && <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Progres "terkumpul" mengikuti saldo tertaut otomatis — tak perlu update manual.</p>}
             </div>
 
             {/* Live PMT suggestion */}

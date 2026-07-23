@@ -67,6 +67,23 @@ export function computeGoal(goal: Goal, today: Date = startOfToday()): GoalMath 
   };
 }
 
+/**
+ * Penautan goal ↔ akun/aset (Wave C). Tautan disimpan sebagai tag `[link:<id>]` di kolom
+ * `notes` yang sudah ada → TANPA migrasi Apps Script. Tag di-strip dari tampilan notes.
+ */
+const LINK_RE = /\[link:([a-zA-Z0-9_-]+)\]\s*/;
+
+export function parseGoalLink(notes?: string): { linkedId: string | null; cleanNotes: string } {
+  if (!notes) return { linkedId: null, cleanNotes: '' };
+  const m = notes.match(LINK_RE);
+  return { linkedId: m ? m[1] : null, cleanNotes: notes.replace(LINK_RE, '').trim() };
+}
+
+export function encodeGoalLink(notes: string, linkedId: string | null): string {
+  const base = (notes || '').replace(LINK_RE, '').trim();
+  return linkedId ? `[link:${linkedId}] ${base}`.trim() : base;
+}
+
 export interface GoalPreset {
   key: string;
   name: string;

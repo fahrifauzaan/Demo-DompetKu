@@ -9,6 +9,24 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [2.4.0] — 2026-07-23 · Auto-post + Goal Linking (Wave C)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side; goal-link disimpan via tag di
+kolom `notes` yang sudah ada (tanpa migrasi).
+
+### Ditambahkan
+- **Auto-post transaksi berulang (opt-in)** — toggle "Posting otomatis" per item berulang.
+  Saat aplikasi dibuka, item ber-`autoPost` yang jatuh tempo langsung dicatat otomatis, LALU
+  muncul **digest ringkasan** (daftar + net) agar tetap sepengetahuan user — bukan penulisan
+  diam-diam. Badge "Auto" pada daftar. (`AutoPostRunner.tsx`)
+- **Penautan Tujuan ↔ akun/aset** — pada form Tujuan, pilih "Tautkan progres ke" sebuah akun
+  atau aset investasi. Progres "terkumpul" tujuan lalu **mengikuti saldo tertaut otomatis**
+  (tak perlu update manual); kartu menampilkan badge "Tertaut ke …". Tautan disimpan sebagai
+  tag `[link:<id>]` di `notes` (di-strip dari tampilan) → tanpa migrasi Apps Script.
+  (`goalUtils` parse/encode link)
+
+---
+
 ## [2.3.0] — 2026-07-23 · Indikator Penyimpanan Global
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Sisi-aplikasi.

@@ -120,7 +120,10 @@ export const RecurringManagerModal: React.FC<RecurringManagerModalProps> = ({ is
                     return (
                       <div key={r.id} className="flex items-center justify-between gap-2 rounded-2xl border border-outline-variant/10 dark:border-white/10 p-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-on-surface dark:text-white truncate">{r.name}</p>
+                          <p className="text-sm font-bold text-on-surface dark:text-white truncate flex items-center gap-1.5">
+                            {r.name}
+                            {r.autoPost && <span className="inline-flex items-center gap-0.5 text-[8px] font-black uppercase text-primary dark:text-[#a7c8ff] bg-primary/10 dark:bg-[#a7c8ff]/15 px-1.5 py-0.5 rounded shrink-0"><span className="material-symbols-outlined text-[10px]">bolt</span>Auto</span>}
+                          </p>
                           <p className="text-[10px] text-on-surface-variant dark:text-slate-400">{FREQ_LABEL[r.frequency]} · {r.frequency === 'WEEKLY' ? WEEKDAYS_ID[r.dayOfMonth] : `tgl ${r.dayOfMonth}`} · berikutnya {next ? `${formatDayBadge(next).day} ${formatDayBadge(next).month}` : '-'}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -182,11 +185,23 @@ export const RecurringManagerModal: React.FC<RecurringManagerModalProps> = ({ is
                   )}
                 </div>
               </div>
+              {/* Opt-in auto-post */}
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-outline-variant/10 dark:border-white/10 p-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-on-surface dark:text-white flex items-center gap-1.5"><span className="material-symbols-outlined text-[15px]">bolt</span> Posting otomatis</p>
+                  <p className="text-[10px] text-on-surface-variant dark:text-slate-400 mt-0.5 leading-tight">Saat jatuh tempo, langsung dicatat otomatis (dengan ringkasan) — tanpa perlu tekan Posting.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input type="checkbox" checked={form.autoPost} onChange={(e) => set({ autoPost: e.target.checked })} className="sr-only peer" />
+                  <div className="w-9 h-5 bg-surface-container-highest dark:bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary dark:peer-checked:bg-[#a7c8ff]" />
+                </label>
+              </div>
+
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setView('list')} className="flex-1 py-3 rounded-2xl bg-surface-container dark:bg-white/10 text-on-surface dark:text-white font-bold text-sm cursor-pointer">Batal</button>
                 <button onClick={save} disabled={!form.name.trim() || form.amount <= 0 || !form.account} className="flex-1 py-3 rounded-2xl bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] font-bold text-sm disabled:opacity-40 cursor-pointer">{editingId ? 'Simpan' : 'Tambah'}</button>
               </div>
-              <p className="text-[10px] text-on-surface-variant/70 dark:text-slate-500 text-center">Transaksi berulang hanya <strong>mengingatkan</strong> — Anda tetap yang menekan "Posting". Tidak ada pencatatan otomatis diam-diam.</p>
+              <p className="text-[10px] text-on-surface-variant/70 dark:text-slate-500 text-center">Tanpa "Posting otomatis", transaksi berulang hanya <strong>mengingatkan</strong> — Anda yang menekan "Posting". Auto-post pun selalu menampilkan ringkasan, tak ada pencatatan diam-diam.</p>
             </div>
           )}
         </motion.div>

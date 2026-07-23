@@ -24,6 +24,7 @@ import FinancePrintableReport from './finance-components/FinancePrintableReport'
 import FinancePrintableLedger from './finance-components/FinancePrintableLedger';
 import FinancePrintableSPT from './finance-components/FinancePrintableSPT';
 import SaveIndicator from './finance-components/SaveIndicator';
+import AutoPostRunner from './finance-components/AutoPostRunner';
 import { useAuthStore } from './store/useAuthStore';
 import FinanceOnboardingModal from './finance-components/FinanceOnboardingModal';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -674,6 +675,8 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
 
       {/* Indikator penyimpanan global ke Google Sheets (semua fitur) */}
       <SaveIndicator />
+      {/* Auto-post transaksi berulang (opt-in) + digest */}
+      <AutoPostRunner />
 
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>

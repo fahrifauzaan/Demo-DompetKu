@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore, type Goal } from '../store/useFinanceStore';
-import { computeGoal } from './goalUtils';
+import { computeGoal, parseGoalLink } from './goalUtils';
 import GoalFormModal from './GoalFormModal';
 import FinanceGuidePrinciple from './FinanceGuidePrinciple';
 
@@ -22,8 +22,21 @@ const parseDigits = (s: string) => Number(s.replace(/\D/g, '')) || 0;
 const FinanceGoals: React.FC<FinanceGoalsProps> = ({ onNavigate }) => {
   const goals = useFinanceStore((s) => s.goals);
   const transactions = useFinanceStore((s) => s.transactions);
+  const accounts = useFinanceStore((s) => s.accounts);
+  const assets = useFinanceStore((s) => s.assets);
   const updateGoal = useFinanceStore((s) => s.updateGoal);
   const deleteGoal = useFinanceStore((s) => s.deleteGoal);
+
+  // Resolve linked balance (account balance / asset currentValue) for a goal, if linked.
+  const resolveLinked = (g: Goal): { linked: boolean; value: number; name: string } => {
+    const { linkedId } = parseGoalLink(g.notes);
+    if (!linkedId) return { linked: false, value: g.initialAmount, name: '' };
+    const acc = accounts.find((a) => a.id === linkedId);
+    if (acc) return { linked: true, value: acc.balance || 0, name: acc.name };
+    const ast = assets.find((a) => a.id === linkedId);
+    if (ast) return { linked: true, value: ast.currentValue || 0, name: ast.title };
+    return { linked: false, value: g.initialAmount, name: '' };
+  };
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
@@ -64,8 +77,10 @@ const FinanceGoals: React.FC<FinanceGoalsProps> = ({ onNavigate }) => {
   };
 
   const GoalCard: React.FC<{ g: Goal }> = ({ g }) => {
-    const m = computeGoal(g);
-    const reached = g.status === 'Tercapai' || g.initialAmount >= g.targetAmount;
+    const link = resolveLinked(g);
+    const gEff = { ...g, initialAmount: link.value };
+    const m = computeGoal(gEff);
+    const reached = g.status === 'Tercapai' || link.value >= g.targetAmount;
     return (
       <div className="bg-surface-container-lowest dark:bg-white/[0.03] border border-outline-variant/10 dark:border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
         <div className="flex items-start justify-between">
@@ -86,7 +101,7 @@ const FinanceGoals: React.FC<FinanceGoalsProps> = ({ onNavigate }) => {
 
         <div>
           <div className="flex justify-between items-end mb-1">
-            <span className="text-xs font-black tabular-nums text-on-surface dark:text-white">{formatRpShort(g.initialAmount)}</span>
+            <span className="text-xs font-black tabular-nums text-on-surface dark:text-white">{formatRpShort(link.value)}</span>
             <span className="text-[10px] text-on-surface-variant dark:text-slate-400">dari {formatRpShort(g.targetAmount)}</span>
           </div>
           <div className="h-2 bg-surface-container-high dark:bg-white/10 rounded-full overflow-hidden">
@@ -104,11 +119,15 @@ const FinanceGoals: React.FC<FinanceGoalsProps> = ({ onNavigate }) => {
           )}
           <span className="text-[10px] text-on-surface-variant dark:text-slate-400">Butuh <strong className="text-on-surface dark:text-white">{formatRpShort(m.suggestedPMT)}</strong>/bln</span>
         </div>
-        {!reached && (
+        {link.linked ? (
+          <div className="w-full py-2 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold flex items-center justify-center gap-1.5 border border-emerald-500/20">
+            <span className="material-symbols-outlined text-[14px]">link</span> Tertaut ke {link.name} · otomatis
+          </div>
+        ) : !reached ? (
           <button onClick={() => openFund(g)} className="w-full py-2 rounded-xl bg-surface-container dark:bg-white/5 text-xs font-bold text-primary dark:text-[#a7c8ff] hover:bg-surface-container-high dark:hover:bg-white/10 border border-outline-variant/10 dark:border-white/10 cursor-pointer">
             Update dana terkumpul
           </button>
-        )}
+        ) : null}
       </div>
     );
   };
