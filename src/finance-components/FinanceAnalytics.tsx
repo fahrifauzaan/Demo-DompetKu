@@ -15,6 +15,7 @@ import { computeZakat, readGoldPrice, readInclude, defaultDeduction } from './za
 import { getUsdIdrRate, getUsdTickers, accountValueIDR, assetValueIDR } from './currencyUtils';
 import HealthScoreCard from './HealthScoreCard';
 import CashFlowStatementCard from './CashFlowStatementCard';
+import MonthlySummaryCard from './MonthlySummaryCard';
 import SpendingInsightsCard from './SpendingInsightsCard';
 import FinancialIndependenceCard from './FinancialIndependenceCard';
 import NetWorthProjectionCard from './NetWorthProjectionCard';
@@ -22,6 +23,7 @@ import ScenarioPlannerModal from './ScenarioPlannerModal';
 import Pph21CalculatorModal from './Pph21CalculatorModal';
 import ZakatPenghasilanModal from './ZakatPenghasilanModal';
 import DcaPlannerModal from './DcaPlannerModal';
+import FaraidCalculatorModal from './FaraidCalculatorModal';
 
 
 interface FinanceAnalyticsProps {
@@ -35,6 +37,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
   const [isPphOpen, setIsPphOpen] = useState(false);
   const [isZakatPenghasilanOpen, setIsZakatPenghasilanOpen] = useState(false);
   const [isDcaOpen, setIsDcaOpen] = useState(false);
+  const [isFaraidOpen, setIsFaraidOpen] = useState(false);
   const [hoveredCashFlowIndex, setHoveredCashFlowIndex] = useState<number | null>(null);
   const [isFIREModalOpen, setIsFIREModalOpen] = useState(false);
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
@@ -675,6 +678,9 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
       {/* Conditional Content Rendering */}
       {activeSubTab === 'summary' && (
         <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-in slide-in-from-bottom-2 duration-300">
+              {/* Fase 7 Rangkuman Bulanan Naratif (capstone) */}
+              <MonthlySummaryCard />
+
               {/* F3.4 Skor Kesehatan Finansial Komposit */}
               <HealthScoreCard />
 
@@ -730,6 +736,17 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-black font-headline text-on-surface dark:text-white">Perencana Investasi (DCA &amp; DRIP)</h3>
                   <p className="text-[12px] text-on-surface-variant dark:text-slate-400 mt-0.5">Simulasi nabung rutin (cost averaging) &amp; kekuatan reinvestasi dividen/kupon</p>
+                </div>
+                <span className="material-symbols-outlined text-on-surface-variant dark:text-slate-400">chevron_right</span>
+              </button>
+
+              {/* Fase 7 Kalkulator Waris (Faraid) */}
+              <button onClick={() => setIsFaraidOpen(true)}
+                className="w-full flex items-center gap-4 p-4 sm:p-5 rounded-2xl sm:rounded-[28px] liquid-glass border border-white/20 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:-translate-y-0.5 transition-transform text-left cursor-pointer">
+                <div className="w-11 h-11 rounded-2xl bg-primary/10 dark:bg-[#a7c8ff]/15 flex items-center justify-center text-primary dark:text-[#a7c8ff] shrink-0"><span className="material-symbols-outlined">diversity_3</span></div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-black font-headline text-on-surface dark:text-white">Kalkulator Waris (Faraid)</h3>
+                  <p className="text-[12px] text-on-surface-variant dark:text-slate-400 mt-0.5">Estimasi pembagian warisan Islam untuk struktur keluarga umum (edukatif)</p>
                 </div>
                 <span className="material-symbols-outlined text-on-surface-variant dark:text-slate-400">chevron_right</span>
               </button>
@@ -1436,6 +1453,7 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
       <Pph21CalculatorModal isOpen={isPphOpen} onClose={() => setIsPphOpen(false)} />
       <ZakatPenghasilanModal isOpen={isZakatPenghasilanOpen} onClose={() => setIsZakatPenghasilanOpen(false)} />
       <DcaPlannerModal isOpen={isDcaOpen} onClose={() => setIsDcaOpen(false)} />
+      <FaraidCalculatorModal isOpen={isFaraidOpen} onClose={() => setIsFaraidOpen(false)} />
     </div>
   );
 };

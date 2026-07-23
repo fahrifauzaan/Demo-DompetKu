@@ -9,6 +9,24 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.7.0] — 2026-07-23 · Warisan & Rangkuman (Fase 7 · Gelombang 7)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Ditambahkan
+- **Rangkuman Bulanan Naratif** (Laporan › Ringkasan, paling atas) — "bulan ini dalam bahasa manusia":
+  headline surplus/defisit + poin pemasukan/pengeluaran, tingkat menabung, kategori terbesar, dan
+  perubahan menonjol — capstone "kopilot". (`monthlySummaryUtils.ts`, `MonthlySummaryCard.tsx`)
+- **Kalkulator Waris (Faraid)** (Laporan) — estimasi pembagian warisan Islam untuk **struktur keluarga
+  umum** (pasangan, anak, orang tua) dengan penanganan **'Aul, Radd, 'ashabah, & 'Umariyyatan**.
+  Berdisclaimer kuat + batas cakupan jelas (saudara/kakek/wasiat/utang → rujuk ahli faraid/KUA).
+  (`faraidUtils.ts`, `FaraidCalculatorModal.tsx`)
+
+> **Roadmap jilid 2 (Gelombang 1–7) tuntas.** Sisa backlog (benchmark IHSG, konsolidasi keluarga
+> lintas-profil, tantangan menabung, OCR struk) sengaja ditahan (rapuh/butuh desain lanjutan).
+
+---
+
 ## [3.6.0] — 2026-07-23 · Investor Pro: DCA & DRIP (Fase 7 · Gelombang 6)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
