@@ -17,9 +17,17 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.14.0';
+export const CURRENT_VERSION = '3.15.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.15.0', date: '2026-07-25', title: 'Perbaikan: Semua Data Benar-benar Tersimpan', tag: 'fix', impact: 'none',
+    fixed: [
+      'Menambah aset Pendapatan Tetap (SBN/Deposito/Obligasi) kini benar-benar tersimpan — sebelumnya bisa hilang setelah refresh karena tab-nya belum ada di spreadsheet Anda dan penyimpanan gagal diam-diam. Kini aplikasi otomatis membuat tab yang belum ada saat menyimpan.',
+      'Tujuan, Proteksi (Asuransi), Transaksi Berulang & Dana Pensiun kini ditulis langsung ke Google Sheet milik Anda (bukan hanya di browser). Data lama otomatis dipindahkan ke Sheet Anda saat sinkron.',
+      'Kegagalan menyimpan kini tampil sebagai peringatan "Gagal menyimpan", tidak lagi hilang diam-diam.',
+    ],
+  },
   {
     version: '3.14.0', date: '2026-07-25', title: 'Panduan Keamanan', tag: 'feature', impact: 'none',
     added: [

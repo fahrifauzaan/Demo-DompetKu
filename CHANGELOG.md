@@ -9,6 +9,30 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.15.0] — 2026-07-25 · Perbaikan: Semua data benar-benar tersimpan
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (Apps Script sudah mendukung semua tab).
+
+### Diperbaiki
+- **Bug dilaporkan: aset Pendapatan Tetap (SBN/Deposito/Obligasi) hilang setelah refresh.** Penyebab:
+  `addRowToSheet` hanya `values:append` tanpa membuat tab bila belum ada; tab `Fixed Income Investment`
+  TIDAK ada di daftar auto-create macro → penulisan **400 diam-diam**; lalu sinkron menimpa `assets`
+  tanpa aset itu → lenyap. **Fix:** `addRowToSheet` & `appendRowsToSheet` kini **auto-create tab (+header)
+  lalu retry**, dan **throw** pada kegagalan nyata (muncul `saveError`). Sinkron juga tak menimpa `assets`
+  bila fetch tak memuat satu pun tab aset (anti-wipe).
+- **Tujuan, Proteksi, Transaksi Berulang, Dana Pensiun kini API-native** — ditambahkan ke HEADERS API
+  (kolom persis `google-apps-script.js`) → ditulis langsung ke spreadsheet **milik user**, bukan jatuh ke
+  macro fallback (yang untuk user OAuth bisa nyasar ke sheet **DEMO**). Sinkron memakai **merge by-id**
+  (item lokal tak terhapus) + **migrasi sekali per sesi** (push item lokal-saja ke Sheet, `appendRowsToSheet`
+  auto-buat tab).
+- **`postToSheet` tak lagi fallback ke URL demo** saat API gagal untuk sheet yang didukung API — kegagalan
+  kini jujur (`saveError`), tak menulis data user ke tempat lain.
+- Diverifikasi: logika `isApiSheet`/`isMissingSheetError`/`mergeEntity`/anti-wipe aset diuji unit; `isApiSheet`
+  live benar (14 entitas API, MonthlyBudgets tetap macro); tsc & build bersih.
+- Catatan: **MonthlyBudgets** sengaja dikecualikan (logika tab/blob khusus — ditangani terpisah).
+
+---
+
 ## [3.14.0] — 2026-07-25 · Panduan Keamanan (PIN per-browser)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

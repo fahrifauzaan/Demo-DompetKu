@@ -12,8 +12,47 @@ const HEADERS: Record<string, string[]> = {
   'AssetsNonLiquid': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate'],
   'Saham': ['ID', 'Title', 'Ticker', 'Shares', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   'Crypto': ['ID', 'Title', 'Ticker', 'Coins', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
-  'Reksadana': ['ID', 'Title', 'Units', 'Nav Per Unit', 'Current_NAV', 'Purchase Date', 'Location', 'Icon', 'Notes']
+  'Reksadana': ['ID', 'Title', 'Units', 'Nav Per Unit', 'Current_NAV', 'Purchase Date', 'Location', 'Icon', 'Notes'],
+  // Entitas berikut sebelumnya hanya lewat macro fallback (bisa nyasar ke sheet demo untuk user OAuth).
+  // Kolom PERSIS sama dengan google-apps-script.js agar API & macro konsisten membaca/menulis sheet yang sama.
+  'Goals': ['id', 'name', 'icon', 'color', 'goalType', 'targetAmount', 'targetDate', 'startDate', 'initialAmount', 'expectedReturn', 'monthlyContribution', 'priority', 'status', 'notes'],
+  'Recurring': ['id', 'name', 'type', 'amount', 'category', 'account', 'frequency', 'dayOfMonth', 'startDate', 'endDate', 'lastPostedDate', 'autoPost', 'notes'],
+  'Insurance': ['id', 'name', 'insType', 'provider', 'policyNumber', 'premium', 'premiumFrequency', 'coverageAmount', 'startDate', 'renewalDate', 'insured', 'beneficiary', 'status', 'notes'],
+  'Retirement': ['id', 'name', 'progType', 'provider', 'currentBalance', 'monthlyContribution', 'contributionType', 'employerContribution', 'startDate', 'targetAge', 'expectedReturn', 'status', 'notes']
 };
+
+/** Apakah sheet ini didukung jalur API/OAuth langsung (ke spreadsheet user). */
+export function isApiSheet(sheetName: string): boolean {
+  return Object.prototype.hasOwnProperty.call(HEADERS, sheetName);
+}
+
+/** Deteksi error "tab belum ada" dari Google Sheets API (biar bisa auto-create lalu retry). */
+function isMissingSheetError(status: number, text: string): boolean {
+  return status === 400 && /unable to parse range|not found/i.test(text);
+}
+
+/**
+ * Buat tab (dengan baris header) bila belum ada. Idempotent: "already exists" diabaikan.
+ * Dipakai agar penulisan tak pernah gagal-diam hanya karena tab-nya belum dibuat di spreadsheet user.
+ */
+async function ensureSheetWithHeader(accessToken: string, spreadsheetId: string, sheetName: string, headers: string[]) {
+  const addResp = await fetch(`${SHEETS_API_URL}/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests: [{ addSheet: { properties: { title: sheetName } } }] }),
+  });
+  if (!addResp.ok) {
+    const t = await addResp.text();
+    if (/already exists/i.test(t)) return; // tab sudah ada (dengan header-nya) — jangan timpa
+    throw new Error(`Gagal membuat tab ${sheetName} (HTTP ${addResp.status}).`);
+  }
+  // Tab baru dibuat → tulis baris header sekali.
+  await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A1?valueInputOption=RAW`, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values: [headers] }),
+  });
+}
 
 /**
  * Copies the template spreadsheet to the user's Google Drive.
@@ -109,19 +148,26 @@ export async function addRowToSheet(accessToken: string, spreadsheetId: string, 
     return val !== undefined ? val : '';
   });
 
-  const response = await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}:append?valueInputOption=USER_ENTERED`, {
+  const doAppend = () => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      values: [rowData]
-    })
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values: [rowData] })
   });
 
+  let response = await doAppend();
   if (!response.ok) {
-    console.error('Add Row Error:', await response.text());
+    const errText = await response.text();
+    // Tab belum ada di spreadsheet user → buat tab + header, lalu ulang append sekali.
+    if (isMissingSheetError(response.status, errText)) {
+      await ensureSheetWithHeader(accessToken, spreadsheetId, sheetName, headers);
+      response = await doAppend();
+    }
+    if (!response.ok) {
+      const finalErr = await response.text().catch(() => errText);
+      console.error('Add Row Error:', finalErr);
+      // THROW agar kegagalan tampil (saveError), bukan hilang diam-diam lalu data lenyap saat sinkron.
+      throw new Error(`Gagal menyimpan ke ${sheetName} (HTTP ${response.status}).`);
+    }
   }
 }
 
@@ -144,19 +190,24 @@ export async function appendRowsToSheet(accessToken: string, spreadsheetId: stri
     })
   );
 
-  const response = await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}:append?valueInputOption=USER_ENTERED`, {
+  const doAppend = () => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ values })
   });
 
+  let response = await doAppend();
   if (!response.ok) {
     const errText = await response.text();
-    console.error('Append Rows Error:', errText);
-    throw new Error(`Gagal menyimpan ${dataArray.length} baris ke ${sheetName} (HTTP ${response.status}).`);
+    if (isMissingSheetError(response.status, errText)) {
+      await ensureSheetWithHeader(accessToken, spreadsheetId, sheetName, headers);
+      response = await doAppend();
+    }
+    if (!response.ok) {
+      const finalErr = await response.text().catch(() => errText);
+      console.error('Append Rows Error:', finalErr);
+      throw new Error(`Gagal menyimpan ${dataArray.length} baris ke ${sheetName} (HTTP ${response.status}).`);
+    }
   }
 }
 

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TRANSACTIONS_DATA, DEBTS_DATA } from '../finance-components/FinanceData';
 import { useAuthStore } from './useAuthStore';
-import { addRowToSheet, appendRowsToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets } from '../services/googleApiService';
+import { addRowToSheet, appendRowsToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet } from '../services/googleApiService';
 
 // ===================== TYPES =====================
 
@@ -368,25 +368,28 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 }
 
+// Melacak entitas yang sudah dimigrasikan (push item lokal → Sheet user) di sesi ini,
+// agar tidak dobel-push saat beberapa sinkron berjalan berdekatan.
+const ENTITY_MIGRATION_DONE = new Set<string>();
+
 async function postToSheet(url: string, token: string | null, spreadsheetId: string | null, sheet: string, action: string, data: Record<string, unknown>) {
   // Hanya lacak indikator loading bila ADA target tulis nyata (bukan mode demo tanpa sheet).
   const hasTarget = !!((token && spreadsheetId) || url);
   if (hasTarget) useFinanceStore.setState((s) => ({ pendingWrites: s.pendingWrites + 1, saveError: null }));
   try {
-    if (token && spreadsheetId) {
-      try {
-        if (action === 'add') await addRowToSheet(token, spreadsheetId, sheet, data);
-        else if (action === 'update') await updateRowInSheet(token, spreadsheetId, sheet, data);
-        else if (action === 'delete') await deleteRowFromSheet(token, spreadsheetId, sheet, String(data.id || data.key));
-        console.log(`[FinanceStore] ✅ ${action} → ${sheet} synced via API`);
-        return;
-      } catch (apiError: any) {
-        console.warn(`[FinanceStore] Direct API sync failed for ${sheet}, trying Web App URL fallback:`, apiError);
-        if (!url) throw apiError;
-        // Fall through to try Web App URL macro sync below
-      }
+    // Mode API/OAuth: tulis LANGSUNG ke spreadsheet milik user. Semua sheet entitas kini didukung
+    // API (lihat HEADERS di googleApiService). TIDAK ada fallback ke macro/URL demo di sini —
+    // dulu fallback ini bisa menulis data user ke sheet DEMO publik saat API gagal. Kegagalan nyata
+    // kini memunculkan saveError (jujur), bukan nyasar ke tempat lain.
+    if (token && spreadsheetId && isApiSheet(sheet)) {
+      if (action === 'add') await addRowToSheet(token, spreadsheetId, sheet, data);
+      else if (action === 'update') await updateRowInSheet(token, spreadsheetId, sheet, data);
+      else if (action === 'delete') await deleteRowFromSheet(token, spreadsheetId, sheet, String(data.id || data.key));
+      console.log(`[FinanceStore] ✅ ${action} → ${sheet} synced via API`);
+      return;
     }
 
+    // Sheet di luar dukungan API, atau mode makro murni (tanpa token) → Web App URL.
     if (!url) return;
     await fetch(url, {
       method: 'POST',
@@ -1189,7 +1192,14 @@ export const useFinanceStore = create<FinanceState>()(
                 } as Asset;
               }));
             }
-            updates.assets = parsedAssets;
+            // Timpa `assets` HANYA bila sinkron benar-benar memuat minimal satu tab aset. Kalau tidak
+            // (mis. semua tab aset belum ada / fetch tak mencakupnya), JANGAN kosongkan aset lokal —
+            // ini mencegah aset optimistik (mis. baru ditambah) lenyap saat refresh.
+            const ASSET_SHEET_KEYS = ['Fixed Income Investment', 'Assets', 'AssetsNonLiquid', 'Saham', 'Crypto', 'Kripto', 'Reksadana'];
+            const anyAssetSheetPresent = ASSET_SHEET_KEYS.some((k) => result.data[k] !== undefined);
+            if (anyAssetSheetPresent) {
+              updates.assets = parsedAssets;
+            }
 
             if (result.data.BudgetCategories) {
               updates.budgetCategories = result.data.BudgetCategories.map((c: Record<string, unknown>) => ({
@@ -1207,9 +1217,27 @@ export const useFinanceStore = create<FinanceState>()(
                 minPayment: parseNumber(d.minPayment),
               }));
             }
-            // ── Fase 2: Goals / Recurring / Insurance ──
-            if (result.data.Goals) {
-              updates.goals = result.data.Goals.map((g: Record<string, unknown>) => ({
+            // ── Fase 2: Goals / Recurring / Insurance / Retirement (kini API-native, ke Sheet USER) ──
+            // MERGE by-id: item lokal yang belum ada di Sheet TIDAK terhapus saat sinkron. Sekaligus
+            // MIGRASI sekali per sesi: item lokal-saja di-push ke Sheet (appendRowsToSheet auto-buat tab
+            // bila belum ada) agar benar-benar tersimpan — bukan cuma di browser. `parsed` default []
+            // saat tab belum ada, sehingga seluruh item lokal ikut dimigrasikan.
+            const mergeEntity = <T,>(sheetKey: string, parsed: T[], local: T[]): T[] => {
+              const sheetIds = new Set(parsed.map((x) => String((x as { id?: unknown }).id)));
+              const localOnly = local.filter((x) => !sheetIds.has(String((x as { id?: unknown }).id)));
+              if (localOnly.length && googleAccessToken && spreadsheetId && !ENTITY_MIGRATION_DONE.has(sheetKey)) {
+                ENTITY_MIGRATION_DONE.add(sheetKey);
+                setTimeout(() => {
+                  appendRowsToSheet(googleAccessToken as string, spreadsheetId as string, sheetKey, localOnly as unknown[])
+                    .then(() => console.log(`[FinanceStore] ✅ migrasi ${localOnly.length} ${sheetKey} lokal → Sheet user`))
+                    .catch((e) => { ENTITY_MIGRATION_DONE.delete(sheetKey); console.error(`[FinanceStore] migrasi ${sheetKey} gagal:`, e); });
+                }, 0);
+              }
+              return [...parsed, ...localOnly];
+            };
+
+            {
+              const parsed = ((result.data.Goals as Record<string, unknown>[] | undefined) || []).map((g) => ({
                 ...g,
                 goalType: g.goalType === 'sinking' ? 'sinking' : 'goal',
                 targetAmount: parseNumber(g.targetAmount),
@@ -1218,24 +1246,27 @@ export const useFinanceStore = create<FinanceState>()(
                 monthlyContribution: parseNumber(g.monthlyContribution),
                 priority: parseNumber(g.priority) || 2,
               })) as Goal[];
+              updates.goals = mergeEntity('Goals', parsed, get().goals);
             }
-            if (result.data.Recurring) {
-              updates.recurring = result.data.Recurring.map((r: Record<string, unknown>) => ({
+            {
+              const parsed = ((result.data.Recurring as Record<string, unknown>[] | undefined) || []).map((r) => ({
                 ...r,
                 amount: parseNumber(r.amount),
                 dayOfMonth: parseNumber(r.dayOfMonth) || 1,
                 autoPost: r.autoPost === true || r.autoPost === 'TRUE' || r.autoPost === 'true',
               })) as Recurring[];
+              updates.recurring = mergeEntity('Recurring', parsed, get().recurring);
             }
-            if (result.data.Insurance) {
-              updates.insurance = result.data.Insurance.map((i: Record<string, unknown>) => ({
+            {
+              const parsed = ((result.data.Insurance as Record<string, unknown>[] | undefined) || []).map((i) => ({
                 ...i,
                 premium: parseNumber(i.premium),
                 coverageAmount: parseNumber(i.coverageAmount),
               })) as Insurance[];
+              updates.insurance = mergeEntity('Insurance', parsed, get().insurance);
             }
-            if (result.data.Retirement) {
-              updates.retirement = result.data.Retirement.map((r: Record<string, unknown>) => ({
+            {
+              const parsed = ((result.data.Retirement as Record<string, unknown>[] | undefined) || []).map((r) => ({
                 ...r,
                 currentBalance: parseNumber(r.currentBalance),
                 monthlyContribution: parseNumber(r.monthlyContribution),
@@ -1243,6 +1274,7 @@ export const useFinanceStore = create<FinanceState>()(
                 targetAge: parseNumber(r.targetAge) || 56,
                 expectedReturn: parseNumber(r.expectedReturn),
               })) as Retirement[];
+              updates.retirement = mergeEntity('Retirement', parsed, get().retirement);
             }
             if (result.data.Settings) {
               const settingsList = result.data.Settings as Setting[];
