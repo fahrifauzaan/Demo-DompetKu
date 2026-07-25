@@ -874,8 +874,11 @@ export const useFinanceStore = create<FinanceState>()(
           return !old || old.value !== n.value;
         });
 
-        // Only sync the changed/new settings to Google Sheets
+        // Only sync the changed/new settings to Google Sheets.
+        // Kunci keamanan (PIN) LOKAL per-browser — jangan ditulis ke Sheet (tetap di perangkat ini).
+        const LOCAL_ONLY = new Set(['security_pin', 'security_pinActive']);
         for (const setting of changedSettings) {
+          if (LOCAL_ONLY.has(setting.key)) continue;
           await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Settings', 'update', setting as unknown as Record<string, unknown>);
         }
       },
@@ -1243,7 +1246,15 @@ export const useFinanceStore = create<FinanceState>()(
             }
             if (result.data.Settings) {
               const settingsList = result.data.Settings as Setting[];
-              updates.settings = settingsList;
+              // PIN Transaksi bersifat LOKAL per-browser: tersimpan di perangkat ini (localStorage
+              // lewat persist store) dan TIDAK boleh ditimpa oleh Settings dari Sheet. Kalau ditimpa,
+              // PIN yang sudah diset hilang tiap sinkron → aplikasi minta buat PIN lagi. Pertahankan
+              // nilai lokal; adopsi dari Sheet HANYA bila perangkat ini belum punya PIN (pengguna lama).
+              const LOCAL_ONLY = new Set(['security_pin', 'security_pinActive']);
+              const localSettings = get().settings;
+              const localHasPin = localSettings.some((s) => s.key === 'security_pin' && s.value);
+              const securityKeep = (localHasPin ? localSettings : settingsList).filter((s) => LOCAL_ONLY.has(s.key));
+              updates.settings = [...settingsList.filter((s) => !LOCAL_ONLY.has(s.key)), ...securityKeep];
 
               // Sync last_password to auth store registeredUsers
               const lastPwdSetting = settingsList.find(s => s.key === 'last_password');

@@ -17,9 +17,16 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.13.0';
+export const CURRENT_VERSION = '3.13.1';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.13.1', date: '2026-07-25', title: 'Perbaikan: PIN Transaksi Tersimpan', tag: 'fix', impact: 'none',
+    fixed: [
+      'PIN Transaksi kini tersimpan permanen di browser yang Anda pakai — tidak lagi minta buat PIN baru tiap sesi. Sebelumnya PIN terhapus setiap sinkronisasi data karena tertimpa Settings dari Sheet.',
+      'PIN kini bersifat lokal per-perangkat dan tak pernah ditimpa oleh sinkron (juga tak dikirim ke Sheet). Anda mungkin perlu set PIN sekali lagi setelah pembaruan ini — sesudah itu tersimpan tetap.',
+    ],
+  },
   {
     version: '3.13.0', date: '2026-07-25', title: 'Trik Impor: E-Statement → Template pakai AI', tag: 'feature', impact: 'none',
     added: [

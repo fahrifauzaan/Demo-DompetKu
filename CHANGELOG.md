@@ -9,6 +9,22 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.13.1] — 2026-07-25 · Perbaikan: PIN Transaksi tersimpan di browser
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Diperbaiki
+- **PIN Transaksi kini tersimpan permanen per-browser.** Sebelumnya `syncFromGoogleSheets` menimpa
+  SELURUH `settings` dengan data dari Sheet (yang tak memuat `security_pin`), sehingga PIN yang sudah
+  diset terhapus tiap sinkron → aplikasi minta buat PIN lagi tiap sesi. Kini `security_pin` &
+  `security_pinActive` diperlakukan **lokal per-browser** (tersimpan di localStorage lewat persist
+  store) dan **tidak pernah ditimpa** oleh sinkron; PIN juga tak lagi dikirim ke Sheet lewat
+  `updateSettings` (tetap di perangkat ini). Perangkat yang belum punya PIN akan mengadopsi dari
+  Sheet sekali (migrasi bagi pengguna lama). Diverifikasi terhadap store: PIN persist ke browser,
+  bertahan melewati sinkron, dan diadopsi saat lokal kosong.
+
+---
+
 ## [3.13.0] — 2026-07-25 · Trik Impor: E-Statement → Template pakai AI
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
