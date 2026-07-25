@@ -17,9 +17,15 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.13.1';
+export const CURRENT_VERSION = '3.14.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.14.0', date: '2026-07-25', title: 'Panduan Keamanan', tag: 'feature', impact: 'none',
+    added: [
+      'Topik baru "Keamanan" di Panduan — menjelaskan PIN Transaksi yang tersimpan per-browser/perangkat (set sekali, menempel permanen; tiap perangkat punya PIN sendiri), 2FA, Ubah Password, Sesi Aktif, plus model data zero-knowledge (semua di Google Sheet Anda, nol ke pengembang) & tips keamanan.',
+    ],
+  },
   {
     version: '3.13.1', date: '2026-07-25', title: 'Perbaikan: PIN Transaksi Tersimpan', tag: 'fix', impact: 'none',
     fixed: [

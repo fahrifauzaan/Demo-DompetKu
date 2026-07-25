@@ -9,6 +9,20 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.14.0] — 2026-07-25 · Panduan Keamanan (PIN per-browser)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Ditambahkan
+- **Topik "Keamanan" baru di Panduan** (`FinanceGuideKeamananSection.tsx`, `shield_lock`) — menjelaskan
+  empat lapisan keamanan (PIN Transaksi, 2FA, Ubah Password, Sesi Aktif), dengan **sorotan PIN
+  tersimpan per-browser**: lokal di perangkat, tak disinkron ke Sheet/perangkat lain; set sekali
+  menempel permanen; tiap perangkat punya PIN sendiri; hapus data situs = PIN hilang. Ditambah kartu
+  model data zero-knowledge (semua di Google Sheet Anda, nol ke pengembang), tips keamanan, dan CTA
+  "Buka Pengaturan". Melengkapi perbaikan persistensi PIN di v3.13.1.
+
+---
+
 ## [3.13.1] — 2026-07-25 · Perbaikan: PIN Transaksi tersimpan di browser
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

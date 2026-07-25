@@ -6,12 +6,13 @@ import FinanceGuideAnggaranSection from './FinanceGuideAnggaranSection';
 import FinanceGuideLaporanSection from './FinanceGuideLaporanSection';
 import FinanceGuideTujuanSection from './FinanceGuideTujuanSection';
 import FinanceGuideProteksiSection from './FinanceGuideProteksiSection';
+import FinanceGuideKeamananSection from './FinanceGuideKeamananSection';
 
 interface FinanceGuideProps {
   onNavigate: (tab: string) => void;
 }
 
-type Topic = 'transaksi' | 'anggaran' | 'aset' | 'utang' | 'tujuan' | 'proteksi' | 'laporan';
+type Topic = 'transaksi' | 'anggaran' | 'aset' | 'utang' | 'tujuan' | 'proteksi' | 'laporan' | 'keamanan';
 
 const TOPICS: { key: Topic; label: string; icon: string; desc: string }[] = [
   { key: 'transaksi', label: 'Transaksi', icon: 'receipt_long', desc: 'Catat uang masuk, keluar & transfer' },
@@ -21,6 +22,7 @@ const TOPICS: { key: Topic; label: string; icon: string; desc: string }[] = [
   { key: 'tujuan', label: 'Tujuan', icon: 'flag', desc: 'Rencanakan tujuan & setoran ideal (PMT)' },
   { key: 'proteksi', label: 'Proteksi', icon: 'shield', desc: 'Asuransi & kebutuhan Uang Pertanggungan' },
   { key: 'laporan', label: 'Laporan', icon: 'query_stats', desc: 'Net worth, rasio, portofolio & benchmark' },
+  { key: 'keamanan', label: 'Keamanan', icon: 'shield_lock', desc: 'PIN per-browser, 2FA & privasi data' },
 ];
 
 // Guides not built yet — shown as disabled chips so users know they are coming.
@@ -106,6 +108,7 @@ const FinanceGuide: React.FC<FinanceGuideProps> = ({ onNavigate }) => {
       {topic === 'tujuan' && <FinanceGuideTujuanSection onNavigate={onNavigate} />}
       {topic === 'proteksi' && <FinanceGuideProteksiSection onNavigate={onNavigate} />}
       {topic === 'laporan' && <FinanceGuideLaporanSection onNavigate={onNavigate} />}
+      {topic === 'keamanan' && <FinanceGuideKeamananSection onNavigate={onNavigate} />}
     </div>
   );
 };
