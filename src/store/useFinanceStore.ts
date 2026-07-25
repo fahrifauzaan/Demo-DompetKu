@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TRANSACTIONS_DATA, DEBTS_DATA } from '../finance-components/FinanceData';
 import { useAuthStore } from './useAuthStore';
-import { addRowToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets } from '../services/googleApiService';
+import { addRowToSheet, appendRowsToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets } from '../services/googleApiService';
 
 // ===================== TYPES =====================
 
@@ -245,6 +245,7 @@ interface FinanceState {
 
   // Actions — Generic CRUD
   addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
+  addTransactionsBulk: (txns: Omit<Transaction, 'id'>[]) => Promise<{ ok: boolean; saved: number; failed: number }>;
   updateTransaction: (tx: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addAccount: (account: Omit<Account, 'id'>) => Promise<void>;
@@ -649,6 +650,53 @@ export const useFinanceStore = create<FinanceState>()(
         const newTx = { ...transaction, id: generateId() } as Transaction;
         set((state) => ({ transactions: [newTx, ...state.transactions] }));
         await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Transactions', 'add', newTx as unknown as Record<string, unknown>);
+      },
+
+      // Impor massal: SATU panggilan tulis untuk semua baris (bukan N panggilan berurutan).
+      // Loop per-baris menembus kuota tulis Google Sheets (rate limit) lalu error-nya
+      // ditelan diam-diam → transaksi tampil di state lokal tapi tak pernah sampai ke Sheet
+      // (tampak "tersimpan" lalu hilang saat sinkron ulang). Batch = atomik + jujur.
+      addTransactionsBulk: async (txns) => {
+        const withIds = txns.map((t) => ({ ...t, id: generateId() } as Transaction));
+        if (!withIds.length) return { ok: true, saved: 0, failed: 0 };
+
+        // Optimistic: tampilkan seluruh batch sekaligus.
+        set((state) => ({ transactions: [...withIds, ...state.transactions] }));
+
+        const token = get().googleAccessToken;
+        const spreadsheetId = get().spreadsheetId;
+        const url = get().googleSheetUrl;
+        const hasTarget = !!((token && spreadsheetId) || url);
+        if (!hasTarget) return { ok: true, saved: withIds.length, failed: 0 }; // mode lokal (tanpa target tulis)
+
+        set((s) => ({ pendingWrites: s.pendingWrites + 1, saveError: null }));
+        try {
+          if (token && spreadsheetId) {
+            // Mode API/OAuth: satu append berisi semua baris — anti rate-limit, atomik.
+            await appendRowsToSheet(token, spreadsheetId, 'Transactions', withIds);
+          } else if (url) {
+            // Mode makro (Web App URL): Apps Script belum punya aksi batch → kirim berurutan.
+            for (const tx of withIds) {
+              await fetch(url, {
+                method: 'POST', mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'add', sheet: 'Transactions', data: tx }),
+              });
+            }
+          }
+          console.log(`[FinanceStore] ✅ bulk add ${withIds.length} → Transactions`);
+          return { ok: true, saved: withIds.length, failed: 0 };
+        } catch (error) {
+          console.error('[FinanceStore] ❌ Gagal impor massal ke Transactions:', error);
+          // Rollback optimistic agar UI jujur: baris yang gagal simpan TIDAK ditampilkan seolah tersimpan.
+          set((state) => ({
+            transactions: state.transactions.filter((t) => !withIds.some((w) => w.id === t.id)),
+            saveError: 'Sebagian/semua transaksi impor gagal disimpan ke Google Sheets.',
+          }));
+          return { ok: false, saved: 0, failed: withIds.length };
+        } finally {
+          set((s) => ({ pendingWrites: Math.max(0, s.pendingWrites - 1) }));
+        }
       },
 
       updateTransaction: async (transaction) => {

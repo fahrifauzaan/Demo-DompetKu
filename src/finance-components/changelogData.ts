@@ -17,9 +17,16 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.11.1';
+export const CURRENT_VERSION = '3.11.2';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.11.2', date: '2026-07-25', title: 'Perbaikan: Impor Andal Tersimpan', tag: 'fix', impact: 'none',
+    fixed: [
+      'Impor transaksi kini andal tersimpan ke Google Sheet Anda. Sebelumnya impor berisi banyak baris bisa menembus batas laju tulis Google (rate limit) dan sebagian gagal disimpan diam-diam — transaksi sempat tampil lalu hilang saat sinkron ulang.',
+      'Kini semua baris ditulis sekaligus dalam satu operasi (atomik): kalau berhasil, semua tersimpan & jauh lebih cepat; kalau gagal, muncul pesan jelas dan saldo tidak disesuaikan — tak ada lagi transaksi "hantu" yang seolah tersimpan.',
+    ],
+  },
   {
     version: '3.11.1', date: '2026-07-23', title: 'Panduan Impor + Privasi Data', tag: 'feature', impact: 'none',
     added: [

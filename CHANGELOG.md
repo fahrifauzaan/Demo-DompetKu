@@ -9,6 +9,26 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.11.2] — 2026-07-25 · Perbaikan: Impor Andal Tersimpan (rate-limit + jujur)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (mode OAuth/API).
+
+### Diperbaiki
+- **Impor transaksi kini andal tersimpan ke Google Sheet.** Sebelumnya tiap baris ditulis
+  satu-per-satu berurutan (N panggilan API). Impor besar menembus **kuota tulis Google Sheets
+  (~60/menit/user)** → sebagian balasan **429** ditelan diam-diam (`addRowToSheet` hanya
+  `console.error`, tak `throw`), sehingga `postToSheet` mengira sukses. Transaksi masuk ke state
+  lokal (optimistic) tapi **tak pernah sampai ke Sheet** → tampak tersimpan lalu **hilang** saat
+  sinkron ulang (gejala persis: "sukses tapi hilang").
+- **Perbaikan** (`appendRowsToSheet` + store `addTransactionsBulk`): seluruh baris impor ditulis
+  dalam **satu `values.append` batch** — anti rate-limit, atomik, jauh lebih cepat. Kegagalan
+  kini **bersuara**: tulis yang gagal `throw` → transaksi optimistic **di-rollback**, saldo akun
+  **tidak** disesuaikan, dan modal menampilkan pesan error jujur ("transaksi TIDAK jadi diimpor")
+  alih-alih sukses palsu. Diverifikasi: jalur sukses (1 append) & jalur gagal (rollback + ok:false)
+  diuji langsung terhadap store.
+
+---
+
 ## [3.11.1] — 2026-07-23 · Panduan Impor + Privasi Data
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (dokumentasi in-app).

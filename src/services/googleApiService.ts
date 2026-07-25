@@ -126,6 +126,41 @@ export async function addRowToSheet(accessToken: string, spreadsheetId: string, 
 }
 
 /**
+ * Appends MANY rows to a sheet in a SINGLE API call.
+ * Bulk imports must use this instead of looping addRowToSheet — one call avoids
+ * the per-user write-quota (rate limit) that silently drops rows, and is atomic
+ * (all rows land, or the call throws and none do).
+ * Throws on non-OK so the caller can surface a real error instead of a false success.
+ */
+export async function appendRowsToSheet(accessToken: string, spreadsheetId: string, sheetName: string, dataArray: any[]) {
+  const headers = HEADERS[sheetName];
+  if (!headers) throw new Error(`Sheet ${sheetName} not found in headers mapping.`);
+  if (!dataArray.length) return;
+
+  const values = dataArray.map(data =>
+    headers.map(h => {
+      const val = getValueCaseInsensitive(data, h);
+      return val !== undefined ? val : '';
+    })
+  );
+
+  const response = await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}:append?valueInputOption=USER_ENTERED`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ values })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Append Rows Error:', errText);
+    throw new Error(`Gagal menyimpan ${dataArray.length} baris ke ${sheetName} (HTTP ${response.status}).`);
+  }
+}
+
+/**
  * Updates an existing row in a specific sheet by ID.
  * Warning: This requires reading the sheet first to find the row index.
  */

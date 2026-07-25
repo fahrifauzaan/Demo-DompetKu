@@ -37,10 +37,11 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
   const [loading, setLoading] = useState(false);
   const [showPdfHelp, setShowPdfHelp] = useState(false);
   const [skipped, setSkipped] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const profiles = useMemo(() => readImportProfiles(settings.find((s) => s.key === 'import_profiles')?.value), [settings]);
 
-  const reset = () => { setRaw(''); setRows([]); setMap(null); setDone(null); setSkipped(0); };
+  const reset = () => { setRaw(''); setRows([]); setMap(null); setDone(null); setSkipped(0); setImportError(null); };
 
   const [xlsxBusy, setXlsxBusy] = useState(false);
 
@@ -131,9 +132,18 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
   const handleImport = async () => {
     if (!valid.length || !account || busy) return;
     setBusy(true);
+    setImportError(null);
     const store = useFinanceStore.getState();
-    let net = 0;
-    for (const p of valid) { await store.addTransaction(toTransactionPayload(p, account)); net += p.amount; }
+    // Simpan SEMUA baris dalam satu tulis batch (anti rate-limit + hasilnya jujur).
+    const result = await store.addTransactionsBulk(valid.map((p) => toTransactionPayload(p, account)));
+    if (!result.ok) {
+      // Jangan tampilkan sukses palsu & jangan sesuaikan saldo bila tulis ke Sheet gagal.
+      setBusy(false);
+      setImportError('Gagal menyimpan ke Google Sheets — transaksi TIDAK jadi diimpor. Periksa koneksi Anda lalu coba lagi.');
+      return;
+    }
+    // Hanya sesuaikan saldo akun setelah transaksi benar-benar tersimpan.
+    const net = valid.reduce((s, p) => s + p.amount, 0);
     const acc = useFinanceStore.getState().accounts.find((a) => a.name === account);
     if (acc) await store.updateAccount({ ...acc, balance: acc.balance + net });
     setBusy(false);
@@ -300,9 +310,16 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
                   </div>
                 </div>
 
+                {importError && (
+                  <div className="flex gap-2.5 items-start rounded-2xl border border-error/30 dark:border-[#ffb4ab]/25 bg-error/5 dark:bg-[#ffb4ab]/10 p-3.5">
+                    <span className="material-symbols-outlined text-error dark:text-[#ffb4ab] text-lg shrink-0">error</span>
+                    <p className="text-xs text-error dark:text-[#ffb4ab] leading-relaxed font-medium">{importError}</p>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <button onClick={reset} className="flex-1 py-3 rounded-2xl bg-surface-container dark:bg-white/10 text-on-surface dark:text-white font-bold text-sm cursor-pointer">Ganti file</button>
-                  <button onClick={handleImport} disabled={!valid.length || !account || busy} className="flex-[2] py-3 rounded-2xl bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] font-bold text-sm disabled:opacity-40 cursor-pointer">{busy ? 'Mengimpor…' : `Impor ${valid.length} transaksi`}</button>
+                  <button onClick={handleImport} disabled={!valid.length || !account || busy} className="flex-[2] py-3 rounded-2xl bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] font-bold text-sm disabled:opacity-40 cursor-pointer">{busy ? 'Mengimpor…' : importError ? `Coba lagi (${valid.length})` : `Impor ${valid.length} transaksi`}</button>
                 </div>
                 <p className="text-[10px] text-on-surface-variant/70 dark:text-slate-500 text-center">Nominal + = pemasukan, − = pengeluaran. Periksa pratinjau sebelum impor; baris tanpa tanggal/nominal valid dilewati.</p>
               </>
