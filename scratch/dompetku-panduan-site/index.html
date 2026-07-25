@@ -1,4 +1,306 @@
-/**
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panduan Update Apps Script DompetKu &mdash; NAMTECH Corp</title>
+<meta name="description" content="Panduan + kode Apps Script terbaru DompetKu.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#128218;</text></svg>">
+<style>html,body{margin:0}</style>
+</head>
+<body>
+<style>
+  :root {
+    --ground: #f4f7fc;
+    --surface: #ffffff;
+    --surface-2: #eef3fb;
+    --ink: #0e1f36;
+    --muted: #5a6b84;
+    --faint: #8595ac;
+    --primary: #1565c0;
+    --primary-ink: #0b4a94;
+    --primary-soft: #e6f0fd;
+    --success: #0f8f63;
+    --success-soft: #e2f5ee;
+    --warn: #b7791f;
+    --warn-soft: #fbf1dc;
+    --border: #e2e8f2;
+    --border-strong: #cdd8e8;
+    --code-bg: #0f1b2d;
+    --code-ink: #d7e3f4;
+    --shadow: 0 1px 2px rgba(16,31,54,.06), 0 8px 24px rgba(16,31,54,.06);
+    --radius: 16px;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0a1120; --surface: #101d31; --surface-2: #16273f;
+      --ink: #e9f1fb; --muted: #9db0ca; --faint: #6f8199;
+      --primary: #7fb0f5; --primary-ink: #a9c9fb; --primary-soft: #16294a;
+      --success: #45c79a; --success-soft: #102a24;
+      --warn: #e2b25c; --warn-soft: #2a2314;
+      --border: #21324a; --border-strong: #2c4162;
+      --code-bg: #0a1526; --code-ink: #cfe0f6;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px rgba(0,0,0,.32);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #f4f7fc; --surface: #ffffff; --surface-2: #eef3fb;
+    --ink: #0e1f36; --muted: #5a6b84; --faint: #8595ac;
+    --primary: #1565c0; --primary-ink: #0b4a94; --primary-soft: #e6f0fd;
+    --success: #0f8f63; --success-soft: #e2f5ee; --warn: #b7791f; --warn-soft: #fbf1dc;
+    --border: #e2e8f2; --border-strong: #cdd8e8; --code-bg: #0f1b2d; --code-ink: #d7e3f4;
+    --shadow: 0 1px 2px rgba(16,31,54,.06), 0 8px 24px rgba(16,31,54,.06);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0a1120; --surface: #101d31; --surface-2: #16273f;
+    --ink: #e9f1fb; --muted: #9db0ca; --faint: #6f8199;
+    --primary: #7fb0f5; --primary-ink: #a9c9fb; --primary-soft: #16294a;
+    --success: #45c79a; --success-soft: #102a24; --warn: #e2b25c; --warn-soft: #2a2314;
+    --border: #21324a; --border-strong: #2c4162; --code-bg: #0a1526; --code-ink: #cfe0f6;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px rgba(0,0,0,.32);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .page {
+    background: var(--ground); color: var(--ink); font-family: var(--sans);
+    line-height: 1.62; -webkit-font-smoothing: antialiased;
+    padding: clamp(18px, 4vw, 48px) 16px 64px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  /* ---- header ---- */
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; }
+  .brand .logo {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    background: linear-gradient(140deg, var(--primary), #3b86e0);
+    display: grid; place-items: center; color: #fff; box-shadow: var(--shadow);
+  }
+  .brand .logo svg { width: 19px; height: 19px; }
+  .brand b { font-size: .92rem; letter-spacing: -.01em; }
+  .brand span { color: var(--faint); font-size: .82rem; }
+
+  .eyebrow {
+    font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--primary-ink); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(1.7rem, 4.6vw, 2.5rem); line-height: 1.1; letter-spacing: -.025em;
+    font-weight: 800; margin: 0 0 12px; text-wrap: balance;
+  }
+  .lede { font-size: 1.05rem; color: var(--muted); margin: 0 0 22px; max-width: 62ch; }
+
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    font-size: .8rem; font-weight: 600; color: var(--ink); box-shadow: var(--shadow);
+  }
+  .chip svg { width: 15px; height: 15px; color: var(--primary); }
+
+  /* ---- callouts ---- */
+  .note {
+    display: flex; gap: 13px; padding: 15px 17px; border-radius: 13px;
+    border: 1px solid var(--border); background: var(--surface); margin: 0 0 30px;
+  }
+  .note.ok { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+  .note.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 34%, transparent); }
+  .note .ic { flex: none; width: 22px; height: 22px; margin-top: 1px; }
+  .note.ok .ic { color: var(--success); }
+  .note.warn .ic { color: var(--warn); }
+  .note p { margin: 0; font-size: .9rem; color: var(--ink); }
+  .note strong { font-weight: 700; }
+
+  /* ---- steps ---- */
+  .steps { display: flex; flex-direction: column; gap: 18px; }
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .step-head { display: flex; gap: 15px; padding: 20px 22px 16px; }
+  .num {
+    flex: none; width: 34px; height: 34px; border-radius: 10px; font-weight: 800; font-size: 1rem;
+    display: grid; place-items: center; color: #fff; font-variant-numeric: tabular-nums;
+    background: linear-gradient(140deg, var(--primary), #3b86e0);
+  }
+  .step-head h2 { font-size: 1.16rem; letter-spacing: -.015em; margin: 3px 0 5px; }
+  .step-head p { margin: 0; color: var(--muted); font-size: .92rem; }
+  .step-head p kbd {
+    font-family: var(--mono); font-size: .82em; background: var(--surface-2);
+    border: 1px solid var(--border-strong); border-radius: 6px; padding: 1px 6px; color: var(--ink);
+  }
+  .figure { padding: 0 22px 22px; }
+
+  /* ---- google-ui mockups ---- */
+  .ui {
+    border: 1px solid var(--border-strong); border-radius: 12px; overflow: hidden;
+    background: var(--surface-2); font-size: .82rem;
+  }
+  .ui-bar {
+    display: flex; align-items: center; gap: 3px; padding: 8px 12px; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .ui-bar .mi { padding: 4px 9px; border-radius: 7px; color: var(--muted); font-weight: 500; }
+  .ui-bar .mi.on { background: var(--primary-soft); color: var(--primary-ink); font-weight: 700; }
+  .dropdown {
+    margin: 0 0 0 44px; width: max-content; background: var(--surface);
+    border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: var(--shadow);
+    padding: 6px; position: relative; top: -1px;
+  }
+  .dd-item { display: flex; align-items: center; gap: 10px; padding: 9px 13px 9px 11px; border-radius: 8px; font-weight: 600; }
+  .dd-item.on { background: var(--primary-soft); color: var(--primary-ink); }
+  .dd-item .g { width: 18px; height: 18px; border-radius: 5px; background: #34a853; display: grid; place-items: center; color: #fff; flex: none; }
+  .dd-item .g svg { width: 12px; height: 12px; }
+  .caret { color: var(--faint); }
+
+  .editor { background: var(--code-bg); color: var(--code-ink); font-family: var(--mono); }
+  .ed-top {
+    display: flex; align-items: center; justify-content: space-between; padding: 9px 12px;
+    background: color-mix(in srgb, var(--code-bg) 82%, #fff 8%); border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .ed-top .file { display: flex; align-items: center; gap: 8px; color: #cfe0f6; font-size: .78rem; font-family: var(--sans); font-weight: 600; }
+  .ed-top .file .dot { width: 8px; height: 8px; border-radius: 50%; background: #f5c518; }
+  .save-btn {
+    display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: .74rem; font-weight: 700;
+    color: #fff; background: #1565c0; padding: 5px 11px; border-radius: 7px; box-shadow: 0 0 0 3px rgba(21,101,192,.28);
+  }
+  .save-btn svg { width: 13px; height: 13px; }
+  .code { margin: 0; padding: 13px 14px; font-size: .74rem; line-height: 1.75; overflow-x: auto; }
+  .code .ln { color: #5c7089; }
+  .code .sel { background: rgba(127,176,245,.18); border-radius: 3px; }
+  .tok-k { color: #7fb0f5; } .tok-s { color: #8fd6a8; } .tok-c { color: #7a8aa3; } .tok-p { color: #e6b8ff; }
+  .hl-line { display: block; background: rgba(69,199,154,.14); box-shadow: inset 3px 0 0 #45c79a; padding-left: 8px; margin-left: -8px; border-radius: 2px; }
+
+  .dialog { background: var(--surface); }
+  .dlg-title { padding: 14px 16px; font-weight: 700; font-size: .92rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .dlg-title .x { color: var(--faint); }
+  .deploy-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .deploy-row .info { min-width: 0; }
+  .deploy-row .info .t { font-weight: 700; font-size: .86rem; }
+  .deploy-row .info .u { font-family: var(--mono); font-size: .72rem; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 210px; }
+  .pencil {
+    flex: none; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center;
+    border: 1px solid var(--border-strong); color: var(--primary); background: var(--surface);
+    box-shadow: 0 0 0 3px rgba(21,101,192,.16);
+  }
+  .pencil svg { width: 16px; height: 16px; }
+  .field { padding: 14px 16px; }
+  .field label { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .select {
+    display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; border-radius: 9px;
+    border: 2px solid var(--primary); background: var(--primary-soft); color: var(--primary-ink); font-weight: 700; font-size: .88rem;
+  }
+  .dlg-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 13px 16px; }
+  .btn-ghost { padding: 8px 15px; border-radius: 9px; border: 1px solid var(--border-strong); color: var(--muted); font-weight: 600; font-size: .84rem; }
+  .btn-primary { padding: 8px 18px; border-radius: 9px; background: var(--primary); color: #fff; font-weight: 700; font-size: .84rem; box-shadow: 0 4px 12px rgba(21,101,192,.32); }
+
+  .cap { margin: 12px 2px 0; font-size: .8rem; color: var(--faint); }
+  .cap b { color: var(--primary-ink); font-weight: 700; }
+
+  /* ---- done + faq ---- */
+  .done {
+    margin-top: 22px; background: var(--success-soft); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+    border-radius: var(--radius); padding: 22px; display: flex; gap: 15px; align-items: flex-start;
+  }
+  .done .ring { flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--success); display: grid; place-items: center; color: #fff; }
+  .done h2 { margin: 2px 0 5px; font-size: 1.12rem; }
+  .done p { margin: 0; color: var(--ink); font-size: .92rem; }
+
+  .faq { margin-top: 34px; }
+  .faq h3 { font-size: .78rem; text-transform: uppercase; letter-spacing: .13em; color: var(--faint); margin: 0 0 12px; }
+  details {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2px 16px; margin-bottom: 10px;
+  }
+  summary { cursor: pointer; padding: 13px 0; font-weight: 650; font-size: .92rem; list-style: none; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+  summary::-webkit-details-marker { display: none; }
+  summary .plus { color: var(--primary); transition: transform .2s; flex: none; }
+  details[open] summary .plus { transform: rotate(45deg); }
+  details p { margin: 0 0 14px; color: var(--muted); font-size: .9rem; }
+
+  /* ---- footer ---- */
+  .foot {
+    margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--border);
+    display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;
+  }
+  .foot .who b { font-size: .9rem; } .foot .who span { display: block; color: var(--faint); font-size: .8rem; margin-top: 2px; }
+  .contacts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .contact { display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); font-size: .82rem; font-weight: 600; color: var(--ink); box-shadow: var(--shadow); }
+  .contact svg { width: 15px; height: 15px; color: var(--primary); }
+
+  @media (max-width: 540px) {
+    .step-head { padding: 16px 15px 12px; } .figure { padding: 0 15px 16px; }
+    .deploy-row .info .u { max-width: 130px; }
+    .foot { flex-direction: column; align-items: flex-start; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .step, .note, .done { animation: rise .5s cubic-bezier(.2,.7,.2,1) both; }
+    .steps .step:nth-child(2) { animation-delay: .05s; }
+    .steps .step:nth-child(3) { animation-delay: .1s; }
+    .steps .step:nth-child(4) { animation-delay: .15s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  }
+
+  /* ---- code box ---- */
+  .codebox { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; margin: 0 0 30px; }
+  .codebox-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .codebox-eyebrow { margin: 0; font-weight: 800; font-size: .95rem; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+  .codebox-eyebrow .material { color: var(--primary-ink); }
+  .codebox-sub { margin: 3px 0 0; font-size: .78rem; color: var(--muted); }
+  .copy-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border: 0; border-radius: 11px; background: var(--primary); color: #fff; font-weight: 700; font-size: .86rem; cursor: pointer; transition: background .15s, transform .1s; white-space: nowrap; font-family: var(--sans); }
+  .copy-btn:hover { background: var(--primary-ink); }
+  .copy-btn:active { transform: scale(.97); }
+  .copy-btn.ok { background: var(--success); }
+  .copy-btn svg { width: 16px; height: 16px; }
+  .codebox-pre { margin: 0; padding: 14px 16px; max-height: 300px; overflow: auto; background: var(--code-bg); color: var(--code-ink); font-family: var(--mono); font-size: .72rem; line-height: 1.6; white-space: pre; tab-size: 2; }
+  .codebox-foot { padding: 9px 16px; font-size: .72rem; color: var(--faint); border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .codebox-foot a { color: var(--primary-ink); font-weight: 600; text-decoration: none; }
+</style>
+
+<div class="page">
+  <div class="wrap">
+
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6H18a2 2 0 0 1 2 2v0H6.5a1 1 0 0 0 0 2H20a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H5.5A2.5 2.5 0 0 1 3 15.5v-7Z" fill="currentColor"/><circle cx="16.5" cy="14" r="1.4" fill="#0b4a94"/></svg>
+      </div>
+      <div>
+        <b>DompetKu</b> <span>· oleh NAMTECH Corp</span>
+      </div>
+    </div>
+
+    <p class="eyebrow">Pembaruan Template · Juli 2026</p>
+    <h1>Cara Memperbarui Apps Script DompetKu</h1>
+    <p class="lede">Kami memperbaiki bug pencatatan Reksadana dan merapikan template. Agar perbaikan aktif di spreadsheet Anda, perbarui Apps Script sekali saja — ikuti 4 langkah di bawah.</p>
+
+    <div class="meta">
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> ± 3 menit</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg> Data tetap aman</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 15l6-6M10.5 6.5l1-1a4 4 0 0 1 6 6l-1 1M13.5 17.5l-1 1a4 4 0 0 1-6-6l1-1"/></svg> URL Web App tidak berubah</span>
+    </div>
+
+    <div class="note ok">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+      <p><strong>Tenang, data Anda tidak akan hilang.</strong> Langkah ini hanya memperbarui kode di balik layar — seluruh transaksi, aset, dan pengaturan Anda tetap utuh.</p>
+    </div>
+
+        <section class="codebox">
+      <div class="codebox-head">
+        <div>
+          <p class="codebox-eyebrow"><span class="material material-symbols">&#128203;</span> Kode Apps Script Terbaru</p>
+          <p class="codebox-sub">Klik <b>Salin Kode</b>, lalu tempel di Langkah 2. Sudah termasuk perbaikan bug Reksadana.</p>
+        </div>
+        <button id="copyBtn" class="copy-btn" type="button" aria-label="Salin kode Apps Script">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+          <span id="copyLabel">Salin Kode</span>
+        </button>
+      </div>
+      <pre id="appsScriptCode" class="codebox-pre">/**
  * =========================================================================
  * DompetKu - Google Apps Script Backend (Full CRUD, Multi-Tab)
  * =========================================================================
@@ -8,11 +310,11 @@
  *
  * CARA DEPLOY / UPDATE:
  * 1. Buka Google Spreadsheet Database Anda.
- * 2. Klik Extensions > Apps Script.
+ * 2. Klik Extensions &gt; Apps Script.
  * 3. Hapus SEMUA kode lama, lalu paste kode ini.
- * 4. Klik Deploy > Manage deployments > Edit (ikon pensil).
+ * 4. Klik Deploy &gt; Manage deployments &gt; Edit (ikon pensil).
  * 5. Ubah Version ke "New version", klik Deploy.
- * 6. Jika deploy baru: Deploy > New deployment > Web app > Execute as: Me, Access: Anyone.
+ * 6. Jika deploy baru: Deploy &gt; New deployment &gt; Web app &gt; Execute as: Me, Access: Anyone.
  */
 
 // ===================== KONFIGURASI =====================
@@ -41,7 +343,7 @@ const HEADERS = {
   Recurring: ['id', 'name', 'type', 'amount', 'category', 'account', 'frequency', 'dayOfMonth', 'startDate', 'endDate', 'lastPostedDate', 'autoPost', 'notes'],
   Insurance: ['id', 'name', 'insType', 'provider', 'policyNumber', 'premium', 'premiumFrequency', 'coverageAmount', 'startDate', 'renewalDate', 'insured', 'beneficiary', 'status', 'notes'],
   // Anggaran bulanan per-kategori (format tidy, menggantikan blob JSON 'monthlyBudgets' di Settings).
-  // id = "<month>__<category>" (mis. "2026-03__Bond"), month = "YYYY-MM".
+  // id = "&lt;month&gt;__&lt;category&gt;" (mis. "2026-03__Bond"), month = "YYYY-MM".
   MonthlyBudgets: ['id', 'month', 'category', 'amount'],
   // ── Jilid 2 (v3.2) — Dana Pensiun Indonesia (BPJS TK/JHT/JP/DPLK) ──
   Retirement: ['id', 'name', 'progType', 'provider', 'currentBalance', 'monthlyContribution', 'contributionType', 'employerContribution', 'startDate', 'targetAge', 'expectedReturn', 'status', 'notes'],
@@ -62,7 +364,7 @@ function ensureSheetExists(sheetName) {
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
     var headers = HEADERS[sheetName];
-    if (headers && headers.length) {
+    if (headers &amp;&amp; headers.length) {
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
       sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
       sheet.setFrozenRows(1);
@@ -79,7 +381,7 @@ function ensureSheetExists(sheetName) {
 function getMonthlyBudgetsMap() {
   var map = {};
   var rows = readSheet('MonthlyBudgets'); // auto-create bila belum ada
-  for (var i = 0; i < rows.length; i++) {
+  for (var i = 0; i &lt; rows.length; i++) {
     var mo = rows[i].month, cat = rows[i].category;
     if (!mo || !cat) continue;
     if (!map[mo]) map[mo] = {};
@@ -89,7 +391,7 @@ function getMonthlyBudgetsMap() {
   for (var k in map) { if (map.hasOwnProperty(k)) { empty = false; break; } }
   if (empty) {
     var settingsData = readSheet('Settings');
-    for (var s = 0; s < settingsData.length; s++) {
+    for (var s = 0; s &lt; settingsData.length; s++) {
       if (settingsData[s].key === 'monthlyBudgets') {
         try { map = JSON.parse(settingsData[s].value) || {}; } catch (e) {}
         break;
@@ -109,17 +411,17 @@ function readSheet(sheetName) {
   if (!sheet) return [];
 
   var data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
+  if (data.length &lt;= 1) return [];
 
   var headers = data[0];
   var result = [];
 
-  for (var i = 1; i < data.length; i++) {
+  for (var i = 1; i &lt; data.length; i++) {
     var row = data[i];
     // Skip baris kosong (yang id/key-nya kosong)
-    if (!row[0] && row[0] !== 0) continue;
+    if (!row[0] &amp;&amp; row[0] !== 0) continue;
     var obj = {};
-    for (var j = 0; j < headers.length; j++) {
+    for (var j = 0; j &lt; headers.length; j++) {
       obj[headers[j]] = row[j];
     }
     result.push(obj);
@@ -157,7 +459,7 @@ function getValueCaseInsensitive(data, header) {
   
   // Cari di keys dari data
   var keys = Object.keys(data);
-  for (var i = 0; i < keys.length; i++) {
+  for (var i = 0; i &lt; keys.length; i++) {
     var key = keys[i];
     var cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     
@@ -165,7 +467,7 @@ function getValueCaseInsensitive(data, header) {
     if (cleanKey === cleanHeader) return data[key];
     
     // Cocokkan menggunakan alias
-    if (aliases[cleanHeader] && aliases[cleanHeader].indexOf(key) !== -1) {
+    if (aliases[cleanHeader] &amp;&amp; aliases[cleanHeader].indexOf(key) !== -1) {
       return data[key];
     }
   }
@@ -208,7 +510,7 @@ function updateInSheet(sheetName, id, data) {
   var allData = sheet.getDataRange().getValues();
   var headers = allData[0];
 
-  for (var i = 1; i < allData.length; i++) {
+  for (var i = 1; i &lt; allData.length; i++) {
     if (String(allData[i][0]) === String(id)) {
       var rowValues = headers.map(function(h) {
         var val = getValueCaseInsensitive(data, h);
@@ -234,7 +536,7 @@ function deleteFromSheet(sheetName, id) {
 
   var allData = sheet.getDataRange().getValues();
 
-  for (var i = 1; i < allData.length; i++) {
+  for (var i = 1; i &lt; allData.length; i++) {
     if (String(allData[i][0]) === String(id)) {
       sheet.deleteRow(i + 1);
       return true;
@@ -254,13 +556,13 @@ function deleteFromSheet(sheetName, id) {
  */
 function doGet(e) {
   try {
-    var sheetParam = (e && e.parameter && e.parameter.sheet) ? e.parameter.sheet : 'all';
+    var sheetParam = (e &amp;&amp; e.parameter &amp;&amp; e.parameter.sheet) ? e.parameter.sheet : 'all';
 
     var result = {};
 
     if (sheetParam === 'all') {
       // Kembalikan semua tab
-      for (var i = 0; i < VALID_SHEETS.length; i++) {
+      for (var i = 0; i &lt; VALID_SHEETS.length; i++) {
         var name = VALID_SHEETS[i];
         result[name] = readSheet(name);
       }
@@ -298,7 +600,7 @@ function doGet(e) {
 function doPost(e) {
   try {
     var payload;
-    if (e.postData && e.postData.contents) {
+    if (e.postData &amp;&amp; e.postData.contents) {
       payload = JSON.parse(e.postData.contents);
     } else {
       return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'No data received' }))
@@ -346,7 +648,7 @@ function doPost(e) {
   }
 }
 
-// ===================== SATU KALI SETUP & MIGRASI =====================
+// ===================== SATU KALI SETUP &amp; MIGRASI =====================
 
 /**
  * Menyiapkan tab baru 'AssetsNonLiquid' dan memindahkan data aset fisik dari 'Assets' secara otomatis.
@@ -377,7 +679,7 @@ function setupAssetsNonLiquidSheet() {
   nonLiquidSheet.setFrozenRows(1); // Bekukan baris pertama
   
   // Auto-resize kolom agar rapi
-  for (var i = 1; i <= headers.length; i++) {
+  for (var i = 1; i &lt;= headers.length; i++) {
     nonLiquidSheet.autoResizeColumn(i);
   }
   
@@ -389,7 +691,7 @@ function setupAssetsNonLiquidSheet() {
   }
   
   var assetsData = assetsSheet.getDataRange().getValues();
-  if (assetsData.length <= 1) {
+  if (assetsData.length &lt;= 1) {
     Logger.log('Tidak ada data di tab Assets. Setup selesai dengan tab baru kosong.');
     return 'Tab AssetsNonLiquid siap digunakan!';
   }
@@ -412,7 +714,7 @@ function setupAssetsNonLiquidSheet() {
   // Indeks baris yang akan dihapus dari tab Assets lama (mulai dari baris terbawah agar indeks tidak bergeser)
   var rowsToDelete = [];
   
-  for (var r = 1; r < assetsData.length; r++) {
+  for (var r = 1; r &lt; assetsData.length; r++) {
     var row = assetsData[r];
     var category = String(row[idxCategory]).toLowerCase();
     
@@ -470,7 +772,7 @@ function setupAssetsNonLiquidSheet() {
   }
   
   // Hapus dari sheet Assets lama dari bawah ke atas agar indeks tidak geser
-  for (var d = rowsToDelete.length - 1; d >= 0; d--) {
+  for (var d = rowsToDelete.length - 1; d &gt;= 0; d--) {
     assetsSheet.deleteRow(rowsToDelete[d]);
   }
   
@@ -493,7 +795,7 @@ function setupBudgetingSheet() {
   if (catSheet) {
     var catValues = catSheet.getDataRange().getValues();
     var existingCatNames = [];
-    if (catValues.length > 1) {
+    if (catValues.length &gt; 1) {
       existingCatNames = catValues.slice(1).map(function(row) { return String(row[1]).toLowerCase(); });
     }
     
@@ -515,7 +817,7 @@ function setupBudgetingSheet() {
       { name: 'Others', allocated: 0, icon: 'more_horiz', color: '#78909c' }
     ];
     
-    for (var d = 0; d < defaultIncomes.length; d++) {
+    for (var d = 0; d &lt; defaultIncomes.length; d++) {
       var inc = defaultIncomes[d];
       if (existingCatNames.indexOf(inc.name.toLowerCase()) === -1) {
         var id = 'bcat_' + inc.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -537,7 +839,7 @@ function setupBudgetingSheet() {
   // Anggaran bulanan per-kategori — dari tab MonthlyBudgets (fallback ke blob Settings lama).
   var monthlyBudgets = getMonthlyBudgetsMap();
   
-  // 3. Setup Header & Kolom Bulan (E s/d P)
+  // 3. Setup Header &amp; Kolom Bulan (E s/d P)
   // Merge B2:D3 untuk judul Annual Budget
   budgetSheet.getRange('B2:D3').merge()
              .setValue('Annual Budget')
@@ -556,7 +858,7 @@ function setupBudgetingSheet() {
   ];
   
   // Merge baris 2-3 untuk masing-masing bulan
-  for (var m = 0; m < months.length; m++) {
+  for (var m = 0; m &lt; months.length; m++) {
     var colLetter = String.fromCharCode(69 + m); // E = 69, F = 70, dst.
     var cellRange = colLetter + '2:' + colLetter + '3';
     budgetSheet.getRange(cellRange).merge()
@@ -575,7 +877,7 @@ function setupBudgetingSheet() {
   var savingCats = [];
   var investCats = [];
   
-  for (var c = 0; c < catData.length; c++) {
+  for (var c = 0; c &lt; catData.length; c++) {
     var name = catData[c].name;
     var type = catData[c].type;
     var id = catData[c].id;
@@ -603,11 +905,11 @@ function setupBudgetingSheet() {
     return 'EXPENSES';
   }
   
-  // 5. Tulis Baris KPI (Baris 4 & 5)
+  // 5. Tulis Baris KPI (Baris 4 &amp; 5)
   budgetSheet.getRange('B4:D4').merge().setValue('Allocated:').setFontWeight('bold').setHorizontalAlignment('right');
   budgetSheet.getRange('B5:D5').merge().setValue('Left to allocate:').setFontWeight('bold').setHorizontalAlignment('right');
   
-  // 6. Gambar Konten & Formula
+  // 6. Gambar Konten &amp; Formula
   var currentRow = 6;
   
   // a. Section Expected Income
@@ -620,13 +922,13 @@ function setupBudgetingSheet() {
              .setFontColor('#0f5132');
   currentRow++;
   
-  for (var i = 0; i < incomeCats.length; i++) {
+  for (var i = 0; i &lt; incomeCats.length; i++) {
     budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue(incomeCats[i].name).setFontWeight('bold');
     // Tulis nilai bulan-bulanan
-    for (var m = 0; m < months.length; m++) {
+    for (var m = 0; m &lt; months.length; m++) {
       var yearMonthKey = '2026-' + months[m].key;
       var val = incomeCats[i].allocated;
-      if (monthlyBudgets[yearMonthKey] && monthlyBudgets[yearMonthKey][incomeCats[i].name] !== undefined) {
+      if (monthlyBudgets[yearMonthKey] &amp;&amp; monthlyBudgets[yearMonthKey][incomeCats[i].name] !== undefined) {
         val = monthlyBudgets[yearMonthKey][incomeCats[i].name];
       }
       budgetSheet.getRange(currentRow, 5 + m).setValue(val).setNumberFormat('[$Rp-421] #,##0');
@@ -638,7 +940,7 @@ function setupBudgetingSheet() {
   // Baris Total Income
   var totalIncomeRow = currentRow;
   budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue('Total Income').setFontWeight('bold').setBackground('#f8f9fa');
-  for (var m = 0; m < months.length; m++) {
+  for (var m = 0; m &lt; months.length; m++) {
     var colLetter = String.fromCharCode(69 + m);
     var formula = '=SUM(' + colLetter + incomeStartRow + ':' + colLetter + incomeEndRow + ')';
     budgetSheet.getRange(currentRow, 5 + m).setFormula(formula).setFontWeight('bold').setBackground('#f8f9fa').setNumberFormat('[$Rp-421] #,##0');
@@ -648,19 +950,19 @@ function setupBudgetingSheet() {
   // b. Section Expenses
   var expenseStartRow = currentRow + 1;
   budgetSheet.getRange(currentRow, 2, 1, 3).merge()
-             .setValue('🛒 Expenses Budget (Belanja & Operasional)')
+             .setValue('🛒 Expenses Budget (Belanja &amp; Operasional)')
              .setFontWeight('bold');
   budgetSheet.getRange(currentRow, 2, 1, 15)
              .setBackground('#fde8e8')
              .setFontColor('#ba1a1a');
   currentRow++;
   
-  for (var i = 0; i < expenseCats.length; i++) {
+  for (var i = 0; i &lt; expenseCats.length; i++) {
     budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue(expenseCats[i].name);
-    for (var m = 0; m < months.length; m++) {
+    for (var m = 0; m &lt; months.length; m++) {
       var yearMonthKey = '2026-' + months[m].key;
       var val = expenseCats[i].allocated;
-      if (monthlyBudgets[yearMonthKey] && monthlyBudgets[yearMonthKey][expenseCats[i].name] !== undefined) {
+      if (monthlyBudgets[yearMonthKey] &amp;&amp; monthlyBudgets[yearMonthKey][expenseCats[i].name] !== undefined) {
         val = monthlyBudgets[yearMonthKey][expenseCats[i].name];
       }
       budgetSheet.getRange(currentRow, 5 + m).setValue(val).setNumberFormat('[$Rp-421] #,##0');
@@ -672,7 +974,7 @@ function setupBudgetingSheet() {
   // Baris Total Expenses
   var totalExpensesRow = currentRow;
   budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue('Total Expenses').setFontWeight('bold').setBackground('#f8f9fa');
-  for (var m = 0; m < months.length; m++) {
+  for (var m = 0; m &lt; months.length; m++) {
     var colLetter = String.fromCharCode(69 + m);
     var formula = '=SUM(' + colLetter + expenseStartRow + ':' + colLetter + expenseEndRow + ')';
     budgetSheet.getRange(currentRow, 5 + m).setFormula(formula).setFontWeight('bold').setBackground('#f8f9fa').setNumberFormat('[$Rp-421] #,##0');
@@ -682,19 +984,19 @@ function setupBudgetingSheet() {
   // c. Section Savings
   var savingStartRow = currentRow + 1;
   budgetSheet.getRange(currentRow, 2, 1, 3).merge()
-             .setValue('🐖 Saving Budget (Tabungan & Sinking Fund)')
+             .setValue('🐖 Saving Budget (Tabungan &amp; Sinking Fund)')
              .setFontWeight('bold');
   budgetSheet.getRange(currentRow, 2, 1, 15)
              .setBackground('#fffde7')
              .setFontColor('#ef6c00');
   currentRow++;
   
-  for (var i = 0; i < savingCats.length; i++) {
+  for (var i = 0; i &lt; savingCats.length; i++) {
     budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue(savingCats[i].name);
-    for (var m = 0; m < months.length; m++) {
+    for (var m = 0; m &lt; months.length; m++) {
       var yearMonthKey = '2026-' + months[m].key;
       var val = savingCats[i].allocated;
-      if (monthlyBudgets[yearMonthKey] && monthlyBudgets[yearMonthKey][savingCats[i].name] !== undefined) {
+      if (monthlyBudgets[yearMonthKey] &amp;&amp; monthlyBudgets[yearMonthKey][savingCats[i].name] !== undefined) {
         val = monthlyBudgets[yearMonthKey][savingCats[i].name];
       }
       budgetSheet.getRange(currentRow, 5 + m).setValue(val).setNumberFormat('[$Rp-421] #,##0');
@@ -706,7 +1008,7 @@ function setupBudgetingSheet() {
   // Baris Total Savings
   var totalSavingsRow = currentRow;
   budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue('Total Savings').setFontWeight('bold').setBackground('#f8f9fa');
-  for (var m = 0; m < months.length; m++) {
+  for (var m = 0; m &lt; months.length; m++) {
     var colLetter = String.fromCharCode(69 + m);
     var formula = '=SUM(' + colLetter + savingStartRow + ':' + colLetter + savingEndRow + ')';
     budgetSheet.getRange(currentRow, 5 + m).setFormula(formula).setFontWeight('bold').setBackground('#f8f9fa').setNumberFormat('[$Rp-421] #,##0');
@@ -716,19 +1018,19 @@ function setupBudgetingSheet() {
   // d. Section Investment
   var investStartRow = currentRow + 1;
   budgetSheet.getRange(currentRow, 2, 1, 3).merge()
-             .setValue('📈 Investment Budget (Investasi & Saham)')
+             .setValue('📈 Investment Budget (Investasi &amp; Saham)')
              .setFontWeight('bold');
   budgetSheet.getRange(currentRow, 2, 1, 15)
              .setBackground('#e3f2fd')
              .setFontColor('#1565c0');
   currentRow++;
   
-  for (var i = 0; i < investCats.length; i++) {
+  for (var i = 0; i &lt; investCats.length; i++) {
     budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue(investCats[i].name);
-    for (var m = 0; m < months.length; m++) {
+    for (var m = 0; m &lt; months.length; m++) {
       var yearMonthKey = '2026-' + months[m].key;
       var val = investCats[i].allocated;
-      if (monthlyBudgets[yearMonthKey] && monthlyBudgets[yearMonthKey][investCats[i].name] !== undefined) {
+      if (monthlyBudgets[yearMonthKey] &amp;&amp; monthlyBudgets[yearMonthKey][investCats[i].name] !== undefined) {
         val = monthlyBudgets[yearMonthKey][investCats[i].name];
       }
       budgetSheet.getRange(currentRow, 5 + m).setValue(val).setNumberFormat('[$Rp-421] #,##0');
@@ -740,7 +1042,7 @@ function setupBudgetingSheet() {
   // Baris Total Investment
   var totalInvestRow = currentRow;
   budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue('Total Investment').setFontWeight('bold').setBackground('#f8f9fa');
-  for (var m = 0; m < months.length; m++) {
+  for (var m = 0; m &lt; months.length; m++) {
     var colLetter = String.fromCharCode(69 + m);
     var formula = '=SUM(' + colLetter + investStartRow + ':' + colLetter + investEndRow + ')';
     budgetSheet.getRange(currentRow, 5 + m).setFormula(formula).setFontWeight('bold').setBackground('#f8f9fa').setNumberFormat('[$Rp-421] #,##0');
@@ -751,7 +1053,7 @@ function setupBudgetingSheet() {
   // Investment as % of Income
   var totalInvestPercentRow = currentRow;
   budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue('Investment as % of Income').setFontWeight('bold').setBackground('#f8f9fa');
-  for (var m = 0; m < months.length; m++) {
+  for (var m = 0; m &lt; months.length; m++) {
     var colLetter = String.fromCharCode(69 + m);
     var formula = '=IFERROR(' + colLetter + totalInvestRow + '/' + colLetter + totalIncomeRow + ', 0)';
     budgetSheet.getRange(currentRow, 5 + m).setFormula(formula).setFontWeight('bold').setBackground('#f8f9fa').setNumberFormat('0.0%');
@@ -761,14 +1063,14 @@ function setupBudgetingSheet() {
   // Grand Total
   var grandTotalRow = currentRow;
   budgetSheet.getRange(currentRow, 2, 1, 3).merge().setValue('Grand Total (All Expense/Save/Invest)').setFontWeight('bold').setBackground('#e9ecef');
-  for (var m = 0; m < months.length; m++) {
+  for (var m = 0; m &lt; months.length; m++) {
     var colLetter = String.fromCharCode(69 + m);
     var formula = '=' + colLetter + totalExpensesRow + '+' + colLetter + totalSavingsRow + '+' + colLetter + totalInvestRow;
     budgetSheet.getRange(currentRow, 5 + m).setFormula(formula).setFontWeight('bold').setBackground('#e9ecef').setNumberFormat('[$Rp-421] #,##0');
   }
   
-  // 7. Tulis Rumus Atas (Allocated & Left to allocate di baris 4 & 5)
-  for (var m = 0; m < months.length; m++) {
+  // 7. Tulis Rumus Atas (Allocated &amp; Left to allocate di baris 4 &amp; 5)
+  for (var m = 0; m &lt; months.length; m++) {
     var colLetter = String.fromCharCode(69 + m);
     
     // Allocated: =IFERROR(GrandTotal / TotalIncome, 0)
@@ -780,7 +1082,7 @@ function setupBudgetingSheet() {
     budgetSheet.getRange(5, 5 + m).setFormula(leftFormula).setNumberFormat('[$Rp-421] #,##0').setFontWeight('bold');
   }
   
-  // 8. Freeze & Format Lebar Kolom
+  // 8. Freeze &amp; Format Lebar Kolom
   budgetSheet.setFrozenRows(5);
   budgetSheet.setFrozenColumns(4); // Bekukan kolom A s/d D
   
@@ -789,17 +1091,17 @@ function setupBudgetingSheet() {
   budgetSheet.setColumnWidth(3, 20); // Kolom C (padding)
   budgetSheet.setColumnWidth(4, 20); // Kolom D (padding)
   
-  for (var m = 0; m < months.length; m++) {
+  for (var m = 0; m &lt; months.length; m++) {
     budgetSheet.setColumnWidth(5 + m, 110); // Lebar sama rata untuk bulan
   }
   
 
   
-  Logger.log('Tab Budgeting berhasil dibuat dengan formula & visualisasi premium!');
+  Logger.log('Tab Budgeting berhasil dibuat dengan formula &amp; visualisasi premium!');
   return 'Tab "Budgeting" tahunan dengan visualisasi premium berhasil dibuat langsung di Google Spreadsheet Anda!';
 }
 
-// ===================== SATU KALI SETUP & MIGRASI PENGINGAT =====================
+// ===================== SATU KALI SETUP &amp; MIGRASI PENGINGAT =====================
 
 /**
  * Menyisipkan kolom 'valuationReminder' dan 'lastValuationUpdate' ke tab Accounts dan AssetsNonLiquid jika belum ada.
@@ -809,7 +1111,7 @@ function migrateDatabaseForReminders() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetsToMigrate = ['Accounts', 'AssetsNonLiquid'];
   
-  for (var k = 0; k < sheetsToMigrate.length; k++) {
+  for (var k = 0; k &lt; sheetsToMigrate.length; k++) {
     var sheetName = sheetsToMigrate[k];
     var sheet = ss.getSheetByName(sheetName);
     if (!sheet) continue;
@@ -822,21 +1124,21 @@ function migrateDatabaseForReminders() {
     
     // Cari header yang kurang
     var missingHeaders = [];
-    for (var i = 0; i < targetHeaders.length; i++) {
+    for (var i = 0; i &lt; targetHeaders.length; i++) {
       if (headers.indexOf(targetHeaders[i]) === -1) {
         missingHeaders.push(targetHeaders[i]);
       }
     }
     
-    if (missingHeaders.length > 0) {
+    if (missingHeaders.length &gt; 0) {
       // Tambahkan header yang kurang ke baris pertama
       var lastCol = sheet.getLastColumn();
       sheet.getRange(1, lastCol + 1, 1, missingHeaders.length).setValues([missingHeaders]);
       
       // Jika ada baris data lama, isi nilai default
       var lastRow = sheet.getLastRow();
-      if (lastRow > 1) {
-        for (var m = 0; m < missingHeaders.length; m++) {
+      if (lastRow &gt; 1) {
+        for (var m = 0; m &lt; missingHeaders.length; m++) {
           var colNum = lastCol + 1 + m;
           var missingHeader = missingHeaders[m];
           var fillVal = '';
@@ -850,7 +1152,7 @@ function migrateDatabaseForReminders() {
           
           var range = sheet.getRange(2, colNum, lastRow - 1, 1);
           var vals = [];
-          for (var r = 2; r <= lastRow; r++) {
+          for (var r = 2; r &lt;= lastRow; r++) {
             vals.push([fillVal]);
           }
           range.setValues(vals);
@@ -881,21 +1183,21 @@ function migrateDebtsColumns() {
   
   // Cari header yang kurang
   var missingHeaders = [];
-  for (var i = 0; i < targetHeaders.length; i++) {
+  for (var i = 0; i &lt; targetHeaders.length; i++) {
     if (headers.indexOf(targetHeaders[i]) === -1) {
       missingHeaders.push(targetHeaders[i]);
     }
   }
   
-  if (missingHeaders.length > 0) {
+  if (missingHeaders.length &gt; 0) {
     // Tambahkan header yang kurang ke baris pertama
     var lastCol = sheet.getLastColumn();
     sheet.getRange(1, lastCol + 1, 1, missingHeaders.length).setValues([missingHeaders]);
     
     // Jika ada baris data lama, isi nilai default
     var lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      for (var m = 0; m < missingHeaders.length; m++) {
+    if (lastRow &gt; 1) {
+      for (var m = 0; m &lt; missingHeaders.length; m++) {
         var colNum = lastCol + 1 + m;
         var missingHeader = missingHeaders[m];
         var fillVal = '';
@@ -904,7 +1206,7 @@ function migrateDebtsColumns() {
         if (missingHeader === 'status') {
           fillVal = 'Aktif';
         } else if (missingHeader === 'originalAmount') {
-          fillVal = '=INDIRECT("D"&ROW())'; // Assume originalAmount = balance for old rows to prevent division by zero
+          fillVal = '=INDIRECT("D"&amp;ROW())'; // Assume originalAmount = balance for old rows to prevent division by zero
         } else if (missingHeader === 'interestType') {
           fillVal = 'Fixed/Flat';
         } else if (missingHeader === 'startDate' || missingHeader === 'endDate') {
@@ -915,7 +1217,7 @@ function migrateDebtsColumns() {
         
         var range = sheet.getRange(2, colNum, lastRow - 1, 1);
         var vals = [];
-        for (var r = 2; r <= lastRow; r++) {
+        for (var r = 2; r &lt;= lastRow; r++) {
           vals.push([fillVal]);
         }
         range.setValues(vals);
@@ -938,7 +1240,7 @@ function readFixedIncomeSheet() {
   
   var result = [];
   var lastRow = sheet.getLastRow();
-  if (lastRow < 31) return [];
+  if (lastRow &lt; 31) return [];
   
   var values = sheet.getRange(31, 1, lastRow - 30, 21).getValues();
   
@@ -947,7 +1249,7 @@ function readFixedIncomeSheet() {
   var depHeaders = sheet.getRange(79, 1, 1, 19).getValues()[0].map(function(h) { return h.toString().trim(); });
   var p2pHeaders = sheet.getRange(119, 1, 1, 20).getValues()[0].map(function(h) { return h.toString().trim(); });
   
-  for (var i = 0; i < values.length; i++) {
+  for (var i = 0; i &lt; values.length; i++) {
     var rowNum = i + 31;
     var rowVal = values[i];
     var id = rowVal[0];
@@ -961,15 +1263,15 @@ function readFixedIncomeSheet() {
     var headers = bondHeaders;
     var subType = 'sbn';
     
-    if (rowNum >= 80 && rowNum < 118) {
+    if (rowNum &gt;= 80 &amp;&amp; rowNum &lt; 118) {
       headers = depHeaders;
       subType = 'deposito';
-    } else if (rowNum >= 120) {
+    } else if (rowNum &gt;= 120) {
       headers = p2pHeaders;
       subType = 'p2p';
     }
     
-    for (var j = 0; j < headers.length; j++) {
+    for (var j = 0; j &lt; headers.length; j++) {
       if (headers[j]) {
         obj[headers[j]] = rowVal[j];
       }
@@ -983,13 +1285,13 @@ function readFixedIncomeSheet() {
     // Fallback pemetaan kolom dari template keuangan ke model frontend
     obj.title = getValueCaseInsensitive(obj, 'Seri') || getValueCaseInsensitive(obj, 'Bond Type') || getValueCaseInsensitive(obj, 'Title') || getValueCaseInsensitive(obj, 'Product Name') || getValueCaseInsensitive(obj, 'Bank') || 'Aset Pendapatan Tetap';
     obj.purchasePrice = Number(getValueCaseInsensitive(obj, 'Principal')) || 0;
-    obj.currentValue = subType === 'sbn' && Number(getValueCaseInsensitive(obj, 'Accrued Interest')) === 0 && Number(getValueCaseInsensitive(obj, 'Period Passed')) >= 24 ? 0 : obj.purchasePrice; 
+    obj.currentValue = subType === 'sbn' &amp;&amp; Number(getValueCaseInsensitive(obj, 'Accrued Interest')) === 0 &amp;&amp; Number(getValueCaseInsensitive(obj, 'Period Passed')) &gt;= 24 ? 0 : obj.purchasePrice; 
     obj.purchaseDate = getValueCaseInsensitive(obj, 'Issue Date') || '';
     obj.location = getValueCaseInsensitive(obj, 'Mitra Distribusi') || getValueCaseInsensitive(obj, 'Location') || getValueCaseInsensitive(obj, 'P2P Provider') || '';
     
     var rate = Number(String(getValueCaseInsensitive(obj, 'Interest Rate (%)') || '').replace('%', '').trim()) || Number(String(getValueCaseInsensitive(obj, 'Coupon Type') || '').replace('%', '').trim()) || 6.4;
     // Jika persentase dibaca sebagai fraksi desimal (misal 0.064 untuk 6.4%), kalikan dengan 100
-    if (rate > 0 && rate < 1) {
+    if (rate &gt; 0 &amp;&amp; rate &lt; 1) {
       rate = rate * 100;
     }
     obj.interestRate = rate;
@@ -1030,7 +1332,7 @@ function appendFixedIncome(data) {
   
   // Temukan baris kosong pertama di seksi
   var targetRow = -1;
-  for (var r = startRow; r <= endRow; r++) {
+  for (var r = startRow; r &lt;= endRow; r++) {
     var idCell = sheet.getRange(r, 1).getValue();
     if (!idCell) {
       targetRow = r;
@@ -1052,7 +1354,7 @@ function appendFixedIncome(data) {
   mappedData.Location = data.location || '';
   
   if (subType === 'sbn') {
-    mappedData['Bond Type'] = data.bondType || data.fixedIncomeType || (data.title && data.title.includes('Sukuk') ? 'Sukuk Tabungan (ST)' : 'Obligasi Negara Ritel (ORI)');
+    mappedData['Bond Type'] = data.bondType || data.fixedIncomeType || (data.title &amp;&amp; data.title.includes('Sukuk') ? 'Sukuk Tabungan (ST)' : 'Obligasi Negara Ritel (ORI)');
     mappedData['Seri'] = data.title || '';
     mappedData['Issuer'] = data.issuer || 'SBSN Indonesia';
     mappedData['Tenor (Year)'] = data.tenor !== undefined ? data.tenor : 2;
@@ -1105,19 +1407,19 @@ function appendFixedIncome(data) {
     sheet.getRange(targetRow, 15).setFormula('=IF(N' + targetRow + '="Monthly"; (L' + targetRow + '*J' + targetRow + '/12)*(1-K' + targetRow + '); (L' + targetRow + '*J' + targetRow + '/2)*(1-K' + targetRow + '))'); // Interest per Period
     sheet.getRange(targetRow, 16).setFormula('=MIN(E' + targetRow + '*12; IFERROR(ROUND((TODAY()-G' + targetRow + ')/(365.25/12)); 0))'); // Period Passed
     sheet.getRange(targetRow, 17).setFormula('=O' + targetRow + '*P' + targetRow + ''); // Total Interest Received
-    sheet.getRange(targetRow, 18).setFormula('=IF(P' + targetRow + '>=E' + targetRow + '*12; 0; O' + targetRow + ')'); // Accrued Interest
+    sheet.getRange(targetRow, 18).setFormula('=IF(P' + targetRow + '&gt;=E' + targetRow + '*12; 0; O' + targetRow + ')'); // Accrued Interest
   } else if (subType === 'deposito') {
     sheet.getRange(targetRow, 12).setFormula('=K' + targetRow + '*I' + targetRow + '*(1-J' + targetRow + ')'); // Expected Total Interest
     sheet.getRange(targetRow, 14).setFormula('=(K' + targetRow + '*I' + targetRow + '/12)*(1-J' + targetRow + ')'); // Interest per Period
     sheet.getRange(targetRow, 15).setFormula('=MIN(D' + targetRow + '; IFERROR(ROUND((TODAY()-F' + targetRow + ')/(365.25/12)); 0))'); // Period Passed
     sheet.getRange(targetRow, 16).setFormula('=N' + targetRow + '*O' + targetRow + ''); // Total Interest Received
-    sheet.getRange(targetRow, 17).setFormula('=IF(O' + targetRow + '>=D' + targetRow + '; 0; N' + targetRow + ')'); // Accrued Interest
+    sheet.getRange(targetRow, 17).setFormula('=IF(O' + targetRow + '&gt;=D' + targetRow + '; 0; N' + targetRow + ')'); // Accrued Interest
   } else {
     sheet.getRange(targetRow, 12).setFormula('=K' + targetRow + '*I' + targetRow + '*(1-J' + targetRow + ')'); // Expected Total Interest
     sheet.getRange(targetRow, 14).setFormula('=(K' + targetRow + '*I' + targetRow + '/12)*(1-J' + targetRow + ')'); // Interest per Period
     sheet.getRange(targetRow, 15).setFormula('=MIN(D' + targetRow + '; IFERROR(ROUND((TODAY()-F' + targetRow + ')/(365.25/12)); 0))'); // Period Passed
     sheet.getRange(targetRow, 16).setFormula('=N' + targetRow + '*O' + targetRow + ''); // Total Interest Received
-    sheet.getRange(targetRow, 17).setFormula('=IF(O' + targetRow + '>=D' + targetRow + '; 0; N' + targetRow + ')'); // Accrued Interest
+    sheet.getRange(targetRow, 17).setFormula('=IF(O' + targetRow + '&gt;=D' + targetRow + '; 0; N' + targetRow + ')'); // Accrued Interest
   }
 }
 
@@ -1127,18 +1429,18 @@ function updateFixedIncome(id, data) {
   if (!sheet) return false;
   
   var lastRow = sheet.getLastRow();
-  if (lastRow < 31) return false;
+  if (lastRow &lt; 31) return false;
   
   var ids = sheet.getRange(31, 1, lastRow - 30, 1).getValues();
-  for (var i = 0; i < ids.length; i++) {
+  for (var i = 0; i &lt; ids.length; i++) {
     if (String(ids[i][0]) === String(id)) {
       var targetRow = i + 31;
       var headerRow = 30;
       var numCols = 21;
-      if (targetRow >= 80 && targetRow < 118) {
+      if (targetRow &gt;= 80 &amp;&amp; targetRow &lt; 118) {
         headerRow = 79;
         numCols = 19;
-      } else if (targetRow >= 120) {
+      } else if (targetRow &gt;= 120) {
         headerRow = 119;
         numCols = 20;
       }
@@ -1149,15 +1451,15 @@ function updateFixedIncome(id, data) {
       // Mapping updates
       var mappedData = {};
       if (data.title !== undefined) {
-        if (targetRow < 80) mappedData['Seri'] = data.title;
-        else if (targetRow < 118) mappedData['Bank'] = data.title;
+        if (targetRow &lt; 80) mappedData['Seri'] = data.title;
+        else if (targetRow &lt; 118) mappedData['Bank'] = data.title;
         else mappedData['Product Name'] = data.title;
       }
       if (data.purchasePrice !== undefined) mappedData['Principal'] = data.purchasePrice;
       if (data.purchaseDate !== undefined) mappedData['Issue Date'] = cleanDateString(data.purchaseDate);
       if (data.location !== undefined) {
-        if (targetRow < 80) mappedData['Mitra Distribusi'] = data.location;
-        else if (targetRow >= 120) mappedData['P2P Provider'] = data.location;
+        if (targetRow &lt; 80) mappedData['Mitra Distribusi'] = data.location;
+        else if (targetRow &gt;= 120) mappedData['P2P Provider'] = data.location;
         else mappedData['Location'] = data.location;
       }
       if (data.interestRate !== undefined) mappedData['Interest Rate (%)'] = data.interestRate / 100;
@@ -1184,10 +1486,10 @@ function deleteFixedIncome(id) {
   if (!sheet) return false;
   
   var lastRow = sheet.getLastRow();
-  if (lastRow < 31) return false;
+  if (lastRow &lt; 31) return false;
   
   var ids = sheet.getRange(31, 1, lastRow - 30, 1).getValues();
-  for (var i = 0; i < ids.length; i++) {
+  for (var i = 0; i &lt; ids.length; i++) {
     if (String(ids[i][0]) === String(id)) {
       var targetRow = i + 31;
       var numCols = sheet.getLastColumn();
@@ -1201,7 +1503,7 @@ function deleteFixedIncome(id) {
 // ===================== PROGRAMMATIC SETUP FOR FIXED INCOME DASHBOARD =====================
 
 /**
- * Membentuk visualisasi dashboard & tabel modular premium untuk tab Fixed Income Investment.
+ * Membentuk visualisasi dashboard &amp; tabel modular premium untuk tab Fixed Income Investment.
  * Menyelamatkan data ST012 lama Anda dan menuliskannya kembali ke baris tabel baru.
  * Jalankan fungsi ini sekali saja melalui tombol "Run" di editor Google Apps Script.
  */
@@ -1216,13 +1518,13 @@ function setupFixedIncomeDashboard() {
   var backupData = [];
   try {
     var rawValues = sheet.getDataRange().getValues();
-    if (rawValues.length > 1) {
+    if (rawValues.length &gt; 1) {
       var headers = rawValues[0];
-      for (var r = 1; r < rawValues.length; r++) {
+      for (var r = 1; r &lt; rawValues.length; r++) {
         var row = rawValues[r];
-        if (row[0] && row[0] !== 'id' && row[0] !== 'ID') {
+        if (row[0] &amp;&amp; row[0] !== 'id' &amp;&amp; row[0] !== 'ID') {
           var obj = {};
-          for (var c = 0; c < headers.length; c++) {
+          for (var c = 0; c &lt; headers.length; c++) {
             obj[headers[c]] = row[c];
           }
           backupData.push(obj);
@@ -1233,7 +1535,7 @@ function setupFixedIncomeDashboard() {
     Logger.log('Tidak ada data lama untuk di-backup: ' + e.message);
   }
   
-  // 2. CLEAR SHEET & SET THEME
+  // 2. CLEAR SHEET &amp; SET THEME
   sheet.clear();
   
   // a. Lebar kolom padding A, C, D
@@ -1283,7 +1585,7 @@ function setupFixedIncomeDashboard() {
   
   // Sub-detail Bonds
   var bondsSubs = ['Obligasi FR', 'FR Syariah', 'Obligasi Negara Ritel (ORI)', 'Saving Bond Ritel (SBR)', 'Sukuk Ritel (SR)', 'Sukuk Tabungan (ST)'];
-  for (var i = 0; i < bondsSubs.length; i++) {
+  for (var i = 0; i &lt; bondsSubs.length; i++) {
     var r = 5 + i;
     sheet.getRange(r, 6).setValue('  • ' + bondsSubs[i]);
     sheet.getRange(r, 7).setFormula('=SUMIF(B31:B77; "' + bondsSubs[i] + '"; L31:L77)').setNumberFormat('[$Rp-421] #,##0');
@@ -1302,7 +1604,7 @@ function setupFixedIncomeDashboard() {
   
   // Sub-detail Deposito
   var depSubs = ['Deposito Berjangka', 'Sertifikat Deposito', 'Deposit on Call (DOC)'];
-  for (var i = 0; i < depSubs.length; i++) {
+  for (var i = 0; i &lt; depSubs.length; i++) {
     var r = 12 + i;
     sheet.getRange(r, 6).setValue('  • ' + depSubs[i]);
     sheet.getRange(r, 7).setFormula('=SUMIF(C80:C117; "' + depSubs[i] + '"; K80:K117)').setNumberFormat('[$Rp-421] #,##0');
@@ -1321,7 +1623,7 @@ function setupFixedIncomeDashboard() {
   
   // Sub-detail P2P
   var p2pSubs = ['Consumer Loan', 'Productive Loan'];
-  for (var i = 0; i < p2pSubs.length; i++) {
+  for (var i = 0; i &lt; p2pSubs.length; i++) {
     var r = 16 + i;
     sheet.getRange(r, 6).setValue('  • ' + p2pSubs[i]);
     sheet.getRange(r, 7).setFormula('=SUMIF(D120:D150; "' + p2pSubs[i] + '"; L120:L150)').setNumberFormat('[$Rp-421] #,##0');
@@ -1374,7 +1676,7 @@ function setupFixedIncomeDashboard() {
   
   // 8. TULIS KEMBALI BACKUP DATA LAMA KE TABEL BARU
   var restoredCount = 0;
-  for (var k = 0; k < backupData.length; k++) {
+  for (var k = 0; k &lt; backupData.length; k++) {
     var data = backupData[k];
     var subType = data.subType || 'sbn';
     var title = data.title || '';
@@ -1429,3 +1731,181 @@ function setupFixedIncomeDashboard() {
 
 
 
+</pre>
+      <div class="codebox-foot">
+        <span>1,431 baris &middot; Kode.gs</span>
+        <a href="/kode.txt" target="_blank" rel="noopener">Buka kode mentah &#8599;</a>
+      </div>
+    </section>
+
+    <div class="steps">
+
+      <!-- STEP 1 -->
+      <section class="step">
+        <div class="step-head">
+          <div class="num">1</div>
+          <div>
+            <h2>Buka editor Apps Script</h2>
+            <p>Di spreadsheet DompetKu Anda, klik menu <kbd>Ekstensi</kbd> → <kbd>Apps Script</kbd>.</p>
+          </div>
+        </div>
+        <div class="figure">
+          <div class="ui">
+            <div class="ui-bar">
+              <span class="mi">File</span><span class="mi">Edit</span><span class="mi">Lihat</span>
+              <span class="mi">Sisipkan</span><span class="mi">Format</span><span class="mi">Data</span>
+              <span class="mi">Alat</span><span class="mi on">Ekstensi ▾</span><span class="mi">Bantuan</span>
+            </div>
+            <div class="dropdown">
+              <div class="dd-item on">
+                <span class="g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12"/></svg></span>
+                Apps Script
+              </div>
+              <div class="dd-item" style="color:var(--muted)"><span class="g" style="background:#4285f4"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg></span> Makro</div>
+            </div>
+          </div>
+          <p class="cap">Menu <b>Ekstensi</b> ada di baris menu atas, di antara "Alat" dan "Bantuan".</p>
+        </div>
+      </section>
+
+      <!-- STEP 2 -->
+      <section class="step">
+        <div class="step-head">
+          <div class="num">2</div>
+          <div>
+            <h2>Ganti seluruh kode, lalu simpan</h2>
+            <p>Klik di dalam kode → pilih semua (<kbd>Ctrl/Cmd + A</kbd>) → hapus → tempel kode terbaru → simpan (<kbd>Ctrl/Cmd + S</kbd>).</p>
+          </div>
+        </div>
+        <div class="figure">
+          <div class="ui editor">
+            <div class="ed-top">
+              <span class="file"><span class="dot"></span> Kode.gs</span>
+              <span class="save-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7M8 21v-6h8v6"/></svg> Simpan</span>
+            </div>
+            <pre class="code"><span class="hl-line"><span class="tok-k">const</span> HEADERS = {</span>
+  Transactions: [<span class="tok-s">'id'</span>, <span class="tok-s">'date'</span>, <span class="tok-s">'desc'</span>, <span class="tok-c">…</span>],
+  Saham: [<span class="tok-s">'ID'</span>, <span class="tok-s">'Title'</span>, <span class="tok-s">'Ticker'</span>, <span class="tok-c">…</span>],
+<span class="hl-line">  Reksadana: [<span class="tok-s">'ID'</span>, <span class="tok-s">'Title'</span>, <span class="tok-s">'Ticker'</span>, <span class="tok-s">'Units'</span>, <span class="tok-c">…</span>] <span class="tok-c">// ← diperbaiki</span></span>
+};
+</pre>
+          </div>
+          <p class="cap">Tempel <b>seluruh</b> isi file kode terbaru — jangan hanya sebagian. Perhatikan baris <b>Reksadana</b> yang kini memiliki kolom <b>Ticker</b>.</p>
+        </div>
+      </section>
+
+      <!-- STEP 3 -->
+      <section class="step">
+        <div class="step-head">
+          <div class="num">3</div>
+          <div>
+            <h2>Deploy sebagai versi baru</h2>
+            <p>Klik <kbd>Deploy</kbd> → <kbd>Kelola deployment</kbd> → ikon pensil ✏️ → pada <b>Version</b> pilih <b>New version</b> → <kbd>Deploy</kbd>.</p>
+          </div>
+        </div>
+        <div class="figure">
+          <div class="ui dialog">
+            <div class="dlg-title">Kelola deployment <span class="x">✕</span></div>
+            <div class="deploy-row">
+              <div class="info">
+                <div class="t">Aplikasi Web · DompetKu API</div>
+                <div class="u">…/macros/s/AKfy…/exec</div>
+              </div>
+              <span class="pencil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 4l6 6M4 20l1-4L16 5l3 3L8 19l-4 1Z"/></svg></span>
+            </div>
+            <div class="field">
+              <label>Version</label>
+              <div class="select">New version <span class="caret">▾</span></div>
+            </div>
+            <div class="dlg-foot">
+              <span class="btn-ghost">Batal</span>
+              <span class="btn-primary">Deploy</span>
+            </div>
+          </div>
+          <p class="cap">Pilih <b>New version</b> pada deployment yang sudah ada — <b>bukan</b> "New deployment".</p>
+        </div>
+      </section>
+
+      <!-- STEP 4 -->
+      <section class="step">
+        <div class="step-head">
+          <div class="num">4</div>
+          <div>
+            <h2>Selesai — tidak perlu hubungkan ulang</h2>
+            <p>Karena Anda memakai <b>New version</b>, URL Web App tetap sama. Aplikasi DompetKu Anda langsung memakai kode terbaru.</p>
+          </div>
+        </div>
+        <div class="figure">
+          <div class="done" style="margin:0">
+            <div class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path d="M5 13l4 4L19 7"/></svg></div>
+            <div>
+              <h2>Pembaruan berhasil 🎉</h2>
+              <p>Bug Reksadana sudah teratasi. Silakan kembali menggunakan DompetKu seperti biasa — tak ada langkah lain yang diperlukan.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="note warn" style="margin:26px 0 0">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <p><strong>Jangan pilih "New deployment".</strong> Membuat deployment baru akan menghasilkan URL Web App yang berbeda, sehingga Anda harus menghubungkan ulang aplikasi. Cukup <strong>New version</strong> pada deployment yang ada.</p>
+    </div>
+
+    <div class="faq">
+      <h3>Pertanyaan umum</h3>
+      <details>
+        <summary>Apakah data saya akan terhapus? <span class="plus">+</span></summary>
+        <p>Tidak. Memperbarui Apps Script hanya mengganti kode program, bukan isi spreadsheet. Semua transaksi, aset, anggaran, dan utang Anda tetap utuh.</p>
+      </details>
+      <details>
+        <summary>Saya tidak memakai Reksadana — apakah tetap perlu update? <span class="plus">+</span></summary>
+        <p>Sangat disarankan agar Anda ikut mendapat semua perbaikan & penyempurnaan. Namun jika Anda tidak mencatat Reksadana, dampak bug tidak Anda alami, sehingga update bisa dilakukan kapan pun Anda sempat.</p>
+      </details>
+      <details>
+        <summary>Saya pengguna baru — apa yang harus saya lakukan? <span class="plus">+</span></summary>
+        <p>Tidak perlu langkah ini. Cukup salin template DompetKu terbaru; semua perbaikan sudah termasuk di dalamnya.</p>
+      </details>
+      <details>
+        <summary>Saya tidak menemukan menu "Kelola deployment". <span class="plus">+</span></summary>
+        <p>Tombol <b>Deploy</b> berwarna biru di kanan atas editor Apps Script. Setelah diklik, pilih "Kelola deployment" (Manage deployments). Jika belum pernah men-deploy, pilih "New deployment" sekali, lalu untuk pembaruan berikutnya gunakan "New version".</p>
+      </details>
+    </div>
+
+    <div class="foot">
+      <div class="who">
+        <b>Butuh bantuan?</b>
+        <span>Tim NAMTECH Corp siap membantu Anda.</span>
+      </div>
+      <div class="contacts">
+        <a class="contact" href="https://wa.me/6287751334784">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.7-1.2-4.4-3.9-4.6-4.1-.1-.2-1-1.4-1-2.6 0-1.2.6-1.8.9-2 .2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5.2.5.7 1.8.8 1.9.1.1.1.3 0 .5l-.3.5c-.2.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.4.1.6-.1.2-.2.7-.8.9-1 .2-.3.4-.2.6-.1.2.1 1.5.7 1.7.9.2.1.4.1.4.2.1.2.1.7-.1 1.3Z"/></svg>
+          +62 877 5133 4784
+        </a>
+        <a class="contact" href="mailto:fahrifauzaan@gmail.com">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          fahrifauzaan@gmail.com
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var btn=document.getElementById('copyBtn'), pre=document.getElementById('appsScriptCode'), lbl=document.getElementById('copyLabel');
+  if(!btn||!pre) return;
+  function flash(){ var t=lbl?lbl.textContent:''; if(lbl) lbl.textContent='Tersalin!'; btn.classList.add('ok'); setTimeout(function(){ if(lbl) lbl.textContent=t; btn.classList.remove('ok'); },1800); }
+  function fallback(txt){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); }
+  btn.addEventListener('click', function(){
+    var txt=pre.textContent;
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(flash, function(){ fallback(txt); flash(); }); }
+    else { fallback(txt); flash(); }
+  });
+})();
+</script>
+
+</body>
+</html>

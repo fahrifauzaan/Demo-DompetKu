@@ -5,7 +5,10 @@ const SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
 const HEADERS: Record<string, string[]> = {
   'Transactions': ['id', 'date', 'desc', 'location', 'amount', 'category', 'icon', 'status', 'account', 'type'],
   'Accounts': ['id', 'name', 'type', 'balance', 'currency', 'icon', 'startDate', 'valuationReminder', 'lastValuationUpdate'],
-  'Fixed Income Investment': ['id', 'title', 'category', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'equity', 'notes', 'ticker', 'shares', 'avgCost', 'interestRate', 'maturityDate', 'subType'],
+  // 'FixedIncome' = tab DATA BIASA (plain) untuk SBN/Deposito/P2P — pengganti tab lama
+  // 'Fixed Income Investment' yang berupa dashboard ber-merged-cell (tak kompatibel dgn jalur API).
+  // Tab lama tetap dibaca via macro untuk kompatibilitas; penulisan baru selalu ke 'FixedIncome'.
+  'FixedIncome': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'ticker', 'interestRate', 'maturityDate', 'fixedIncomeType', 'bondType', 'depositType', 'type', 'issuer', 'tenor', 'tenorUnit', 'couponType', 'tax', 'paymentDate', 'interestPaymentPeriod', 'equity'],
   'BudgetCategories': ['id', 'name', 'icon', 'color', 'type', 'allocated', 'includeInTotal', 'alertAt'],
   'Debts': ['id', 'name', 'type', 'balance', 'interestRate', 'minPayment', 'icon', 'originalAmount', 'interestType', 'startDate', 'endDate', 'dueDate', 'lender', 'status'],
   'Settings': ['key', 'value'],

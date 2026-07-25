@@ -9,6 +9,30 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.16.0] — 2026-07-25 · Perbaikan: Fixed Income tersimpan (tab dashboard → tab data biasa)
+
+**Dampak Google Sheet/Apps Script: ADA untuk pengguna mode Web App/macro** (perbarui Apps Script sekali dari Panduan). Pengguna Login-Google (OAuth): **otomatis, tanpa aksi**.
+
+### Diperbaiki
+- **Aset Pendapatan Tetap (SBN/Obligasi, Deposito, P2P) hilang setelah refresh** (dilaporkan user). Akar
+  masalah: tab `Fixed Income Investment` di template adalah **dashboard ber-merged-cell dengan seksi baris
+  tetap** (SBN 31–77, Deposito 80–117, P2P 120–150), bukan tabel data biasa. Apps Script punya handler khusus
+  (`appendFixedIncome`/`readFixedIncomeSheet`), tapi jalur API langsung (OAuth) memperlakukannya sebagai tabel
+  biasa → tulis gagal/salah tempat, baca salah-parse. Itu sebabnya Saham (tab biasa) jalan tapi Bonds tidak.
+  (v3.15.0 salah diagnosis sebagai "tab hilang"; ini perbaikan yang benar.)
+
+### Diubah (migrasi)
+- **Fixed Income kini disimpan di tab baru `FixedIncome`** (tabel data biasa, kolom lengkap: subType,
+  interestRate, maturityDate, couponType, tax, tenor, issuer, dll). `getAssetSheetName` → 'FixedIncome';
+  sync membaca `FixedIncome` (plain) DAN `Fixed Income Investment` (dashboard, via macro) lalu **merge by-id**
+  (holding lama tetap terbaca, tanpa duplikat). Jalur API auto-buat tab. Apps Script: `FixedIncome` ditambah
+  ke VALID_SHEETS + AUTO_CREATE_SHEETS + HEADERS; update/delete Fixed Income fallback ke tab dashboard untuk
+  holding lama. Panduan diregenerasi & di-deploy.
+- Diverifikasi: routing FI→FixedIncome, merge/dedup, `isApiSheet`, guard anti-wipe aset — uji unit lolos; live
+  `isApiSheet('FixedIncome')`=true & fancy tab tak lagi di-fetch API; tsc & build bersih.
+
+---
+
 ## [3.15.0] — 2026-07-25 · Perbaikan: Semua data benar-benar tersimpan
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (Apps Script sudah mendukung semua tab).

@@ -411,7 +411,7 @@ function getAssetSheetName(category?: string, subType?: string): string {
   if (subType === 'kripto') return 'Crypto';
   if (subType === 'reksadana') return 'Reksadana';
   if (category === 'real-estat' || category === 'kendaraan' || category === 'koleksi') return 'AssetsNonLiquid';
-  return 'Fixed Income Investment';
+  return 'FixedIncome'; // tab data biasa (plain) — pengganti dashboard 'Fixed Income Investment' yang tak kompatibel API
 }
 
 function formatAssetForSheet(asset: Asset): Record<string, unknown> {
@@ -1016,8 +1016,14 @@ export const useFinanceStore = create<FinanceState>()(
             }
             
             const parsedAssets: Asset[] = [];
-            const fixedIncomeData = result.data['Fixed Income Investment'] || result.data.Assets;
-            if (fixedIncomeData) {
+            // Gabung SUMBER Fixed Income: tab baru 'FixedIncome' (plain, jalur utama) + tab lama
+            // 'Fixed Income Investment' (dashboard, dibaca via macro demi kompatibilitas). Dedup by id
+            // (plain menang). Parser di bawah sudah tahan dua format (kolom plain & kolom template).
+            const plainFI = (result.data.FixedIncome as any[]) || [];
+            const fancyFI = (result.data['Fixed Income Investment'] as any[]) || (result.data.Assets as any[]) || [];
+            const plainFIIds = new Set(plainFI.map((a: any) => String(a.id || a.ID || '')));
+            const fixedIncomeData = [...plainFI, ...fancyFI.filter((a: any) => !plainFIIds.has(String(a.id || a.ID || '')))];
+            if (fixedIncomeData.length) {
               parsedAssets.push(...fixedIncomeData
                 .filter((a: any) => {
                   const idVal = String(a.id || a.ID || '').trim().toLowerCase();
@@ -1195,7 +1201,7 @@ export const useFinanceStore = create<FinanceState>()(
             // Timpa `assets` HANYA bila sinkron benar-benar memuat minimal satu tab aset. Kalau tidak
             // (mis. semua tab aset belum ada / fetch tak mencakupnya), JANGAN kosongkan aset lokal —
             // ini mencegah aset optimistik (mis. baru ditambah) lenyap saat refresh.
-            const ASSET_SHEET_KEYS = ['Fixed Income Investment', 'Assets', 'AssetsNonLiquid', 'Saham', 'Crypto', 'Kripto', 'Reksadana'];
+            const ASSET_SHEET_KEYS = ['FixedIncome', 'Fixed Income Investment', 'Assets', 'AssetsNonLiquid', 'Saham', 'Crypto', 'Kripto', 'Reksadana'];
             const anyAssetSheetPresent = ASSET_SHEET_KEYS.some((k) => result.data[k] !== undefined);
             if (anyAssetSheetPresent) {
               updates.assets = parsedAssets;

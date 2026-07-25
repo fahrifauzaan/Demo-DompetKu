@@ -17,9 +17,18 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.15.0';
+export const CURRENT_VERSION = '3.16.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.16.0', date: '2026-07-25', title: 'Perbaikan: Fixed Income (SBN/Deposito/P2P) Tersimpan', tag: 'migration', impact: 'appsscript',
+    fixed: [
+      'Menambah aset Pendapatan Tetap (SBN/Obligasi, Deposito, P2P) kini benar-benar tersimpan & tak hilang saat refresh. Sebelumnya tab-nya berupa "dashboard" berformat rumit yang tak kompatibel dengan penyimpanan langsung — sekarang pakai tabel data biasa (seperti Saham).',
+    ],
+    changed: [
+      'Data Fixed Income kini disimpan di tab baru "FixedIncome" (tabel biasa). Holding lama di tab dashboard tetap terbaca (digabung otomatis). Pengguna mode Web App/Apps Script: perbarui Apps Script sekali dari Panduan. Pengguna Login-Google: otomatis, tanpa aksi.',
+    ],
+  },
   {
     version: '3.15.0', date: '2026-07-25', title: 'Perbaikan: Semua Data Benar-benar Tersimpan', tag: 'fix', impact: 'none',
     fixed: [
