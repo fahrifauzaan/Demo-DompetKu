@@ -2529,7 +2529,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
       )}
 
       {/* F2.3 Proteksi / Asuransi */}
-      <div className="mt-8 pt-8 border-t border-outline-variant/10 dark:border-white/10">
+      <div className="mt-8 pt-8 border-t border-outline-variant/10 dark:border-white/10 space-y-6 sm:space-y-8">
         <FinanceInsuranceSection />
 
         <FinanceRetirementSection />

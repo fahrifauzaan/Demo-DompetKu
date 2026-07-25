@@ -17,9 +17,17 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.18.2';
+export const CURRENT_VERSION = '3.18.3';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.18.3', date: '2026-07-25', title: 'Perbaikan: Kartu Dana Pensiun (Jarak + Pop-up)', tag: 'fix', impact: 'none',
+    fixed: [
+      'Jarak kartu "Dana Pensiun" dengan kartu Proteksi di atasnya kini proporsional — sebelumnya menempel terlalu rapat.',
+      'Pop-up "Tambah/Ubah Dana Pensiun" diperbaiki: sebelumnya ter-jebak dan terpotong di dalam kotak kartu (bukan overlay layar penuh) karena efek kaca (backdrop-filter) menjebak posisi elemen; sekaligus tampil samar. Kini modal di-render ke tingkat halaman (portal ke body) sehingga menjadi overlay penuh yang benar dan solid.',
+      'Kolom nominal di form Dana Pensiun (Saldo kini, Iuran karyawan/bln, Iuran pemberi kerja/bln) kini memberi pemisah ribuan saat diketik — mis. 75000000 → "75.000.000".',
+    ],
+  },
   {
     version: '3.18.2', date: '2026-07-25', title: 'Perbaikan: Input Harga Aset Pakai Pemisah Ribuan', tag: 'fix', impact: 'none',
     fixed: [

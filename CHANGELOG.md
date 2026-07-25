@@ -9,6 +9,29 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.18.3] — 2026-07-25 · Perbaikan: Kartu Dana Pensiun (Jarak + Pop-up)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Diperbaiki
+- **Jarak kartu Dana Pensiun** dengan kartu Proteksi di atasnya proporsional — `FinanceAssets.tsx` wrapper F2.3
+  diberi `space-y-6 sm:space-y-8` (sebelumnya `<FinanceInsuranceSection />` dan `<FinanceRetirementSection />`
+  ditumpuk tanpa jarak).
+- **Pop-up Tambah/Ubah Dana Pensiun ter-*trap* containing-block.** Modal di `FinanceRetirementSection.tsx`
+  dirender inline di dalam kartu ber-`liquid-glass` (backdrop-filter → jadi containing block), sehingga
+  `position: fixed inset-0` terpotong ke kotak kartu, bukan viewport (overlay tampak seperti kotak gelap
+  membulat). **Fix:** `createPortal(..., document.body)`.
+- **Modal tampil samar (opacity ~0.14).** Setelah diportal, animasi `motion`/`AnimatePresence` macet di
+  tengah transisi (kemungkinan interaksi dengan re-render indikator "Menyimpan…"). Diganti ke animasi CSS
+  `animate-in fade-in zoom-in-95` (pola yang dipakai modal-modal lain di app) — solid, tanpa dependensi JS,
+  aman di portal. Import `motion`/`AnimatePresence` dihapus dari file ini.
+- **Input nominal form Dana Pensiun** (Saldo kini, Iuran karyawan/bln, Iuran pemberi kerja/bln) diubah dari
+  `type="number"` polos → `type="text"` ber-pemisah-ribuan (`fmtInt`/`digitsOnly`) — mis. `75000000` → `75.000.000`.
+- Diverifikasi di browser: modal overlay = full viewport (parent === body), backdrop & kartu opacity 1, semua
+  field + tombol tampil; jarak antar-kartu proporsional; ketik `75000000` → `75.000.000`. tsc & build bersih.
+
+---
+
 ## [3.18.2] — 2026-07-25 · Perbaikan: Input Harga Aset Pakai Pemisah Ribuan
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { createPortal } from 'react-dom';
 import { useFinanceStore, type Retirement } from '../store/useFinanceStore';
+
+// Currency inputs: display with Indonesian thousand separators, store as integer.
+const digitsOnly = (s: string) => s.replace(/\D/g, '');
+const fmtInt = (n: number) => (n ? n.toLocaleString('id-ID') : '');
 
 const rp = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 const rpS = (n: number) => {
@@ -98,12 +102,11 @@ const FinanceRetirementSection: React.FC = () => {
       )}
       <p className="text-[10px] text-on-surface-variant/60 dark:text-slate-500 mt-3">Estimasi proyeksi dari return asumsi (usia kini {currentAge}, diatur di Pengaturan). Angka resmi rujuk BPJSTK/pengelola DPLK.</p>
 
-      <AnimatePresence>
-        {open && (
-          <div className="fixed inset-0 z-[120] flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-md" onClick={() => setOpen(false)} />
-            <motion.div initial={{ opacity: 0, scale: 0.97, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 20 }}
-              className="relative w-full max-w-md my-auto bg-surface dark:bg-[#121416] rounded-3xl shadow-2xl border border-outline-variant/20 dark:border-white/10 max-h-[94vh] overflow-y-auto custom-scrollbar p-5 sm:p-6 space-y-3">
+      {open && createPortal(
+          <div className="fixed inset-0 z-[120] flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-md" onClick={() => setOpen(false)} />
+            <div
+              className="relative w-full max-w-md my-auto bg-surface dark:bg-[#121416] rounded-3xl shadow-2xl border border-outline-variant/20 dark:border-white/10 max-h-[94vh] overflow-y-auto custom-scrollbar p-5 sm:p-6 space-y-3 animate-in zoom-in-95 fade-in duration-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-black font-headline text-on-surface dark:text-white">{editing ? 'Ubah' : 'Tambah'} Dana Pensiun</h2>
                 <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full bg-surface-container dark:bg-white/5 flex items-center justify-center cursor-pointer"><span className="material-symbols-outlined text-lg text-on-surface dark:text-white">close</span></button>
@@ -114,11 +117,11 @@ const FinanceRetirementSection: React.FC = () => {
                 <Field label="Pengelola"><input value={form.provider} onChange={(e) => set({ provider: e.target.value })} className={inputCls} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Saldo kini"><input type="number" value={form.currentBalance} onChange={(e) => set({ currentBalance: Number(e.target.value) || 0 })} className={inputCls} /></Field>
-                <Field label="Iuran karyawan/bln"><input type="number" value={form.monthlyContribution} onChange={(e) => set({ monthlyContribution: Number(e.target.value) || 0 })} className={inputCls} /></Field>
+                <Field label="Saldo kini"><input type="text" inputMode="numeric" value={fmtInt(form.currentBalance)} onChange={(e) => set({ currentBalance: Number(digitsOnly(e.target.value)) || 0 })} placeholder="0" className={inputCls} /></Field>
+                <Field label="Iuran karyawan/bln"><input type="text" inputMode="numeric" value={fmtInt(form.monthlyContribution)} onChange={(e) => set({ monthlyContribution: Number(digitsOnly(e.target.value)) || 0 })} placeholder="0" className={inputCls} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Iuran pemberi kerja/bln"><input type="number" value={form.employerContribution} onChange={(e) => set({ employerContribution: Number(e.target.value) || 0 })} className={inputCls} /></Field>
+                <Field label="Iuran pemberi kerja/bln"><input type="text" inputMode="numeric" value={fmtInt(form.employerContribution)} onChange={(e) => set({ employerContribution: Number(digitsOnly(e.target.value)) || 0 })} placeholder="0" className={inputCls} /></Field>
                 <Field label="Return asumsi (%/th)"><input type="number" step="0.5" value={form.expectedReturn} onChange={(e) => set({ expectedReturn: Number(e.target.value) || 0 })} className={inputCls} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -129,10 +132,10 @@ const FinanceRetirementSection: React.FC = () => {
                 <button onClick={() => setOpen(false)} className="flex-1 py-3 rounded-2xl bg-surface-container dark:bg-white/10 text-on-surface dark:text-white font-bold text-sm cursor-pointer">Batal</button>
                 <button onClick={save} disabled={!form.name.trim()} className="flex-[2] py-3 rounded-2xl bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] font-bold text-sm disabled:opacity-40 cursor-pointer">{editing ? 'Simpan' : 'Tambah'}</button>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </div>
+          </div>,
+        document.body,
+      )}
     </div>
   );
 };
