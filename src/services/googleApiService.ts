@@ -139,6 +139,30 @@ function getValueCaseInsensitive(data: any, header: string): any {
   return undefined;
 }
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * Retry a Sheets write on TRANSIENT failures (429 rate-limit / 503) with exponential backoff.
+ * Google enforces ~60 write requests/user/minute; a burst of edits (e.g. saving several assets or
+ * a category migration) can briefly exceed it and return 429. Retrying a couple of times with a
+ * short backoff turns those transient failures into successes instead of a scary error banner.
+ */
+async function fetchSheetsWithRetry(doFetch: () => Promise<Response>, tries = 3): Promise<Response> {
+  let resp = await doFetch();
+  for (let attempt = 1; attempt < tries && (resp.status === 429 || resp.status === 503); attempt++) {
+    await sleep(700 * Math.pow(2, attempt - 1)); // 700ms, 1400ms
+    resp = await doFetch();
+  }
+  return resp;
+}
+
+/** Human-readable, cause-specific message for a failed Sheets write. */
+function writeErrorMessage(sheetName: string, status: number): string {
+  if (status === 429) return `Google Sheets membatasi permintaan (terlalu banyak simpan dalam waktu singkat). Tunggu ~1 menit, lalu coba lagi. [${sheetName} 429]`;
+  if (status === 401 || status === 403) return `Akses Google Sheets ditolak — sesi Google Anda mungkin kedaluwarsa. Hubungkan ulang akun Google Anda di Pengaturan. [${sheetName} ${status}]`;
+  return `Gagal menyimpan ke ${sheetName} (HTTP ${status}).`;
+}
+
 /**
  * Appends a new row to a specific sheet.
  */
@@ -157,19 +181,19 @@ export async function addRowToSheet(accessToken: string, spreadsheetId: string, 
     body: JSON.stringify({ values: [rowData] })
   });
 
-  let response = await doAppend();
+  let response = await fetchSheetsWithRetry(doAppend);
   if (!response.ok) {
     const errText = await response.text();
-    // Tab belum ada di spreadsheet user → buat tab + header, lalu ulang append sekali.
+    // Tab belum ada di spreadsheet user → buat tab + header, lalu ulang append (dgn retry rate-limit).
     if (isMissingSheetError(response.status, errText)) {
       await ensureSheetWithHeader(accessToken, spreadsheetId, sheetName, headers);
-      response = await doAppend();
+      response = await fetchSheetsWithRetry(doAppend);
     }
     if (!response.ok) {
       const finalErr = await response.text().catch(() => errText);
       console.error('Add Row Error:', finalErr);
       // THROW agar kegagalan tampil (saveError), bukan hilang diam-diam lalu data lenyap saat sinkron.
-      throw new Error(`Gagal menyimpan ke ${sheetName} (HTTP ${response.status}).`);
+      throw new Error(writeErrorMessage(sheetName, response.status));
     }
   }
 }
@@ -199,17 +223,17 @@ export async function appendRowsToSheet(accessToken: string, spreadsheetId: stri
     body: JSON.stringify({ values })
   });
 
-  let response = await doAppend();
+  let response = await fetchSheetsWithRetry(doAppend);
   if (!response.ok) {
     const errText = await response.text();
     if (isMissingSheetError(response.status, errText)) {
       await ensureSheetWithHeader(accessToken, spreadsheetId, sheetName, headers);
-      response = await doAppend();
+      response = await fetchSheetsWithRetry(doAppend);
     }
     if (!response.ok) {
       const finalErr = await response.text().catch(() => errText);
       console.error('Append Rows Error:', finalErr);
-      throw new Error(`Gagal menyimpan ${dataArray.length} baris ke ${sheetName} (HTTP ${response.status}).`);
+      throw new Error(writeErrorMessage(sheetName, response.status));
     }
   }
 }
@@ -260,6 +284,45 @@ export async function batchRenameTransactionCategories(accessToken: string, spre
 }
 
 /**
+ * Ganti nilai kolom 'name' pada tab BudgetCategories untuk baris yang cocok `mapping` (old→new,
+ * case-insensitive), dalam SATU `values:batchUpdate`. Menggantikan loop update per-baris pada migrasi
+ * kategori — yang boros kuota (tiap update = GET+PUT, ~30 kategori ≈ 60 request → langsung kena 429).
+ * Idempoten (0 kecocokan → tak menulis). Mengembalikan jumlah baris yang diubah.
+ */
+export async function batchRenameBudgetCategories(accessToken: string, spreadsheetId: string, mapping: Record<string, string>): Promise<number> {
+  const lc = new Map<string, string>();
+  for (const [k, v] of Object.entries(mapping)) if (v && v !== k) lc.set(k.toLowerCase(), v);
+  if (!lc.size) return 0;
+
+  const getResp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent('BudgetCategories')}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  }));
+  if (!getResp.ok) throw new Error(writeErrorMessage('BudgetCategories', getResp.status));
+  const rows: any[][] = (await getResp.json()).values || [];
+  if (rows.length <= 1) return 0;
+  const headers = rows[0].map((h: any) => String(h));
+  const nameIdx = headers.findIndex((h: string) => h.toLowerCase() === 'name');
+  if (nameIdx < 0) return 0;
+  const col = columnLetter(nameIdx);
+
+  const data: { range: string; values: string[][] }[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const cur = String(rows[i][nameIdx] ?? '');
+    const next = lc.get(cur.toLowerCase());
+    if (next && next !== cur) data.push({ range: `BudgetCategories!${col}${i + 1}`, values: [[next]] });
+  }
+  if (!data.length) return 0;
+
+  const resp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'RAW', data })
+  }));
+  if (!resp.ok) { console.error('Batch rename budget error:', await resp.text().catch(() => '')); throw new Error(writeErrorMessage('BudgetCategories', resp.status)); }
+  return data.length;
+}
+
+/**
  * Updates an existing row in a specific sheet by ID.
  * Warning: This requires reading the sheet first to find the row index.
  */
@@ -269,12 +332,12 @@ export async function updateRowInSheet(accessToken: string, spreadsheetId: strin
 
   const idToFind = String(data.id || data.key);
 
-  // 1. Read the sheet to find the row
-  const getResponse = await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}`, {
+  // 1. Read the sheet to find the row (retry transient rate-limit; surface real failures).
+  const getResponse = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent(sheetName)}`, {
     headers: { 'Authorization': `Bearer ${accessToken}` }
-  });
-  
-  if (!getResponse.ok) return;
+  }));
+
+  if (!getResponse.ok) throw new Error(writeErrorMessage(sheetName, getResponse.status));
   const sheetData = await getResponse.json();
   const rows = sheetData.values || [];
   
@@ -308,7 +371,7 @@ export async function updateRowInSheet(accessToken: string, spreadsheetId: strin
   const sheetRowNumber = rowIndex + 1;
   const updateRange = `${sheetName}!A${sheetRowNumber}`;
 
-  const updateResponse = await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${updateRange}?valueInputOption=USER_ENTERED`, {
+  const updateResponse = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent(updateRange)}?valueInputOption=USER_ENTERED`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -317,10 +380,12 @@ export async function updateRowInSheet(accessToken: string, spreadsheetId: strin
     body: JSON.stringify({
       values: [rowData]
     })
-  });
+  }));
 
   if (!updateResponse.ok) {
-    console.error('Update Row Error:', await updateResponse.text());
+    console.error('Update Row Error:', await updateResponse.text().catch(() => ''));
+    // THROW agar kegagalan update TAMPIL (saveError), tidak lagi hilang diam-diam.
+    throw new Error(writeErrorMessage(sheetName, updateResponse.status));
   }
 }
 

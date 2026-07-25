@@ -17,9 +17,18 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.18.4';
+export const CURRENT_VERSION = '3.18.5';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.18.5', date: '2026-07-25', title: 'Perbaikan: Simpan ke Sheet Lebih Tahan (Anti Rate-Limit) + Pesan Error Jelas', tag: 'fix', impact: 'none',
+    fixed: [
+      '"Gagal menyimpan ke Google Sheets" saat aktivitas padat (mis. menambah aset Reksadana setelah banyak edit) kini jauh berkurang. Penyebab tersering: batas laju Google Sheets (~60 penulisan/menit) terlampaui sesaat. Kini setiap penyimpanan otomatis dicoba-ulang dengan jeda (retry backoff) ketika kena batas laju (429).',
+      'Pesan error kini SPESIFIK: membedakan "batas laju — tunggu ~1 menit lalu coba lagi", "sesi Google kedaluwarsa — hubungkan ulang akun", dan kegagalan lain — bukan lagi selalu "periksa koneksi".',
+      'Migrasi kategori Anggaran (Inggris→Indonesia) kini memakai SATU permintaan batch, bukan puluhan. Sebelumnya tiap kategori butuh ~2 permintaan (baca+tulis), sehingga ~30 kategori bisa menghabiskan kuota dan memicu gagal-simpan pada aksi lain (mis. menambah Reksadana).',
+      'Kegagalan saat MEMPERBARUI baris kini muncul sebagai peringatan (sebelumnya bisa gagal diam-diam).',
+    ],
+  },
   {
     version: '3.18.4', date: '2026-07-25', title: 'Perbaikan Penting: Update Harga Reksadana Tersimpan Benar', tag: 'fix', impact: 'none',
     fixed: [

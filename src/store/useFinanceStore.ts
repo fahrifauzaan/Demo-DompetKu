@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TRANSACTIONS_DATA, DEBTS_DATA } from '../finance-components/FinanceData';
 import { useAuthStore } from './useAuthStore';
-import { addRowToSheet, appendRowsToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet, batchRenameTransactionCategories } from '../services/googleApiService';
+import { addRowToSheet, appendRowsToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet, batchRenameTransactionCategories, batchRenameBudgetCategories } from '../services/googleApiService';
 import { CATEGORY_EN_TO_ID } from '../finance-components/categoryLocale';
 
 // Cegah migrasi kategori berjalan ganda saat sync tumpang-tindih.
@@ -404,9 +404,12 @@ async function postToSheet(url: string, token: string | null, spreadsheetId: str
       body: JSON.stringify({ action, sheet, data })
     });
     console.log(`[FinanceStore] ✅ ${action} → ${sheet} synced via Macro`);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`[FinanceStore] ❌ Gagal sync ${sheet}:`, error);
-    if (hasTarget) useFinanceStore.setState({ saveError: 'Gagal menyimpan ke Google Sheets — periksa koneksi Anda.' });
+    // Tampilkan pesan SPESIFIK dari lapisan API (mis. rate-limit 429 / sesi kedaluwarsa 401) supaya
+    // pengguna tahu penyebab & tindakan yang tepat — bukan selalu "periksa koneksi".
+    const msg = error?.message ? String(error.message) : 'Gagal menyimpan ke Google Sheets — periksa koneksi Anda.';
+    if (hasTarget) useFinanceStore.setState({ saveError: msg });
   } finally {
     if (hasTarget) useFinanceStore.setState((s) => ({ pendingWrites: Math.max(0, s.pendingWrites - 1) }));
   }
@@ -766,9 +769,14 @@ export const useFinanceStore = create<FinanceState>()(
             const token = get().googleAccessToken, sid = get().spreadsheetId, url = get().googleSheetUrl;
             set((s) => ({ pendingWrites: s.pendingWrites + 1, saveError: null }));
             try {
-              for (const c of changedCats) {
-                const updated = { ...c, name: CATEGORY_EN_TO_ID[c.name] };
-                await postToSheet(url, token, sid, 'BudgetCategories', 'update', updated as unknown as Record<string, unknown>);
+              if (token && sid) {
+                // SATU batchUpdate (bukan loop GET+PUT per kategori) → anti rate-limit 429.
+                await batchRenameBudgetCategories(token, sid, CATEGORY_EN_TO_ID);
+              } else if (url) {
+                for (const c of changedCats) {
+                  const updated = { ...c, name: CATEGORY_EN_TO_ID[c.name] };
+                  await postToSheet(url, token, sid, 'BudgetCategories', 'update', updated as unknown as Record<string, unknown>);
+                }
               }
             } catch (e) {
               console.error('[FinanceStore] ❌ Gagal migrasi kategori Anggaran ke Sheet:', e);

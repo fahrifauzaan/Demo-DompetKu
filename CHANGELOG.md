@@ -9,6 +9,36 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.18.5] — 2026-07-25 · Perbaikan: Simpan ke Sheet Lebih Tahan (Anti Rate-Limit) + Pesan Error Jelas
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (reliability).
+
+### Latar
+User gagal menambah aset Reksadana → banner "Gagal menyimpan ke Google Sheets — periksa koneksi Anda".
+Pesan itu generik (di-set di `postToSheet` catch untuk SEMUA error). Penyebab paling mungkin: **rate-limit
+429** akibat burst penulisan — khususnya migrasi kategori Anggaran (v3.18.0) yang me-*loop* `updateBudgetCategory`
+per kategori (tiap update = GET+PUT via `updateRowInSheet`), jadi ~30 kategori ≈ 60 request → langsung
+menyentuh kuota ~60 tulis/menit, membuat penulisan berikutnya (add Reksadana) kena 429 & gagal.
+
+### Diperbaiki
+- **Retry backoff pada 429/503** (`fetchSheetsWithRetry`) di semua jalur tulis: `addRowToSheet`,
+  `appendRowsToSheet`, `updateRowInSheet` (GET+PUT), `batchRename*`. Kegagalan transien kini pulih sendiri.
+- **Pesan error spesifik** (`writeErrorMessage`): 429 → "batas laju, tunggu ~1 menit"; 401/403 → "sesi Google
+  kedaluwarsa, hubungkan ulang"; lainnya → "Gagal menyimpan (HTTP n)". `postToSheet` catch kini memakai
+  `error.message` (bukan string generik).
+- **`updateRowInSheet` kini THROW saat gagal** (GET maupun PUT), bukan `console.error` diam-diam — kegagalan
+  update tampil sebagai `saveError` (menutup satu kelas silent-failure).
+- **Migrasi kategori Anggaran → SATU `values:batchUpdate`** lewat `batchRenameBudgetCategories` (paralel
+  `batchRenameTransactionCategories`), menggantikan loop ~30× GET+PUT. Menghapus sumber burst 429 utama.
+- Diverifikasi: unit test retry (429×2→200 sukses di percobaan ke-3; 429 terus → berhenti setelah 3; 400 tak
+  di-retry) + writeErrorMessage (429/401/500). tsc & build bersih.
+
+### Catatan
+Penyebab pasti error di sesi user tak bisa direproduksi langsung (butuh token OAuth mereka), tapi perbaikan
+ini menyasar penyebab paling mungkin (rate-limit) + membuat error berikutnya menjelaskan dirinya sendiri.
+
+---
+
 ## [3.18.4] — 2026-07-25 · Perbaikan Penting: Update Harga Reksadana Tersimpan Benar
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (data-integrity).
