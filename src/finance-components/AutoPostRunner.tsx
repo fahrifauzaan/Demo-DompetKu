@@ -28,11 +28,14 @@ const AutoPostRunner: React.FC = () => {
 
     (async () => {
       const store = useFinanceStore.getState();
-      // Siapkan semua occurrence jatuh tempo + data pendamping untuk update pasca-tulis.
+      // Tiap occurrence dapat id DETERMINISTIK (rec + tanggal) → operasi jadi idempotent:
+      // aman diulang tanpa membuat transaksi ganda.
       const items = due.map(({ rec, dueDate }) => {
         const finalAmount = rec.type === 'PEMASUKAN' ? Math.abs(rec.amount) : -Math.abs(rec.amount);
         const dateISO = dueDate.toISOString().slice(0, 10);
-        const payload: Omit<Transaction, 'id'> = {
+        const id = `autopost_${rec.id}_${dateISO}`;
+        const payload: Transaction = {
+          id,
           date: dateISO,
           desc: `↻ ${rec.name} (otomatis)`,
           location: 'Recurring (auto)',
@@ -43,28 +46,37 @@ const AutoPostRunner: React.FC = () => {
           account: rec.account,
           type: rec.type,
         };
-        return { rec, dateISO, finalAmount, payload };
+        return { rec, dateISO, finalAmount, id, payload };
       });
 
-      // Tulis SEMUA dalam satu batch terverifikasi (anti rate-limit + jujur, sama seperti Impor).
-      // KRUSIAL: hanya majukan lastPostedDate & saldo bila transaksi BENAR tersimpan ke Sheet.
-      // Kalau tidak, transaksi bisa hilang diam-diam padahal terlanjur ditandai "sudah diposting"
-      // (lastPostedDate maju) → tak pernah dicoba lagi. Gate ini mencegah kehilangan senyap itu.
-      const result = await store.addTransactionsBulk(items.map((i) => i.payload));
-      if (!result.ok) {
-        // Gagal simpan → JANGAN majukan lastPostedDate; biarkan dicoba lagi saat app dibuka lagi.
-        // (store.saveError sudah di-set oleh addTransactionsBulk → indikator penyimpanan global tampil.)
-        setFailed(items.length);
-        return;
+      // IDEMPOTENCY: lewati occurrence yang transaksinya SUDAH ada. Ini menutup celah duplikat:
+      // bila run sebelumnya berhasil menulis transaksi tapi GAGAL menyimpan lastPostedDate,
+      // occurrence itu masih "due" saat app dibuka lagi — tanpa guard ini ia akan diposting dua kali.
+      const existingIds = new Set(store.transactions.map((t) => String(t.id)));
+      const toPost = items.filter((it) => !existingIds.has(it.id));
+
+      // Tulis HANYA yang benar-benar baru, satu batch terverifikasi (anti rate-limit + jujur).
+      if (toPost.length) {
+        const result = await store.addTransactionsBulk(toPost.map((i) => i.payload));
+        if (!result.ok) {
+          // Gagal simpan → JANGAN majukan lastPostedDate; biarkan dicoba lagi saat app dibuka lagi.
+          // (store.saveError sudah di-set → indikator penyimpanan global menampilkannya.)
+          setFailed(toPost.length);
+          return;
+        }
       }
 
+      // Sesuaikan saldo HANYA untuk yang baru diposting (yang sudah ada sudah terhitung sebelumnya).
       const posted: Posted[] = [];
-      for (const { rec, dateISO, finalAmount } of items) {
-        // saldo terbaru diambil fresh (bila beberapa item ke akun yang sama)
-        const acc = useFinanceStore.getState().accounts.find((a) => a.name === rec.account);
+      for (const { rec, finalAmount } of toPost) {
+        const acc = useFinanceStore.getState().accounts.find((a) => a.name === rec.account); // fresh (akun sama bisa berulang)
         if (acc) await store.updateAccount({ ...acc, balance: acc.balance + finalAmount });
-        await store.updateRecurring({ ...rec, lastPostedDate: dateISO });
         posted.push({ name: rec.name, amount: rec.amount, type: rec.type });
+      }
+      // Majukan lastPostedDate untuk SEMUA due item (baru + yang sudah ada) agar berhenti dicek ulang.
+      // Bila langkah ini pun gagal, tak apa: idempotency di atas tetap mencegah duplikat di run berikutnya.
+      for (const { rec, dateISO } of items) {
+        await store.updateRecurring({ ...rec, lastPostedDate: dateISO });
       }
       if (posted.length) setDigest(posted);
     })();

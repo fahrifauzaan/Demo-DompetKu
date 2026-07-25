@@ -9,6 +9,23 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.11.4] — 2026-07-25 · Perbaikan: Auto-Post Anti-Duplikat (idempotent)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Diperbaiki
+- **Auto-post transaksi berulang kini idempotent (anti-duplikat).** Menutup celah sisa dari
+  v3.11.3: bila transaksi berhasil ditulis tapi penyimpanan `lastPostedDate` gagal, occurrence
+  itu masih "due" saat app dibuka lagi → berpotensi diposting **dua kali**. Kini tiap occurrence
+  memakai **id deterministik** (`autopost_<recId>_<tanggal>`); sebelum memposting, sistem melewati
+  occurrence yang transaksinya **sudah ada** (`existingIds`), jadi tak ada duplikat sekalipun
+  dicoba berkali-kali. `lastPostedDate` tetap dimajukan untuk semua due item agar berhenti dicek
+  ulang. `addTransactionsBulk` diperluas untuk menghormati `id` yang diberikan pemanggil (impor
+  biasa tetap men-generate id acak). Diverifikasi terhadap store: 3× run occurrence sama → tetap
+  1 transaksi; jalur impor tetap men-generate id acak.
+
+---
+
 ## [3.11.3] — 2026-07-25 · Perbaikan: Auto-Post Berulang Andal
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

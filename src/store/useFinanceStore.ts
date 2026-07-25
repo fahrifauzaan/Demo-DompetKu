@@ -245,7 +245,7 @@ interface FinanceState {
 
   // Actions — Generic CRUD
   addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
-  addTransactionsBulk: (txns: Omit<Transaction, 'id'>[]) => Promise<{ ok: boolean; saved: number; failed: number }>;
+  addTransactionsBulk: (txns: (Omit<Transaction, 'id'> & { id?: string })[]) => Promise<{ ok: boolean; saved: number; failed: number }>;
   updateTransaction: (tx: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addAccount: (account: Omit<Account, 'id'>) => Promise<void>;
@@ -657,7 +657,9 @@ export const useFinanceStore = create<FinanceState>()(
       // ditelan diam-diam → transaksi tampil di state lokal tapi tak pernah sampai ke Sheet
       // (tampak "tersimpan" lalu hilang saat sinkron ulang). Batch = atomik + jujur.
       addTransactionsBulk: async (txns) => {
-        const withIds = txns.map((t) => ({ ...t, id: generateId() } as Transaction));
+        // Hormati id yang sudah ditentukan pemanggil (mis. id deterministik untuk auto-post → idempotent);
+        // impor biasa tak mengirim id sehingga tetap di-generate acak.
+        const withIds = txns.map((t) => ({ ...t, id: t.id || generateId() } as Transaction));
         if (!withIds.length) return { ok: true, saved: 0, failed: 0 };
 
         // Optimistic: tampilkan seluruh batch sekaligus.

@@ -17,9 +17,15 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.11.3';
+export const CURRENT_VERSION = '3.11.4';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.11.4', date: '2026-07-25', title: 'Perbaikan: Auto-Post Anti-Duplikat', tag: 'fix', impact: 'none',
+    fixed: [
+      'Transaksi berulang otomatis kini anti-duplikat. Tiap occurrence diberi penanda unik, jadi walau penyimpanan status "sudah diposting" sempat gagal, transaksi yang sama tak akan diposting dua kali saat aplikasi dibuka lagi.',
+    ],
+  },
   {
     version: '3.11.3', date: '2026-07-25', title: 'Perbaikan: Auto-Post Berulang Andal', tag: 'fix', impact: 'none',
     fixed: [
