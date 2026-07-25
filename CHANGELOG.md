@@ -9,6 +9,25 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.18.1] — 2026-07-25 · Perbaikan: Modal Edit Aset Ikut Tema Terang
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (murni styling).
+
+### Diperbaiki
+- **Pop-up edit aset sekarang theme-aware.** Modal `Edit Last Price` di `FinanceAssets.tsx` (judul kondisional
+  "Update Saldo Rekening" / "Update Harga Terakhir" / "Update Valuasi Aset") **dan** modal konfirmasi Pencairan
+  (liquidation) di-hardcode gelap (`bg-[#121318]/95`, `text-white`, `bg-white/5`, `border-white/10`, dll.) tanpa
+  varian terang — jadi selalu tampil gelap walau pengguna memilih mode Terang. Semua kelas warna diubah jadi
+  pasangan `token-terang dark:nilai-gelap` sesuai design-system app (`bg-surface-container-lowest dark:bg-[#121318]/95`,
+  `text-on-surface dark:text-white`, `text-on-surface-variant dark:text-slate-400`, `bg-surface-container dark:bg-white/5`,
+  `border-outline-variant/20 dark:border-white/10`, date `[color-scheme:light] dark:[color-scheme:dark]`). Tombol
+  berlatar warna (SIMPAN primary, "Selesai" emerald, "Konfirmasi" amber) sengaja tetap `text-white` di kedua tema.
+- Diverifikasi di browser: modal "Update Harga Terakhir" render benar di **mode Terang** (kartu putih, teks gelap,
+  surface abu terang) **dan** mode Gelap (desain gelap asli utuh, tombol SIMPAN biru-muda teks gelap). Audit seluruh
+  `src`: tidak ada kartu modal hardcoded-gelap lain yang tersisa. `tsc`(file ini) & build bersih.
+
+---
+
 ## [3.18.0] — 2026-07-25 · Kategori Serba-Indonesia (Anggaran & Transaksi Sinkron)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (migrasi berjalan di sisi aplikasi ke Sheet Anda sendiri lewat jalur yang sudah ada).

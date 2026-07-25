@@ -17,9 +17,15 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.18.0';
+export const CURRENT_VERSION = '3.18.1';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.18.1', date: '2026-07-25', title: 'Perbaikan: Modal Edit Aset Ikut Tema Terang', tag: 'fix', impact: 'none',
+    fixed: [
+      'Pop-up saat mengedit aset — "Update Saldo Rekening", "Update Harga Terakhir", "Update Valuasi Aset", dan konfirmasi "Pencairan" aset — kini mengikuti tema Terang/Gelap yang Anda pilih. Sebelumnya kartu pop-up ini selalu tampil gelap walau mode Terang sedang aktif.',
+    ],
+  },
   {
     version: '3.18.0', date: '2026-07-25', title: 'Kategori Serba-Indonesia (Anggaran & Transaksi Sinkron)', tag: 'migration', impact: 'none',
     changed: [

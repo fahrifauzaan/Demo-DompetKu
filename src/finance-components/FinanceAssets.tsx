@@ -2519,7 +2519,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
       {/* Liquidation Confirmation Modal */}
       {isLiquidationOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#121318]/95 border border-white/10 p-6 md:p-8 rounded-3xl max-w-md w-full space-y-6 shadow-2xl relative overflow-hidden text-white">
+          <div className="bg-surface-container-lowest dark:bg-[#121318]/95 border border-outline-variant/20 dark:border-white/10 p-6 md:p-8 rounded-3xl max-w-md w-full space-y-6 shadow-2xl relative overflow-hidden text-on-surface dark:text-white">
             
             {/* Background Glow */}
             <div className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
@@ -2531,9 +2531,9 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   <span className="material-symbols-outlined text-4xl font-bold">check_circle</span>
                 </div>
                 <div className="space-y-2">
-                  <h4 className="font-headline font-extrabold text-xl text-white">Pencairan Berhasil!</h4>
-                  <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                    Dana pokok investasi sebesar <strong className="text-white">Rp 100.000.000</strong> telah ditransfer ke <strong className="text-white">Tabungan BCA</strong> Anda dan transaksi pencairan telah tercatat secara real-time.
+                  <h4 className="font-headline font-extrabold text-xl text-on-surface dark:text-white">Pencairan Berhasil!</h4>
+                  <p className="text-sm text-on-surface-variant dark:text-slate-300 leading-relaxed font-medium">
+                    Dana pokok investasi sebesar <strong className="text-on-surface dark:text-white">Rp 100.000.000</strong> telah ditransfer ke <strong className="text-on-surface dark:text-white">Tabungan BCA</strong> Anda dan transaksi pencairan telah tercatat secara real-time.
                   </p>
                 </div>
                 <button
@@ -2555,48 +2555,48 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   </div>
                   <button 
                     onClick={() => setIsLiquidationOpen(false)}
-                    className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    className="p-1.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-white transition-colors cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-xl">close</span>
                   </button>
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-headline font-extrabold text-xl text-white">
+                  <h4 className="font-headline font-extrabold text-xl text-on-surface dark:text-white">
                     Konfirmasi Pencairan {selectedAssetForLiquidation?.subType === 'deposito' ? 'Deposito' : selectedAssetForLiquidation?.subType === 'p2p' ? 'P2P Lending' : 'SBN'}
                   </h4>
-                  <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                    Apakah Anda yakin ingin mencairkan dana pokok investasi <strong className="text-white">{selectedAssetForLiquidation?.title || 'Investasi'}</strong> sebesar <strong className="text-white">Rp {(selectedAssetForLiquidation?.purchasePrice || 100000000).toLocaleString('id-ID')}</strong>?
+                  <p className="text-sm text-on-surface-variant dark:text-slate-300 leading-relaxed font-medium">
+                    Apakah Anda yakin ingin mencairkan dana pokok investasi <strong className="text-on-surface dark:text-white">{selectedAssetForLiquidation?.title || 'Investasi'}</strong> sebesar <strong className="text-on-surface dark:text-white">Rp {(selectedAssetForLiquidation?.purchasePrice || 100000000).toLocaleString('id-ID')}</strong>?
                   </p>
                 </div>
 
                 {/* Info Card */}
-                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 space-y-3 text-xs">
+                <div className="bg-surface-container dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 rounded-2xl p-4 space-y-3 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-semibold">Tujuan Rekening Penampung</span>
+                    <span className="text-on-surface-variant dark:text-slate-400 font-semibold">Tujuan Rekening Penampung</span>
                     <select
                       value={selectedAccountIdForLiquidation}
                       onChange={(e) => setSelectedAccountIdForLiquidation(e.target.value)}
-                      className="bg-[#1e293b] border border-white/10 rounded-lg px-2.5 py-1 text-white font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
+                      className="bg-surface-container dark:bg-[#1e293b] border border-outline-variant/20 dark:border-white/10 rounded-lg px-2.5 py-1 text-on-surface dark:text-white font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
                     >
                       {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id} className="bg-[#1e293b] text-white">
+                        <option key={acc.id} value={acc.id} className="bg-surface-container dark:bg-[#1e293b] text-on-surface dark:text-white">
                           {acc.name} (Rp {acc.balance.toLocaleString('id-ID')})
                         </option>
                       ))}
                     </select>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400 font-semibold">Jumlah Dana Dicairkan</span>
+                    <span className="text-on-surface-variant dark:text-slate-400 font-semibold">Jumlah Dana Dicairkan</span>
                     <span className="text-amber-400 font-extrabold">Rp {(selectedAssetForLiquidation?.purchasePrice || 100000000).toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400 font-semibold">Biaya Pencairan</span>
+                    <span className="text-on-surface-variant dark:text-slate-400 font-semibold">Biaya Pencairan</span>
                     <span className="text-emerald-400 font-bold">Bebas Biaya (Rp 0)</span>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-400 leading-normal italic font-medium">
+                <p className="text-[11px] text-on-surface-variant dark:text-slate-400 leading-normal italic font-medium">
                   * Tindakan ini akan mengupdate saldo rekening {accounts.find(a => a.id === selectedAccountIdForLiquidation)?.name || 'pilihan Anda'} sebesar +Rp{(selectedAssetForLiquidation?.purchasePrice || 100000000).toLocaleString('id-ID')}, mencatat transaksi masuk di sistem, dan mengubah nilai aset menjadi Rp0 secara otomatis di cloud database Google Sheets.
                 </p>
 
@@ -2605,7 +2605,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   <button
                     onClick={() => setIsLiquidationOpen(false)}
                     disabled={isLiquidating}
-                    className="flex-1 px-4 py-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-extrabold rounded-xl text-xs lg:text-sm uppercase tracking-wider transition-colors active:scale-95 disabled:opacity-50 cursor-pointer"
+                    className="flex-1 px-4 py-3 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 text-on-surface dark:text-white font-extrabold rounded-xl text-xs lg:text-sm uppercase tracking-wider transition-colors active:scale-95 disabled:opacity-50 cursor-pointer"
                   >
                     Batal
                   </button>
@@ -2616,7 +2616,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   >
                     {isLiquidating ? (
                       <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-on-surface dark:text-white" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
@@ -2683,7 +2683,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
         return (
           <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-300 overflow-y-auto">
-            <div className="bg-[#121318]/95 border border-white/10 rounded-2xl sm:rounded-3xl max-w-md md:max-w-lg w-full my-auto shadow-2xl relative text-white animate-in zoom-in-95 duration-300 max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+            <div className="bg-surface-container-lowest dark:bg-[#121318]/95 border border-outline-variant/20 dark:border-white/10 rounded-2xl sm:rounded-3xl max-w-md md:max-w-lg w-full my-auto shadow-2xl relative text-on-surface dark:text-white animate-in zoom-in-95 duration-300 max-h-[calc(100vh-1.5rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
 
               <div className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div>
 
@@ -2701,37 +2701,37 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                     setEditingAsset(null);
                     setEditingAccount(null);
                   }}
-                  className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  className="p-1.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg text-on-surface-variant dark:text-slate-400 hover:text-on-surface dark:hover:text-white transition-colors cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-xl">close</span>
                 </button>
               </div>
 
               <div className="space-y-1">
-                <h4 className="font-headline font-extrabold text-xl text-white">{titleText}</h4>
-                <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                <h4 className="font-headline font-extrabold text-xl text-on-surface dark:text-white">{titleText}</h4>
+                <p className="text-xs text-on-surface-variant dark:text-slate-400 leading-relaxed font-medium">
                   {descText}
                 </p>
               </div>
 
               {isAccount ? (
-                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                <div className="bg-surface-container dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 dark:bg-[#a7c8ff]/10 flex items-center justify-center text-primary dark:text-[#a7c8ff]">
                       <span className="material-symbols-outlined text-sm">{editingAccount?.icon || 'account_balance'}</span>
                     </div>
                     <div>
-                      <h5 className="font-bold text-sm text-white">{editingAccount?.name}</h5>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{editingAccount?.name.split(' - ')[0] || '-'}</p>
+                      <h5 className="font-bold text-sm text-on-surface dark:text-white">{editingAccount?.name}</h5>
+                      <p className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider">{editingAccount?.name.split(' - ')[0] || '-'}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Currency</p>
-                    <p className="font-bold text-sm text-white">{editingAccount?.currency || 'IDR'}</p>
+                    <p className="text-on-surface-variant dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Currency</p>
+                    <p className="font-bold text-sm text-on-surface dark:text-white">{editingAccount?.currency || 'IDR'}</p>
                   </div>
                 </div>
               ) : (
-                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+                <div className="bg-surface-container dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 rounded-2xl p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 dark:bg-[#a7c8ff]/10 flex items-center justify-center text-primary dark:text-[#a7c8ff] font-extrabold text-xs">
                       {isPhysical ? (
@@ -2741,14 +2741,14 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                       )}
                     </div>
                     <div>
-                      <h5 className="font-bold text-sm text-white">{(editingAsset?.title || '').replace(/\([^)]+\)/, '').trim()}</h5>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{isPhysical ? (editingAsset?.category === 'real-estat' ? 'Real Estat' : editingAsset?.category === 'kendaraan' ? 'Kendaraan' : 'Koleksi') : editingAsset?.location}</p>
+                      <h5 className="font-bold text-sm text-on-surface dark:text-white">{(editingAsset?.title || '').replace(/\([^)]+\)/, '').trim()}</h5>
+                      <p className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider">{isPhysical ? (editingAsset?.category === 'real-estat' ? 'Real Estat' : editingAsset?.category === 'kendaraan' ? 'Kendaraan' : 'Koleksi') : editingAsset?.location}</p>
                     </div>
                   </div>
                   {!isPhysical && (
                     <div className="text-right">
-                      <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Kepemilikan</p>
-                      <p className="font-bold text-sm text-white">{formatShares(shares, targetSubType)}</p>
+                      <p className="text-on-surface-variant dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Kepemilikan</p>
+                      <p className="font-bold text-sm text-on-surface dark:text-white">{formatShares(shares, targetSubType)}</p>
                     </div>
                   )}
                 </div>
@@ -2758,19 +2758,19 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                 <div className="space-y-4 text-left">
                   {/* General Fields */}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Nama / Merk Aset</label>
+                    <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Nama / Merk Aset</label>
                     <input
                       type="text"
                       value={editTitle}
                       onChange={(e) => setEditTitle(e.target.value)}
                       placeholder="Contoh: Apple, Toyota, Grand Indonesia"
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm placeholder:text-slate-600"
+                      className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm placeholder:text-on-surface-variant dark:text-slate-400 dark:placeholder:text-slate-600"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Harga Beli (Rp)</label>
+                      <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Harga Beli (Rp)</label>
                       <input
                         type="text"
                         value={editPurchasePrice}
@@ -2778,27 +2778,27 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                           const num = e.target.value.replace(/\D/g, '');
                           setEditPurchasePrice(num ? Number(num).toLocaleString('id-ID') : '');
                         }}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm"
+                        className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Valuasi Saat Ini (Rp)</label>
+                      <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Valuasi Saat Ini (Rp)</label>
                       <input
                         type="text"
                         value={newLastPriceInput}
                         onChange={handlePriceInputChange}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm"
+                        className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Tanggal Pembelian</label>
+                    <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Tanggal Pembelian</label>
                     <input
                       type="date"
                       value={editPurchaseDate}
                       onChange={(e) => setEditPurchaseDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm [color-scheme:dark]"
+                      className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]"
                     />
                   </div>
 
@@ -2806,34 +2806,34 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   {editingAsset?.category === 'real-estat' && (
                     <>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Lokasi Aset</label>
+                        <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Lokasi Aset</label>
                         <input
                           type="text"
                           value={editLocation}
                           onChange={(e) => setEditLocation(e.target.value)}
                           placeholder="Alamat atau Gedung"
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm placeholder:text-slate-600"
+                          className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm placeholder:text-on-surface-variant dark:text-slate-400 dark:placeholder:text-slate-600"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Luas Tanah (m²)</label>
+                          <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Luas Tanah (m²)</label>
                           <input
                             type="number"
                             value={editLandArea}
                             onChange={(e) => setEditLandArea(e.target.value)}
                             placeholder="0"
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm"
+                            className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Luas Bangunan (m²)</label>
+                          <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Luas Bangunan (m²)</label>
                           <input
                             type="number"
                             value={editBuildingArea}
                             onChange={(e) => setEditBuildingArea(e.target.value)}
                             placeholder="0"
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm"
+                            className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm"
                           />
                         </div>
                       </div>
@@ -2843,43 +2843,43 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   {editingAsset?.category === 'kendaraan' && (
                     <>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Nomor Polisi / Spesifikasi</label>
+                        <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Nomor Polisi / Spesifikasi</label>
                         <input
                           type="text"
                           value={editSpecification}
                           onChange={(e) => setEditSpecification(e.target.value)}
                           placeholder="Contoh: B 1234 ABC"
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm placeholder:text-slate-600"
+                          className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm placeholder:text-on-surface-variant dark:text-slate-400 dark:placeholder:text-slate-600"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Tahun Pembuatan</label>
+                          <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Tahun Pembuatan</label>
                           <input
                             type="number"
                             value={editMfgYear}
                             onChange={(e) => setEditMfgYear(e.target.value)}
                             placeholder="Contoh: 2023"
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm"
+                            className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Masa Manfaat (Tahun)</label>
+                          <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Masa Manfaat (Tahun)</label>
                           <input
                             type="number"
                             value={editUsefulLife}
                             onChange={(e) => setEditUsefulLife(e.target.value)}
                             placeholder="10"
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm"
+                            className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm"
                           />
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Metode Penyusutan</label>
+                        <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Metode Penyusutan</label>
                         <select
                           value={editDepreciationMethod}
                           onChange={(e) => setEditDepreciationMethod(e.target.value as any)}
-                          className="w-full px-3 py-2 bg-[#1e293b] border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm cursor-pointer"
+                          className="w-full px-3 py-2 bg-surface-container dark:bg-[#1e293b] border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm cursor-pointer"
                         >
                           <option value="Tidak Menyusut">Tidak Menyusut (Mengalami Apresiasi)</option>
                           <option value="Garis Lurus Tahunan">Garis Lurus Tahunan</option>
@@ -2892,11 +2892,11 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   {(editingAsset?.category === 'koleksi' || editingAsset?.category === 'collections') && (
                     <>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Sub-Tipe Aset</label>
+                        <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Sub-Tipe Aset</label>
                         <select
                           value={editSubType}
                           onChange={(e) => setEditSubType(e.target.value)}
-                          className="w-full px-3 py-2 bg-[#1e293b] border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm cursor-pointer"
+                          className="w-full px-3 py-2 bg-surface-container dark:bg-[#1e293b] border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm cursor-pointer"
                         >
                           <option value="Electronics">Electronics (Gadget, Laptop, TV)</option>
                           <option value="Watches">Jam Tangan Mewah</option>
@@ -2906,32 +2906,32 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                         </select>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Model / Spesifikasi / Rincian</label>
+                        <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Model / Spesifikasi / Rincian</label>
                         <input
                           type="text"
                           value={editSpecification}
                           onChange={(e) => setEditSpecification(e.target.value)}
                           placeholder="Contoh: iPhone 15 Pro, Rolex Submariner"
-                          className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm placeholder:text-slate-600"
+                          className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm placeholder:text-on-surface-variant dark:text-slate-400 dark:placeholder:text-slate-600"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Masa Manfaat (Tahun)</label>
+                          <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Masa Manfaat (Tahun)</label>
                           <input
                             type="number"
                             value={editUsefulLife}
                             onChange={(e) => setEditUsefulLife(e.target.value)}
                             placeholder="10"
-                            className="w-full px-3 py-2 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm"
+                            className="w-full px-3 py-2 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm"
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Metode Penyusutan</label>
+                          <label className="text-[10px] text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Metode Penyusutan</label>
                           <select
                             value={editDepreciationMethod}
                             onChange={(e) => setEditDepreciationMethod(e.target.value as any)}
-                            className="w-full px-3 py-2 bg-[#1e293b] border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm cursor-pointer"
+                            className="w-full px-3 py-2 bg-surface-container dark:bg-[#1e293b] border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm cursor-pointer"
                           >
                             <option value="Tidak Menyusut">Tidak Menyusut</option>
                             <option value="Garis Lurus Tahunan">Garis Lurus Tahunan</option>
@@ -2945,11 +2945,11 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
               ) : (
                 <div className="space-y-3">
                   <div className="space-y-2">
-                    <label className="text-xs text-slate-400 font-bold uppercase tracking-wider block">
+                    <label className="text-xs text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">
                       {isAccount ? "Saldo Rekening Baru" : `${priceLabel} Baru`}
                     </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">Rp</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-slate-400 text-sm font-bold">Rp</span>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -2958,7 +2958,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                         placeholder={isInvestment
                           ? (isSahamSub ? "Contoh: 6.225" : isKriptoSub ? "Contoh: 1.045.500,12345678" : "Contoh: 29.440,0904")
                           : "Contoh: 15.000.000"}
-                        className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 focus:border-primary/50 dark:focus:border-[#a7c8ff]/50 rounded-xl text-white font-bold outline-none transition-all placeholder:text-slate-600 focus:bg-white/[0.08] tabular-nums"
+                        className="w-full pl-10 pr-4 py-3 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 dark:focus:border-[#a7c8ff]/50 rounded-xl text-on-surface dark:text-white font-bold outline-none transition-all placeholder:text-on-surface-variant dark:text-slate-400 dark:placeholder:text-slate-600 focus:bg-white/[0.08] tabular-nums"
                         autoFocus
                       />
                     </div>
@@ -2971,13 +2971,13 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
                   {isInvestment && (
                     <div className="space-y-2">
-                      <label className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Harga per Tanggal</label>
+                      <label className="text-xs text-on-surface-variant dark:text-slate-400 font-bold uppercase tracking-wider block">Harga per Tanggal</label>
                       <input
                         type="date"
                         value={editPriceEffectiveDate}
                         max={new Date().toISOString().split('T')[0]}
                         onChange={(e) => setEditPriceEffectiveDate(e.target.value)}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-primary/50 rounded-xl text-white font-bold outline-none text-sm [color-scheme:dark]"
+                        className="w-full px-4 py-3 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 focus:border-primary/50 rounded-xl text-on-surface dark:text-white font-bold outline-none text-sm [color-scheme:light] dark:[color-scheme:dark]"
                       />
                       <p className="text-[10px] text-slate-500 italic">
                         {isReksadanaSub
@@ -2990,24 +2990,24 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
               )}
 
               {isInvestment && parsedNewPrice > 0 && (
-                <div className="bg-white/5 border border-white/5 rounded-2xl p-4 space-y-3 text-xs animate-in fade-in duration-300">
+                <div className="bg-surface-container dark:bg-white/5 border border-outline-variant/10 dark:border-white/5 rounded-2xl p-4 space-y-3 text-xs animate-in fade-in duration-300">
                   {/* Old → New comparison */}
-                  <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                  <div className="flex justify-between items-center pb-3 border-b border-outline-variant/10 dark:border-white/5">
                     <div>
-                      <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Harga Lama</p>
-                      <p className="text-slate-300 font-semibold tabular-nums text-[13px]">Rp {formatPriceID(oldPriceForCompare, priceDecimals)}</p>
+                      <p className="text-on-surface-variant dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Harga Lama</p>
+                      <p className="text-on-surface-variant dark:text-slate-300 font-semibold tabular-nums text-[13px]">Rp {formatPriceID(oldPriceForCompare, priceDecimals)}</p>
                     </div>
                     <span className="material-symbols-outlined text-slate-500 text-base">arrow_forward</span>
                     <div className="text-right">
-                      <p className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Harga Baru</p>
-                      <p className="text-white font-extrabold tabular-nums text-[13px]">Rp {formatPriceID(parsedNewPrice, priceDecimals)}</p>
+                      <p className="text-on-surface-variant dark:text-slate-400 text-[10px] uppercase font-bold tracking-wider">Harga Baru</p>
+                      <p className="text-on-surface dark:text-white font-extrabold tabular-nums text-[13px]">Rp {formatPriceID(parsedNewPrice, priceDecimals)}</p>
                     </div>
                   </div>
 
                   {/* Delta % */}
                   {oldPriceForCompare > 0 && (
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-semibold">Δ Perubahan</span>
+                      <span className="text-on-surface-variant dark:text-slate-400 font-semibold">Δ Perubahan</span>
                       <span className={`px-2 py-0.5 rounded font-extrabold tabular-nums text-[11px] ${
                         change.tier === 'severe'
                           ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
@@ -3033,19 +3033,19 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   {/* Avg Cost vs Harga Baru */}
                   {avgCost > 0 && (
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400 font-semibold">Avg Cost vs Baru</span>
-                      <span className="text-slate-300 tabular-nums">
+                      <span className="text-on-surface-variant dark:text-slate-400 font-semibold">Avg Cost vs Baru</span>
+                      <span className="text-on-surface-variant dark:text-slate-300 tabular-nums">
                         Rp {formatPriceID(avgCost, priceDecimals)} <span className={`${newVsAvgPct >= 0 ? 'text-emerald-400' : 'text-red-400'} font-bold`}>({newVsAvgPct >= 0 ? '+' : ''}{newVsAvgPct.toFixed(1)}%)</span>
                       </span>
                     </div>
                   )}
 
-                  <div className="flex justify-between pt-2 border-t border-white/5">
-                    <span className="text-slate-400 font-semibold">Estimasi Nilai Pasar Baru</span>
-                    <span className="text-white font-bold tabular-nums">Rp {newCurrentValue.toLocaleString('id-ID')}</span>
+                  <div className="flex justify-between pt-2 border-t border-outline-variant/10 dark:border-white/5">
+                    <span className="text-on-surface-variant dark:text-slate-400 font-semibold">Estimasi Nilai Pasar Baru</span>
+                    <span className="text-on-surface dark:text-white font-bold tabular-nums">Rp {newCurrentValue.toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-semibold">Estimasi Unrealized P/L</span>
+                    <span className="text-on-surface-variant dark:text-slate-400 font-semibold">Estimasi Unrealized P/L</span>
                     <span className={`px-2.5 py-0.5 rounded font-extrabold tabular-nums text-[11px] ${
                       newPLIsProfit
                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
@@ -3056,14 +3056,14 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   </div>
 
                   <p className="text-[10px] text-slate-500 italic pt-1">
-                    Sumber default: {getPriceFreshnessLabel(targetSubType)}. Override manual ini akan ditandai sebagai <strong className="text-slate-300">Manual</strong> sampai sinkronisasi berikutnya.
+                    Sumber default: {getPriceFreshnessLabel(targetSubType)}. Override manual ini akan ditandai sebagai <strong className="text-on-surface-variant dark:text-slate-300">Manual</strong> sampai sinkronisasi berikutnya.
                   </p>
                 </div>
               )}
 
               </div>
 
-              <div className="flex gap-3 px-5 sm:px-6 md:px-8 py-4 border-t border-white/5 bg-[#121318]/95 backdrop-blur-sm">
+              <div className="flex gap-3 px-5 sm:px-6 md:px-8 py-4 border-t border-outline-variant/10 dark:border-white/5 bg-surface-container-lowest dark:bg-[#121318]/95 backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={() => {
@@ -3071,7 +3071,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                     setEditingAsset(null);
                     setEditingAccount(null);
                   }}
-                  className="flex-1 px-4 py-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-extrabold rounded-xl text-xs lg:text-sm uppercase tracking-wider transition-colors active:scale-95 cursor-pointer"
+                  className="flex-1 px-4 py-3 bg-surface-container dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10 text-on-surface dark:text-white font-extrabold rounded-xl text-xs lg:text-sm uppercase tracking-wider transition-colors active:scale-95 cursor-pointer"
                 >
                   Batal
                 </button>
