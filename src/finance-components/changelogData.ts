@@ -17,9 +17,17 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.18.3';
+export const CURRENT_VERSION = '3.18.4';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.18.4', date: '2026-07-25', title: 'Perbaikan Penting: Update Harga Reksadana Tersimpan Benar', tag: 'fix', impact: 'none',
+    fixed: [
+      'Memperbarui harga (NAV) Reksadana kini tersimpan ke kolom yang benar. Sebelumnya definisi kolom internal untuk tab Reksadana KEHILANGAN kolom "Ticker", sehingga setiap penyimpanan bergeser satu kolom — nilai unit/NAV masuk ke kolom yang salah dan nilai investasi jadi kacau atau kosong (Rp 0). Kini urutan kolom diperbaiki.',
+      'Selain itu, penyimpanan update sekarang mengikuti HEADER ASLI di sheet Anda (bukan asumsi internal aplikasi), sehingga ketidakcocokan kolom seperti ini tak akan pernah bisa menggeser data lagi — berlaku untuk semua jenis aset.',
+      'CATATAN untuk data yang sudah terlanjur kacau: baris Reksadana yang sempat rusak perlu diperbaiki sekali — hapus aset Reksadana itu di aplikasi lalu tambahkan ulang dengan nilai benar (jumlah unit, harga rata-rata/NAV beli, NAV terkini). Setelah itu tersimpan rapi.',
+    ],
+  },
   {
     version: '3.18.3', date: '2026-07-25', title: 'Perbaikan: Kartu Dana Pensiun (Jarak + Pop-up)', tag: 'fix', impact: 'none',
     fixed: [

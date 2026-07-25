@@ -15,7 +15,7 @@ const HEADERS: Record<string, string[]> = {
   'AssetsNonLiquid': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate'],
   'Saham': ['ID', 'Title', 'Ticker', 'Shares', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   'Crypto': ['ID', 'Title', 'Ticker', 'Coins', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
-  'Reksadana': ['ID', 'Title', 'Units', 'Nav Per Unit', 'Current_NAV', 'Purchase Date', 'Location', 'Icon', 'Notes'],
+  'Reksadana': ['ID', 'Title', 'Ticker', 'Units', 'NAV_Per_Unit', 'Current_NAV', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   // Entitas berikut sebelumnya hanya lewat macro fallback (bisa nyasar ke sheet demo untuk user OAuth).
   // Kolom PERSIS sama dengan google-apps-script.js agar API & macro konsisten membaca/menulis sheet yang sama.
   'Goals': ['id', 'name', 'icon', 'color', 'goalType', 'targetAmount', 'targetDate', 'startDate', 'initialAmount', 'expectedReturn', 'monthlyContribution', 'priority', 'status', 'notes'],
@@ -291,9 +291,13 @@ export async function updateRowInSheet(accessToken: string, spreadsheetId: strin
     return;
   }
 
-  // 2. Prepare updated row data
+  // 2. Prepare updated row data — map by the sheet's ACTUAL header row (rows[0]), NOT our
+  // HEADERS constant. If the two ever disagree (e.g. a sheet has an extra column our constant
+  // forgot), positional writes by HEADERS scramble every column after the mismatch. Using the
+  // real headers keeps each value in its true column; unknown columns keep their existing value.
   const existingRow = rows[rowIndex];
-  const rowData = headers.map((h, colIndex) => {
+  const actualHeaders: string[] = (rows[0] && rows[0].length ? rows[0] : headers).map((h: any) => String(h));
+  const rowData = actualHeaders.map((h, colIndex) => {
     const val = getValueCaseInsensitive(data, h);
     return val !== undefined ? val : (existingRow[colIndex] !== undefined ? existingRow[colIndex] : '');
   });

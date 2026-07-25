@@ -9,6 +9,40 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.18.4] — 2026-07-25 · Perbaikan Penting: Update Harga Reksadana Tersimpan Benar
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (data-integrity).
+
+### Latar
+User update NAV Reksadana → nilai jadi blank/Rp 0 & nilai investasi kacau. **Root cause:**
+`HEADERS['Reksadana']` (googleApiService.ts) = `['ID','Title','Units','Nav Per Unit','Current_NAV',…]` —
+**KEHILANGAN kolom `Ticker`** yang ADA di sheet asli user (`ID, Title, Ticker, Units, NAV_Per_Unit,
+Current_NAV, Purchase Date, Location, Icon, Notes`). Penulisan baris via `addRowToSheet`/`updateRowInSheet`
+membangun row **positional berdasar HEADERS**, jadi tiap nilai bergeser satu kolom mulai dari posisi 3
+(Units→kolom Ticker, NAV→Units, dst.; ikon `account_balance` bocor ke Purchase Date, Notes bocor ke Icon).
+Baca (`fetchAllDataFromSheets`) sudah robust (pakai header ASLI sheet + `getVal` fuzzy) — makanya **hanya
+tulis** yang rusak, dan Saham/Crypto (yang HEADERS-nya sudah punya Ticker) aman.
+
+### Diperbaiki
+- **`HEADERS['Reksadana']`** → `['ID','Title','Ticker','Units','NAV_Per_Unit','Current_NAV','Purchase Date',
+  'Location','Icon','Notes']` (tambah `Ticker`, urutan cocok dg sheet & template). Path add/append kini
+  menaruh nilai di kolom yang benar (unit vs template `Avg. Cost`/`Current Price` sama-sama benar karena
+  urutan kolom identik + resolusi nilai via alias).
+- **`updateRowInSheet` kini membangun row dari HEADER ASLI sheet (`rows[0]`), bukan konstanta `HEADERS`.**
+  Fungsi ini memang sudah membaca sheet (untuk cari baris by id), jadi header asli tersedia gratis. Efek:
+  ketidakcocokan konstanta-vs-sheet tak akan pernah menggeser data lagi, untuk SEMUA tab; kolom yang tak
+  dikenali aplikasi mempertahankan nilai lamanya.
+- Diverifikasi: unit test (12 kasus) — HEADERS lama menggeser (ikon bocor ke kolom salah), HEADERS baru +
+  robust-update menaruh unit→D, avg→E, current→F, tanggal→G, ikon→I dengan benar untuk skema user
+  (`NAV_Per_Unit`) MAUPUN template (`Avg. Cost`). tsc & build bersih.
+
+### Aksi user (sekali)
+Baris Reksadana yang sudah terlanjur rusak perlu diperbaiki: **hapus aset Reksadana itu di aplikasi, lalu
+tambahkan ulang** dengan nilai benar (jumlah unit, harga rata-rata/NAV beli, NAV terkini). Setelah itu
+update harga tersimpan rapi.
+
+---
+
 ## [3.18.3] — 2026-07-25 · Perbaikan: Kartu Dana Pensiun (Jarak + Pop-up)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
