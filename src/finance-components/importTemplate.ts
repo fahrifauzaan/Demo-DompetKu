@@ -3,7 +3,7 @@ import type { Account } from '../store/useFinanceStore';
 /**
  * Bangun template Excel (.xlsx) dengan DROPDOWN (data validation) untuk Tipe/Kategori/Akun —
  * agar pengisian anti-typo. exceljs di-lazy-load (code-split, tak membebani bundle utama).
- * Kolom = skema impor: Tanggal · Deskripsi · Jumlah · Tipe · Kategori · Akun · Catatan.
+ * Kolom = skema impor: Tanggal · Deskripsi · Jumlah · Tipe · Kategori · Akun.
  */
 export async function buildTemplateXLSXBlob(accounts: Account[], categories: string[]): Promise<Blob> {
   const mod: any = await import('exceljs');
@@ -26,19 +26,19 @@ export async function buildTemplateXLSXBlob(accounts: Account[], categories: str
   ref.state = 'hidden';
 
   // Header ber-styling
-  const headers = ['Tanggal', 'Deskripsi', 'Jumlah', 'Tipe', 'Kategori', 'Akun', 'Catatan'];
+  const headers = ['Tanggal', 'Deskripsi', 'Jumlah', 'Tipe', 'Kategori', 'Akun'];
   const head = ws.addRow(headers);
   head.eachCell((c: any) => {
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
     c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     c.alignment = { vertical: 'middle' };
   });
-  ws.columns = [{ width: 13 }, { width: 38 }, { width: 15 }, { width: 14 }, { width: 18 }, { width: 18 }, { width: 20 }];
+  ws.columns = [{ width: 13 }, { width: 38 }, { width: 15 }, { width: 14 }, { width: 18 }, { width: 18 }];
   ws.views = [{ state: 'frozen', ySplit: 1 }];
 
   // Baris contoh (hapus saat mengisi)
-  ws.addRow(['2026-07-01', 'CONTOH — hapus baris ini · Gaji bulanan', 10000000, 'Pemasukan', cats[0] || 'Salary', accList[0], 'opsional']);
-  ws.addRow(['2026-07-02', 'CONTOH — hapus baris ini · Belanja Indomaret', 150000, 'Pengeluaran', 'Food', accList[0], 'opsional']);
+  ws.addRow(['2026-07-01', 'CONTOH — hapus baris ini · Gaji bulanan', 10000000, 'Pemasukan', cats[0] || 'Salary', accList[0]]);
+  ws.addRow(['2026-07-02', 'CONTOH — hapus baris ini · Belanja Indomaret', 150000, 'Pengeluaran', 'Food', accList[0]]);
 
   // Dropdown (data validation) untuk baris 2..300
   const putDV = (col: string, formula: string) => {

@@ -212,7 +212,7 @@ export function guessMapping(rows: string[][], preset?: BankPreset): CsvMapping 
 
 /* ===================== Template DompetKu (unduh untuk input massal / migrasi) ===================== */
 
-export const TEMPLATE_HEADERS = ['Tanggal', 'Deskripsi', 'Jumlah', 'Tipe', 'Kategori', 'Akun', 'Catatan'];
+export const TEMPLATE_HEADERS = ['Tanggal', 'Deskripsi', 'Jumlah', 'Tipe', 'Kategori', 'Akun'];
 
 /** Escape sel CSV. */
 const csvCell = (v: string) => (/[",\n;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
@@ -221,8 +221,8 @@ const csvCell = (v: string) => (/[",\n;]/.test(v) ? `"${v.replace(/"/g, '""')}"`
 export function buildTemplateCSV(sampleAccount = 'Nama Akun Anda'): string {
   const rows = [
     TEMPLATE_HEADERS,
-    ['2026-07-01', 'CONTOH — hapus baris ini · Gaji bulanan', '10000000', 'Pemasukan', 'Salary', sampleAccount, 'opsional'],
-    ['2026-07-02', 'CONTOH — hapus baris ini · Belanja Indomaret', '150000', 'Pengeluaran', 'Food', sampleAccount, 'opsional'],
+    ['2026-07-01', 'CONTOH — hapus baris ini · Gaji bulanan', '10000000', 'Pemasukan', 'Salary', sampleAccount],
+    ['2026-07-02', 'CONTOH — hapus baris ini · Belanja Indomaret', '150000', 'Pengeluaran', 'Food', sampleAccount],
   ];
   return rows.map((r) => r.map((c) => csvCell(String(c))).join(',')).join('\r\n');
 }

@@ -17,9 +17,18 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.11.4';
+export const CURRENT_VERSION = '3.12.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.12.0', date: '2026-07-25', title: 'Pratinjau Impor Lebih Jelas', tag: 'feature', impact: 'none',
+    added: [
+      'Pratinjau impor kini menampilkan Kategori & Akun tiap baris (di bawah keterangan) — jadi langsung kelihatan kolom-kolom itu terbaca dari file, tanpa perlu impor dulu.',
+    ],
+    changed: [
+      'Template impor disederhanakan: kolom "Catatan" dihilangkan karena tidak ikut tersimpan (transaksi DompetKu belum punya field catatan). File template lama tetap aman diimpor — kolom tak dikenal diabaikan.',
+    ],
+  },
   {
     version: '3.11.4', date: '2026-07-25', title: 'Perbaikan: Auto-Post Anti-Duplikat', tag: 'fix', impact: 'none',
     fixed: [

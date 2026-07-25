@@ -9,6 +9,24 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.12.0] — 2026-07-25 · Pratinjau Impor + Template lebih ramping
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Ditambahkan
+- **Pratinjau impor menampilkan Kategori & Akun** — saat template DompetKu terdeteksi, tiap baris
+  pratinjau kini menampilkan baris kecil "🏷 kategori · 💳 akun" di bawah keterangan, sehingga
+  langsung terlihat bahwa kolom Kategori/Akun/Tipe memang terbaca dari file (tanpa perlu impor dulu).
+  Layout tetap 3 kolom (Tanggal · Keterangan · Nominal) agar nominal tak terpotong di layar sempit.
+
+### Diubah
+- **Template impor dirampingkan: kolom "Catatan" dihapus** dari template CSV & Excel (`TEMPLATE_HEADERS`,
+  `buildTemplateXLSXBlob`) karena tidak ikut diimpor — transaksi DompetKu belum punya field catatan.
+  Dropdown Tipe/Kategori/Akun di template Excel tetap utuh. File template lama yang masih punya kolom
+  Catatan tetap aman diimpor (kolom tak dikenal diabaikan otomatis).
+
+---
+
 ## [3.11.4] — 2026-07-25 · Perbaikan: Auto-Post Anti-Duplikat (idempotent)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

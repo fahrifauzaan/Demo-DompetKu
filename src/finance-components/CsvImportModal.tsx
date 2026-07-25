@@ -296,13 +296,24 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
                   <p className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400 mb-2">Pratinjau · <strong className="text-emerald-600 dark:text-emerald-400">{valid.length} valid</strong>{parsed.length - valid.length > 0 && <span className="text-amber-600 dark:text-amber-400"> · {parsed.length - valid.length} dilewati</span>}</p>
                   <div className="rounded-2xl border border-outline-variant/10 dark:border-white/5 overflow-hidden max-h-56 overflow-y-auto custom-scrollbar">
                     <table className="w-full text-xs">
-                      <thead className="bg-surface-container dark:bg-[#1b1e21] sticky top-0"><tr className="text-[10px] uppercase text-on-surface-variant dark:text-slate-400"><th className="px-3 py-2 text-left font-black">Tanggal</th><th className="px-3 py-2 text-left font-black">Keterangan</th><th className="px-3 py-2 text-right font-black">Nominal</th></tr></thead>
+                      <thead className="bg-surface-container dark:bg-[#1b1e21] sticky top-0"><tr className="text-[10px] uppercase text-on-surface-variant dark:text-slate-400"><th className="px-3 py-2 text-left font-black">Tanggal</th><th className="px-3 py-2 text-left font-black">Keterangan{templateMode && <span className="lowercase font-bold opacity-60"> · kategori · akun</span>}</th><th className="px-3 py-2 text-right font-black">Nominal</th></tr></thead>
                       <tbody className="divide-y divide-outline-variant/10 dark:divide-white/5">
                         {parsed.slice(0, 30).map((p, i) => (
                           <tr key={i} className={p.valid ? '' : 'opacity-40'}>
-                            <td className="px-3 py-1.5 tabular-nums text-on-surface dark:text-slate-200">{p.date || '—'}</td>
-                            <td className="px-3 py-1.5 text-on-surface dark:text-slate-200 truncate max-w-[220px]">{p.desc}</td>
-                            <td className={`px-3 py-1.5 text-right tabular-nums font-bold ${p.amount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-error dark:text-[#ffb4ab]'}`}>{formatRp(p.amount)}</td>
+                            <td className="px-3 py-1.5 tabular-nums text-on-surface dark:text-slate-200 whitespace-nowrap align-top">{p.date || '—'}</td>
+                            <td className="px-3 py-1.5 text-on-surface dark:text-slate-200 align-top">
+                              <div className="truncate max-w-[240px]">{p.desc}</div>
+                              {templateMode && (
+                                <div className="flex items-center gap-1 mt-0.5 text-[10px] text-on-surface-variant/70 dark:text-slate-500">
+                                  <span className="material-symbols-outlined text-[12px] leading-none">sell</span>
+                                  <span className="truncate max-w-[130px]">{p.category || '—'}</span>
+                                  <span className="opacity-40">·</span>
+                                  <span className="material-symbols-outlined text-[12px] leading-none">account_balance_wallet</span>
+                                  <span className="truncate max-w-[90px]">{p.account || account || '—'}</span>
+                                </div>
+                              )}
+                            </td>
+                            <td className={`px-3 py-1.5 text-right tabular-nums font-bold whitespace-nowrap align-top ${p.amount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-error dark:text-[#ffb4ab]'}`}>{formatRp(p.amount)}</td>
                           </tr>
                         ))}
                       </tbody>
