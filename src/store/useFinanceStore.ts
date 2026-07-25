@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TRANSACTIONS_DATA, DEBTS_DATA } from '../finance-components/FinanceData';
 import { useAuthStore } from './useAuthStore';
-import { addRowToSheet, appendRowsToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet } from '../services/googleApiService';
+import { addRowToSheet, appendRowsToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet, batchRenameTransactionCategories } from '../services/googleApiService';
 
 // ===================== TYPES =====================
 
@@ -246,6 +246,7 @@ interface FinanceState {
   // Actions — Generic CRUD
   addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
   addTransactionsBulk: (txns: (Omit<Transaction, 'id'> & { id?: string })[]) => Promise<{ ok: boolean; saved: number; failed: number }>;
+  renameTransactionCategories: (mapping: Record<string, string>) => Promise<{ updated: number }>;
   updateTransaction: (tx: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addAccount: (account: Omit<Account, 'id'>) => Promise<void>;
@@ -702,6 +703,41 @@ export const useFinanceStore = create<FinanceState>()(
         } finally {
           set((s) => ({ pendingWrites: Math.max(0, s.pendingWrites - 1) }));
         }
+      },
+
+      // Ganti nama kategori transaksi secara MASSAL (mis. samakan 'Makanan & Minuman' → 'Food' agar
+      // cocok dengan kategori Anggaran). API: satu batchUpdate; makro: loop update baris yang berubah.
+      renameTransactionCategories: async (mapping) => {
+        const lc = new Map<string, string>();
+        for (const [k, v] of Object.entries(mapping)) if (v && v.trim() && v !== k) lc.set(k.toLowerCase(), v);
+        if (!lc.size) return { updated: 0 };
+
+        const changed: Transaction[] = [];
+        const next = get().transactions.map((t) => {
+          const nn = t.category ? lc.get(String(t.category).toLowerCase()) : undefined;
+          if (nn && nn !== t.category) { const u = { ...t, category: nn }; changed.push(u); return u; }
+          return t;
+        });
+        if (!changed.length) return { updated: 0 };
+        set({ transactions: next }); // optimistic + persist localStorage
+
+        const token = get().googleAccessToken, sid = get().spreadsheetId, url = get().googleSheetUrl;
+        set((s) => ({ pendingWrites: s.pendingWrites + 1, saveError: null }));
+        try {
+          if (token && sid) {
+            await batchRenameTransactionCategories(token, sid, mapping); // satu panggilan batch
+          } else if (url) {
+            for (const t of changed) {
+              await fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update', sheet: 'Transactions', data: t }) });
+            }
+          }
+        } catch (e) {
+          console.error('[FinanceStore] ❌ Gagal ganti kategori massal:', e);
+          set({ saveError: 'Gagal menyimpan perubahan kategori ke Google Sheets.' });
+        } finally {
+          set((s) => ({ pendingWrites: Math.max(0, s.pendingWrites - 1) }));
+        }
+        return { updated: changed.length };
       },
 
       updateTransaction: async (transaction) => {

@@ -17,9 +17,15 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.16.0';
+export const CURRENT_VERSION = '3.17.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.17.0', date: '2026-07-25', title: 'Samakan Kategori (Budget vs Aktual)', tag: 'feature', impact: 'none',
+    added: [
+      'Tombol "Samakan Kategori" di Anggaran — ganti nama kategori transaksi secara massal agar cocok dengan kategori Anggaran (mis. "Makanan & Minuman" → "Food"), supaya Budget vs Aktual ikut terhitung. Menampilkan hanya kategori yang belum cocok + jumlah transaksinya; sekali klik memperbarui semua transaksi (dan tersimpan ke Google Sheet).',
+    ],
+  },
   {
     version: '3.16.0', date: '2026-07-25', title: 'Perbaikan: Fixed Income (SBN/Deposito/P2P) Tersimpan', tag: 'migration', impact: 'appsscript',
     fixed: [

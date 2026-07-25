@@ -214,6 +214,51 @@ export async function appendRowsToSheet(accessToken: string, spreadsheetId: stri
   }
 }
 
+/** Huruf kolom A1 dari indeks 0-based (0→A, 5→F, 26→AA). */
+function columnLetter(idx: number): string {
+  let s = ''; let n = idx;
+  do { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; } while (n >= 0);
+  return s;
+}
+
+/**
+ * Ganti nilai kolom 'category' pada tab Transactions untuk baris yang cocok dengan `mapping`
+ * (old→new, case-insensitive), dalam SATU `values:batchUpdate` — anti rate-limit, cepat.
+ * Mengembalikan jumlah baris yang diubah.
+ */
+export async function batchRenameTransactionCategories(accessToken: string, spreadsheetId: string, mapping: Record<string, string>): Promise<number> {
+  const lc = new Map<string, string>();
+  for (const [k, v] of Object.entries(mapping)) if (v && v !== k) lc.set(k.toLowerCase(), v);
+  if (!lc.size) return 0;
+
+  const getResp = await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent('Transactions')}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  if (!getResp.ok) throw new Error(`Gagal membaca Transactions (HTTP ${getResp.status}).`);
+  const rows: any[][] = (await getResp.json()).values || [];
+  if (rows.length <= 1) return 0;
+  const headers = rows[0].map((h: any) => String(h));
+  const catIdx = headers.findIndex((h: string) => h.toLowerCase() === 'category');
+  if (catIdx < 0) return 0;
+  const col = columnLetter(catIdx);
+
+  const data: { range: string; values: string[][] }[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const cur = String(rows[i][catIdx] ?? '');
+    const next = lc.get(cur.toLowerCase());
+    if (next && next !== cur) data.push({ range: `Transactions!${col}${i + 1}`, values: [[next]] });
+  }
+  if (!data.length) return 0;
+
+  const resp = await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'RAW', data })
+  });
+  if (!resp.ok) { console.error('Batch rename error:', await resp.text()); throw new Error(`Gagal mengganti kategori (HTTP ${resp.status}).`); }
+  return data.length;
+}
+
 /**
  * Updates an existing row in a specific sheet by ID.
  * Warning: This requires reading the sheet first to find the row index.

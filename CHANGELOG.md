@@ -9,6 +9,24 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.17.0] — 2026-07-25 · Samakan Kategori (Budget vs Aktual)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Ditambahkan
+- **Alat "Samakan Kategori" di Anggaran.** Budget vs Aktual mencocokkan nama kategori transaksi dengan
+  nama kategori Anggaran (case-insensitive). Kalau beda — mis. transaksi hasil impor berkategori
+  "Makanan & Minuman" sedangkan Anggaran memakai "Food" — aktual tak terhitung (Rp 0). Tombol baru
+  menampilkan **hanya kategori transaksi yang belum cocok** (+ jumlah transaksinya), lalu memetakannya
+  ke kategori Anggaran dalam satu klik. Store `renameTransactionCategories` + API
+  `batchRenameTransactionCategories` (satu `values:batchUpdate` — anti rate-limit; fallback loop untuk
+  mode makro). `CategoryRemapModal` di-render via portal (anti containing-block trap).
+- Diverifikasi: unit (columnLetter/range/case-insensitive) + live store (rename 2 dari 4 baris,
+  case-insensitive, sisanya utuh) + modal (empty & active state, dropdown kategori Anggaran, tombol
+  Terapkan aktif). tsc & build bersih.
+
+---
+
 ## [3.16.0] — 2026-07-25 · Perbaikan: Fixed Income tersimpan (tab dashboard → tab data biasa)
 
 **Dampak Google Sheet/Apps Script: ADA untuk pengguna mode Web App/macro** (perbarui Apps Script sekali dari Panduan). Pengguna Login-Google (OAuth): **otomatis, tanpa aksi**.

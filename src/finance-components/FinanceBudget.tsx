@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { FeatureCTA } from './MarketingCTAModal';
+import CategoryRemapModal from './CategoryRemapModal';
 
 interface FinanceBudgetProps {
   onShowCTA: (feature?: FeatureCTA) => void;
@@ -18,6 +19,7 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
   const [activeTab, setActiveTab] = useState<'EXPENSES' | 'INCOME' | 'SAVINGS' | 'INVESTMENT'>('EXPENSES');
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  const [showRemap, setShowRemap] = useState(false);
 
   const selectedYear = selectedDate.getFullYear();
   const selectedMonthNum = selectedDate.getMonth();
@@ -338,6 +340,14 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
           </div>
 
           <button
+            onClick={() => setShowRemap(true)}
+            title="Samakan nama kategori transaksi dengan kategori Anggaran (mis. Makanan & Minuman → Food)"
+            className="px-4 py-2 bg-surface-container dark:bg-white/10 text-on-surface dark:text-white hover:opacity-90 active:scale-95 transition-all text-xs font-bold flex items-center gap-2 rounded-xl h-10 shadow-sm border border-outline-variant/10 dark:border-white/10 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[1.1rem]">rule</span>
+            Samakan Kategori
+          </button>
+          <button
             onClick={() => onNavigate && onNavigate('add-category')}
             className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90 active:scale-95 transition-all text-xs font-bold flex items-center gap-2 rounded-xl h-10 shadow-sm border border-black/[0.05] cursor-pointer"
           >
@@ -346,6 +356,8 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
           </button>
         </div>
       </header>
+
+      <CategoryRemapModal isOpen={showRemap} onClose={() => setShowRemap(false)} />
 
       {/* OVERALL PERFORMANCE BENTO PANELS */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
