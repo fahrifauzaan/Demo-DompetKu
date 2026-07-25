@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import FinanceGuidePrinciple from './FinanceGuidePrinciple';
+import { useFinanceStore } from '../store/useFinanceStore';
 
 interface SectionProps {
   onNavigate: (tab: string) => void;
@@ -108,11 +109,45 @@ const FAQS = [
     q: 'Kalau saya impor file CSV/Excel, file itu disimpan di mana? Apakah aman?',
     a: 'Aman. File-nya dibaca 100% di browser Anda untuk diurai, lalu dibuang — tidak diunggah ke mana pun (tidak ke Google Drive sebagai file, tidak ke server kami). Yang tersimpan permanen hanyalah baris transaksinya, dan tujuannya Google Sheet milik Anda sendiri. Pengembang tidak menerima data apa pun. Lihat tab "Impor" untuk rinciannya.',
   },
+  {
+    q: 'E-statement bank saya formatnya beda dari template. Gimana caranya?',
+    a: 'Dua opsi: (1) pakai Impor Cerdas — pilih preset bank Anda, kolom terdeteksi otomatis; atau (2) minta AI (ChatGPT/Gemini) mengubah e-statement ke format template DompetKu. Buka tab "Impor" di Panduan ini — ada prompt siap-salin yang sudah otomatis memuat daftar kategori & akun Anda, jadi hasil AI langsung cocok. Lalu tinggal impor hasilnya.',
+  },
 ];
 
 const FinanceGuideTransaksiSection: React.FC<SectionProps> = ({ onNavigate }) => {
   const [active, setActive] = useState<TransaksiSection>('overview');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [copied, setCopied] = useState(false);
+
+  // Prompt AI dibangun dengan kategori & akun ASLI milik user → hasil ChatGPT/Gemini langsung pas.
+  const budgetCategories = useFinanceStore((s) => s.budgetCategories);
+  const accounts = useFinanceStore((s) => s.accounts);
+  const aiPrompt = useMemo(() => {
+    const cats = budgetCategories.map((c) => c.name).filter(Boolean);
+    const catLine = (cats.length ? cats : ['Makanan & Minuman', 'Transportasi & Bensin', 'Tagihan Listrik & Air', 'Belanja', 'Gaji', 'Lainnya']).join(', ');
+    const accName = accounts[0]?.name || 'Nama Akun Anda';
+    return `Saya punya mutasi rekening (e-statement) dari bank. Ubah menjadi tabel CSV dengan KOLOM PERSIS berikut, siap diimpor ke aplikasi keuangan DompetKu:
+
+Tanggal,Deskripsi,Jumlah,Tipe,Kategori,Akun
+
+Aturan pengisian:
+- Tanggal: format YYYY-MM-DD (contoh 2026-05-01).
+- Deskripsi: keterangan / nama merchant transaksi.
+- Jumlah: angka positif saja, tanpa titik/koma ribuan dan tanpa "Rp" (contoh 150000).
+- Tipe: "Pemasukan" untuk uang masuk (kredit), "Pengeluaran" untuk uang keluar (debit).
+- Kategori: pilih SATU yang paling cocok dari daftar ini — ${catLine}. Kalau ragu, isi "Lainnya".
+- Akun: isi "${accName}" untuk semua baris.
+
+Keluarkan HANYA tabel CSV (baris pertama = judul kolom), tanpa penjelasan lain.
+
+Berikut data mutasinya:
+[TEMPEL ISI E-STATEMENT / LAMPIRKAN FILE-nya DI SINI]`;
+  }, [budgetCategories, accounts]);
+
+  const copyPrompt = async () => {
+    try { await navigator.clipboard.writeText(aiPrompt); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard diblokir */ }
+  };
 
   return (
     <div className="animate-in fade-in duration-300">
@@ -320,6 +355,60 @@ const FinanceGuideTransaksiSection: React.FC<SectionProps> = ({ onNavigate }) =>
                 <p className="text-xs text-on-surface-variant dark:text-slate-400 mt-1.5 leading-relaxed">{m.desc}</p>
               </div>
             ))}
+          </div>
+
+          {/* AI hack — ubah e-statement bank apa pun ke format template */}
+          <div className="rounded-2xl border border-violet-300/50 dark:border-violet-400/25 bg-violet-50/50 dark:bg-violet-500/5 p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-violet-500/10 dark:bg-violet-400/15 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-violet-600 dark:text-violet-300" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+              </div>
+              <div>
+                <h4 className="font-bold text-on-surface dark:text-white text-sm">Trik: ubah e-statement bank pakai AI</h4>
+                <p className="text-[11px] text-violet-700/80 dark:text-violet-300/80 font-semibold">ChatGPT · Gemini · Claude — biar format bank apa pun jadi pas</p>
+              </div>
+            </div>
+            <p className="text-xs text-on-surface-variant dark:text-slate-300 leading-relaxed mb-4">
+              Tiap bank punya format mutasi berbeda. Daripada merapikan manual, minta AI mengubah e-statement Anda ke format template DompetKu. Cukup 5 langkah:
+            </p>
+
+            <div className="space-y-2.5 mb-4">
+              {[
+                'Unduh e-statement dari m-banking Anda (Excel/CSV, atau PDF).',
+                'Buka ChatGPT / Gemini. Lampirkan file-nya, atau salin-tempel isinya.',
+                'Klik "Salin prompt" di bawah, tempel ke AI, lalu kirim.',
+                'AI keluarkan tabel sesuai kolom DompetKu → salin ke Excel/Sheets, atau minta AI unduhkan sebagai CSV.',
+                'Impor file itu ke DompetKu. Tipe/Kategori/Akun sudah terisi otomatis.',
+              ].map((s, i) => (
+                <div key={i} className="flex gap-2.5 items-start">
+                  <span className="w-5 h-5 rounded-full bg-violet-500 dark:bg-violet-400 text-white dark:text-violet-950 flex items-center justify-center text-[10px] font-extrabold shrink-0 mt-0.5">{i + 1}</span>
+                  <p className="text-xs text-on-surface dark:text-slate-200 leading-relaxed">{s}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Prompt siap pakai */}
+            <div className="rounded-xl bg-[#0f172a] dark:bg-black/40 border border-white/10 overflow-hidden">
+              <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/10">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5"><span className="material-symbols-outlined text-[13px]">terminal</span>Prompt siap pakai</span>
+                <button onClick={copyPrompt} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors ${copied ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                  <span className="material-symbols-outlined text-[14px]">{copied ? 'check' : 'content_copy'}</span>{copied ? 'Tersalin!' : 'Salin prompt'}
+                </button>
+              </div>
+              <pre className="px-3.5 py-3 text-[10.5px] leading-relaxed text-slate-300 whitespace-pre-wrap font-mono max-h-52 overflow-y-auto custom-scrollbar">{aiPrompt}</pre>
+            </div>
+            <p className="text-[10.5px] text-on-surface-variant/70 dark:text-slate-500 mt-2 flex items-start gap-1.5">
+              <span className="material-symbols-outlined text-[13px] text-violet-500 dark:text-violet-400 shrink-0 mt-px">bolt</span>
+              <span>Prompt ini sudah otomatis berisi daftar <strong className="text-on-surface-variant dark:text-slate-400">kategori</strong> &amp; <strong className="text-on-surface-variant dark:text-slate-400">akun</strong> milik Anda — hasil AI langsung cocok, minim rapikan ulang.</span>
+            </p>
+
+            {/* Catatan privasi */}
+            <div className="mt-3 rounded-xl border border-amber-300/50 dark:border-amber-400/25 bg-amber-50/60 dark:bg-amber-500/10 p-3 flex gap-2.5">
+              <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg shrink-0">privacy_tip</span>
+              <p className="text-[11px] text-on-surface-variant dark:text-slate-300 leading-relaxed">
+                <strong className="text-on-surface dark:text-white">Catatan privasi:</strong> cara ini mengirim data mutasi Anda ke layanan AI pihak ketiga (OpenAI/Google) — di luar DompetKu. Bila ada info sangat sensitif (mis. nomor rekening penuh), sensor dulu sebelum menempel. Ini pilihan Anda; DompetKu sendiri tetap tak menyimpan apa pun ke pengembang.
+              </p>
+            </div>
           </div>
 
           {/* Steps */}

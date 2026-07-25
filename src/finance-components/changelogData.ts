@@ -17,9 +17,16 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.12.0';
+export const CURRENT_VERSION = '3.13.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.13.0', date: '2026-07-25', title: 'Trik Impor: E-Statement → Template pakai AI', tag: 'feature', impact: 'none',
+    added: [
+      'Trik baru di Panduan › Transaksi › Impor: ubah e-statement bank apa pun ke format template DompetKu memakai AI (ChatGPT/Gemini/Claude).',
+      'Tombol "Salin prompt" menyalin prompt siap-pakai yang sudah otomatis berisi daftar kategori & akun Anda sendiri — hasil AI langsung cocok, tinggal impor. Dilengkapi catatan privasi (data dikirim ke AI pihak ketiga, di luar DompetKu).',
+    ],
+  },
   {
     version: '3.12.0', date: '2026-07-25', title: 'Pratinjau Impor Lebih Jelas', tag: 'feature', impact: 'none',
     added: [

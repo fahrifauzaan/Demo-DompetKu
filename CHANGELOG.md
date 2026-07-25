@@ -9,6 +9,20 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.13.0] — 2026-07-25 · Trik Impor: E-Statement → Template pakai AI
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Ditambahkan
+- **Trik "ubah e-statement pakai AI"** di Panduan › Transaksi › Impor — langkah + **prompt siap-salin**
+  untuk meminta ChatGPT/Gemini/Claude mengubah mutasi bank (format apa pun) ke skema template DompetKu
+  (Tanggal · Deskripsi · Jumlah · Tipe · Kategori · Akun). Tombol **"Salin prompt"** menyalin prompt yang
+  **sudah otomatis berisi daftar kategori & akun milik user** (diambil dari store lewat `useFinanceStore`),
+  jadi hasil AI langsung cocok dan minim rapikan ulang. Disertai **catatan privasi** (data dikirim ke AI
+  pihak ketiga OpenAI/Google, di luar prinsip zero-knowledge DompetKu). +1 FAQ terkait.
+
+---
+
 ## [3.12.0] — 2026-07-25 · Pratinjau Impor + Template lebih ramping
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
