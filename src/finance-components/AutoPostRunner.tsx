@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useFinanceStore, type Transaction } from '../store/useFinanceStore';
 import { dueRecurrings } from './recurringUtils';
 
 /**
@@ -16,6 +16,7 @@ interface Posted { name: string; amount: number; type: string; }
 const AutoPostRunner: React.FC = () => {
   const recurring = useFinanceStore((s) => s.recurring);
   const [digest, setDigest] = useState<Posted[] | null>(null);
+  const [failed, setFailed] = useState<number | null>(null);
   const ranRef = useRef(false);
 
   useEffect(() => {
@@ -27,11 +28,11 @@ const AutoPostRunner: React.FC = () => {
 
     (async () => {
       const store = useFinanceStore.getState();
-      const posted: Posted[] = [];
-      for (const { rec, dueDate } of due) {
+      // Siapkan semua occurrence jatuh tempo + data pendamping untuk update pasca-tulis.
+      const items = due.map(({ rec, dueDate }) => {
         const finalAmount = rec.type === 'PEMASUKAN' ? Math.abs(rec.amount) : -Math.abs(rec.amount);
         const dateISO = dueDate.toISOString().slice(0, 10);
-        await store.addTransaction({
+        const payload: Omit<Transaction, 'id'> = {
           date: dateISO,
           desc: `↻ ${rec.name} (otomatis)`,
           location: 'Recurring (auto)',
@@ -41,7 +42,24 @@ const AutoPostRunner: React.FC = () => {
           status: 'Selesai',
           account: rec.account,
           type: rec.type,
-        });
+        };
+        return { rec, dateISO, finalAmount, payload };
+      });
+
+      // Tulis SEMUA dalam satu batch terverifikasi (anti rate-limit + jujur, sama seperti Impor).
+      // KRUSIAL: hanya majukan lastPostedDate & saldo bila transaksi BENAR tersimpan ke Sheet.
+      // Kalau tidak, transaksi bisa hilang diam-diam padahal terlanjur ditandai "sudah diposting"
+      // (lastPostedDate maju) → tak pernah dicoba lagi. Gate ini mencegah kehilangan senyap itu.
+      const result = await store.addTransactionsBulk(items.map((i) => i.payload));
+      if (!result.ok) {
+        // Gagal simpan → JANGAN majukan lastPostedDate; biarkan dicoba lagi saat app dibuka lagi.
+        // (store.saveError sudah di-set oleh addTransactionsBulk → indikator penyimpanan global tampil.)
+        setFailed(items.length);
+        return;
+      }
+
+      const posted: Posted[] = [];
+      for (const { rec, dateISO, finalAmount } of items) {
         // saldo terbaru diambil fresh (bila beberapa item ke akun yang sama)
         const acc = useFinanceStore.getState().accounts.find((a) => a.name === rec.account);
         if (acc) await store.updateAccount({ ...acc, balance: acc.balance + finalAmount });
@@ -51,6 +69,31 @@ const AutoPostRunner: React.FC = () => {
       if (posted.length) setDigest(posted);
     })();
   }, [recurring]);
+
+  // Notifikasi gagal — auto-post tak tersimpan, akan dicoba lagi (tetap sepengetahuan user).
+  if (failed) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.97 }}
+          transition={{ type: 'spring', damping: 26, stiffness: 260 }}
+          className="fixed bottom-4 right-4 z-[190] w-[calc(100vw-2rem)] max-w-sm print:hidden"
+          role="alert"
+        >
+          <div className="bg-surface dark:bg-[#191c1e] border border-error/30 dark:border-[#ffb4ab]/25 rounded-2xl shadow-2xl shadow-black/25 overflow-hidden">
+            <div className="flex items-start gap-3 px-4 py-3.5">
+              <span className="material-symbols-outlined text-error dark:text-[#ffb4ab] text-xl shrink-0">sync_problem</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-on-surface dark:text-white">Gagal memposting {failed} transaksi berulang</p>
+                <p className="text-xs text-on-surface-variant dark:text-slate-400 mt-0.5 leading-relaxed">Belum tersimpan ke Google Sheets — akan dicoba lagi otomatis saat aplikasi dibuka lagi. Periksa koneksi Anda.</p>
+              </div>
+              <button onClick={() => setFailed(null)} className="w-7 h-7 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-on-surface-variant shrink-0 cursor-pointer" aria-label="Tutup"><span className="material-symbols-outlined text-[16px]">close</span></button>
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   if (!digest || digest.length === 0) return null;
 

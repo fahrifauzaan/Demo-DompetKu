@@ -9,6 +9,23 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.11.3] — 2026-07-25 · Perbaikan: Auto-Post Berulang Andal
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Diperbaiki
+- **Auto-post transaksi berulang kini hanya menandai "sudah diposting" (`lastPostedDate`)
+  setelah transaksi BENAR tersimpan ke Google Sheet.** Sebelumnya `AutoPostRunner.tsx` menulis
+  tiap transaksi lalu memajukan `lastPostedDate` **tanpa syarat** — bila tulis gagal (koneksi/
+  kuota) dan ditelan diam-diam, transaksi hilang tapi ditandai selesai → **tak pernah dicoba lagi**
+  (kelas bug yang sama dengan Impor di v3.11.2).
+- **Perbaikan:** memakai `addTransactionsBulk` yang terverifikasi (satu tulis batch, `throw` pada
+  gagal, tanpa fallback ke URL demo). Gagal → `lastPostedDate` **tidak** maju, saldo **tidak**
+  disesuaikan, dan muncul notifikasi "akan dicoba lagi saat aplikasi dibuka lagi". Diverifikasi
+  terhadap store: paksa 401 → `lastPostedDate` **tidak** maju, transaksi optimistic di-rollback.
+
+---
+
 ## [3.11.2] — 2026-07-25 · Perbaikan: Impor Andal Tersimpan (rate-limit + jujur)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (mode OAuth/API).

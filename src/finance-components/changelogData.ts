@@ -17,9 +17,16 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.11.2';
+export const CURRENT_VERSION = '3.11.3';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.11.3', date: '2026-07-25', title: 'Perbaikan: Auto-Post Berulang Andal', tag: 'fix', impact: 'none',
+    fixed: [
+      'Transaksi berulang yang diposting otomatis (auto-post) kini hanya ditandai "sudah diposting" bila benar-benar tersimpan ke Google Sheet Anda. Sebelumnya, bila penyimpanan gagal (koneksi/kuota), transaksi bisa hilang diam-diam tapi terlanjur dianggap selesai — sehingga tak pernah dicoba lagi.',
+      'Kini kalau gagal: muncul pemberitahuan, saldo tidak disesuaikan, dan sistem otomatis mencoba lagi saat aplikasi dibuka berikutnya (kelas perbaikan yang sama dengan Impor di v3.11.2).',
+    ],
+  },
   {
     version: '3.11.2', date: '2026-07-25', title: 'Perbaikan: Impor Andal Tersimpan', tag: 'fix', impact: 'none',
     fixed: [
