@@ -17,9 +17,15 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.18.1';
+export const CURRENT_VERSION = '3.18.2';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.18.2', date: '2026-07-25', title: 'Perbaikan: Input Harga Aset Pakai Pemisah Ribuan', tag: 'fix', impact: 'none',
+    fixed: [
+      'Kolom harga saat edit aset investasi ("Harga per Lembar/Unit/Koin Baru") kini otomatis memberi pemisah ribuan saat diketik — mis. mengetik 6400 langsung tampil "6.400", 1045500 → "1.045.500". Sebelumnya angkanya tampil polos tanpa titik. Input desimal (koma) untuk reksadana/kripto tetap didukung dan dibatasi sesuai jumlah digit desimal aset.',
+    ],
+  },
   {
     version: '3.18.1', date: '2026-07-25', title: 'Perbaikan: Modal Edit Aset Ikut Tema Terang', tag: 'fix', impact: 'none',
     fixed: [

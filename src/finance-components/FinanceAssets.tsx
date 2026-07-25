@@ -102,6 +102,26 @@ const parsePriceID = (input: string): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+// Group integer digits with Indonesian thousand separators (dots), string-based so
+// arbitrarily long numbers keep full precision. Strips leading zeros (keeps a lone 0).
+const groupThousandsID = (digits: string): string =>
+  digits.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+// Live-format a price the user is typing: group the integer part while PRESERVING an
+// in-progress decimal part (comma = decimal). Decimal digits are capped at `decimals`;
+// when decimals === 0 (e.g. saham) any comma is dropped so only whole numbers remain.
+const formatPriceInputID = (raw: string, decimals: number): string => {
+  const s = (raw || '').replace(/[^0-9.,]/g, '');
+  const firstComma = s.indexOf(',');
+  if (decimals > 0 && firstComma !== -1) {
+    const intDigits = s.slice(0, firstComma).replace(/\D/g, '');
+    const decDigits = s.slice(firstComma + 1).replace(/\D/g, '').slice(0, decimals);
+    return (intDigits ? groupThousandsID(intDigits) : '0') + ',' + decDigits;
+  }
+  const intDigits = s.replace(/\D/g, '');
+  return intDigits ? groupThousandsID(intDigits) : '';
+};
+
 // IDX shares display: "4 Lot (400 Lembar)" when divisible by 100; otherwise raw.
 const formatShares = (shares: number, subType?: string): string => {
   const s = shares || 0;
@@ -721,9 +741,8 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
   const handlePriceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (editType === 'investment') {
-      if (/^[0-9.,]*$/.test(val)) {
-        setNewLastPriceInput(val);
-      }
+      // Group thousands live while preserving an in-progress decimal (comma).
+      setNewLastPriceInput(formatPriceInputID(val, getPriceDecimals(editingAsset?.subType)));
     } else {
       const num = val.replace(/\D/g, '');
       setNewLastPriceInput(num ? Number(num).toLocaleString('id-ID') : '');

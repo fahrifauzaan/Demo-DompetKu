@@ -9,6 +9,25 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.18.2] — 2026-07-25 · Perbaikan: Input Harga Aset Pakai Pemisah Ribuan
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Diperbaiki
+- **Input harga saat edit aset investasi kini memformat ribuan saat diketik.** Di modal "Update Harga Terakhir"
+  (`FinanceAssets.tsx`), cabang `editType === 'investment'` pada `handlePriceInputChange` menyimpan nilai **mentah**
+  (`setNewLastPriceInput(val)`) tanpa pengelompokan ribuan — jadi mengetik `6400` tampil `6400`, bukan `6.400`
+  (padahal kartu perbandingan di bawah sudah benar). Cabang non-investasi (saldo rekening / valuasi fisik) sudah
+  memformat via `toLocaleString`, jadi hanya input investasi yang tertinggal (karena harus mengizinkan desimal).
+- **Fix:** helper baru `formatPriceInputID(raw, decimals)` + `groupThousandsID(digits)` (string-based, tanpa
+  kehilangan presisi) mengelompokkan bagian bilangan bulat dengan titik **sambil mempertahankan bagian desimal
+  yang sedang diketik** (koma = desimal), membatasi digit desimal sesuai aset (saham 0, reksadana 4, kripto 8).
+- Diverifikasi: unit test 12 kasus (saham `6400`→`6.400`, kripto `1045500,12345678`, reksadana capping 4 digit,
+  koma di ujung `29.440,`, `,5`→`0,5`, round-trip `parsePriceID`) semua lolos; browser (reksadana) mengetik
+  `1045500,5075` live jadi `Rp 1.045.500,5075` dan kartu perbandingan cocok. `tsc` & build bersih.
+
+---
+
 ## [3.18.1] — 2026-07-25 · Perbaikan: Modal Edit Aset Ikut Tema Terang
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (murni styling).
