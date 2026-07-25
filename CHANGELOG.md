@@ -9,6 +9,46 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.18.0] — 2026-07-25 · Kategori Serba-Indonesia (Anggaran & Transaksi Sinkron)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (migrasi berjalan di sisi aplikasi ke Sheet Anda sendiri lewat jalur yang sudah ada).
+
+### Latar
+Aplikasi menyimpan kategori dalam **Inggris** sebagai nama kanonik (`Food`, `Housing`, …) lalu hanya
+**menerjemahkan ke Indonesia saat ditampilkan** (`categoryTranslations` di `FinanceAddTransaction`). Transaksi
+hasil impor justru menyimpan literal Indonesia (`Makanan & Minuman`). Akibatnya kategori Anggaran (Inggris)
+tak pernah cocok dengan kategori transaksi (Indonesia) → **Budget vs Aktual selalu Rp 0**. Alih-alih menambal
+dengan alat rename manual (v3.17.0), rilis ini menjadikan **Indonesia sebagai nama kanonik** di seluruh aplikasi.
+
+### Diubah
+- **Nama kanonik kategori kini Bahasa Indonesia**, memakai peta terjemahan yang sudah ada (dipindah ke file
+  bersama baru `src/finance-components/categoryLocale.ts` → `CATEGORY_EN_TO_ID`, `EXPENSE_CATEGORIES`,
+  `INCOME_CATEGORIES`). Form Tambah Transaksi, kategori Anggaran baku (`DEFAULT_BUDGET_CATEGORIES`), template
+  impor Excel/CSV, dropdown template, dan data seed semuanya kini Indonesia. `translateCategory` tetap ada
+  sebagai pass-through/penerjemah sisa data Inggris lama.
+- Dropdown kategori pada template impor kini di-*seed* dari seluruh 34 kategori baku (Indonesia), bukan hanya
+  kategori milik user, sehingga lengkap walau data masih kosong.
+
+### Ditambahkan
+- **Migrasi otomatis `migrateCategoriesToIndonesian()`** (dipanggil di akhir setiap `syncFromGoogleSheets`).
+  Mengganti nama kategori **Anggaran** dan **Transaksi** yang masih Inggris → Indonesia, lalu menyimpannya ke
+  Google Sheet Anda (Anggaran: `postToSheet` update per baris; Transaksi: `renameTransactionCategories` →
+  satu `values:batchUpdate`). **Idempoten** (berhenti sendiri bila tak ada nama Inggris tersisa), dijaga flag
+  anti-tumpang-tindih, dan **self-healing** (dicoba lagi di sync berikutnya bila push sempat gagal). Template
+  Database yang masih Inggris otomatis ikut tersesuaikan pada login pertama pengguna baru.
+
+### Diperbaiki
+- **Budget vs Aktual langsung terisi** untuk transaksi hasil impor — tanpa perlu "Samakan Kategori" manual.
+
+### Verifikasi
+- Konsistensi statis: 34 nilai peta = superset dari 19 kategori pengeluaran + 15 pemasukan + 4 Anggaran baku (nol typo).
+- Live (akun demo): setelah sync, **0 kategori Inggris** tersisa di Anggaran maupun Transaksi; nama Anggaran &
+  transaksi kini identik (mis. `Makanan & Minuman` ×183). Budget vs Aktual Maret 2026 terisi — Makanan & Minuman
+  Rp 5.346.784, Transportasi & Bensin Rp 4.186.035, Tempat Tinggal/KPR Rp 3.325.680, Kesehatan & Obat Rp 1.204.000
+  (sebelumnya Rp 0). Indikator "Menyimpan ke Google Sheets" tampil → perubahan dipersistensi. `tsc` & build bersih.
+
+---
+
 ## [3.17.0] — 2026-07-25 · Samakan Kategori (Budget vs Aktual)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

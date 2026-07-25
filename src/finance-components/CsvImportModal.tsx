@@ -7,6 +7,7 @@ import {
   type CsvMapping, type ImportProfile,
 } from './csvImportUtils';
 import { buildTemplateXLSXBlob } from './importTemplate';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from './categoryLocale';
 
 interface CsvImportModalProps { isOpen: boolean; onClose: () => void }
 
@@ -21,6 +22,9 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose 
 
   const categoryList = useMemo(() => {
     const set = new Set<string>();
+    // Seluruh kategori baku (Indonesia) agar dropdown lengkap walau user belum punya data.
+    EXPENSE_CATEGORIES.forEach((c) => set.add(c.name));
+    INCOME_CATEGORIES.forEach((c) => set.add(c.name));
     budgetCategories.forEach((c) => c.name && set.add(c.name));
     transactions.forEach((t) => t.category && set.add(t.category));
     return [...set].sort((a, b) => a.localeCompare(b));

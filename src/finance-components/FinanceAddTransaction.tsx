@@ -2,91 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { FeatureCTA } from './MarketingCTAModal';
 import { useFinanceStore, TransactionType } from '../store/useFinanceStore';
 import FinancePinModal from './FinancePinModal';
+import { CATEGORY_EN_TO_ID, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from './categoryLocale';
 
-const categoryTranslations: Record<string, string> = {
-  // Expense
-  'Housing': 'Tempat Tinggal / KPR',
-  'Food': 'Makanan & Minuman',
-  'Utilities': 'Tagihan Listrik & Air',
-  'Healthcare': 'Kesehatan & Obat',
-  'Transportation': 'Transportasi & Bensin',
-  'Debt': 'Cicilan & Pelunasan Utang',
-  'Personal Care': 'Perawatan Diri',
-  'Education': 'Pendidikan & Kursus',
-  'Childcare': 'Kebutuhan Anak',
-  'Household': 'Perabotan Rumah Tangga',
-  'Pets': 'Hewan Peliharaan',
-  'Clothing and Accessories': 'Pakaian & Aksesoris',
-  'Insurance': 'Premi Asuransi',
-  'Work Expenses': 'Pengeluaran Kerja/Bisnis',
-  'Entertainment': 'Hiburan & Hobi',
-  'Gift': 'Kado & Donasi',
-  'Travel': 'Travel & Liburan',
-  'Subscription': 'Layanan Berlangganan',
-  'Bills': 'Tagihan Bulanan',
-  
-  // Income
-  'Salary': 'Gaji Pokok',
-  'Partner Salary': 'Gaji Pasangan',
-  'Side Hustle / Freelance': 'Pekerjaan Sampingan',
-  'Business Income': 'Pendapatan Bisnis',
-  'Investments Income / Dividends / Capital Gains': 'Dividen & Investasi',
-  'Rental Income': 'Uang Sewa / Kost',
-  'Commissions': 'Komisi & Insentif',
-  'Bonuses': 'Bonus & THR',
-  'Pension Income': 'Uang Pensiun',
-  'Scholarships / Grants': 'Beasiswa & Hibah',
-  'Inheritance': 'Warisan',
-  'Lottery / Gambling Winnings': 'Undian & Hadiah',
-  'Gifts': 'Pemberian / Angpao',
-  'Refunds / Reimbursements': 'Reimbursement Kerja',
-  'Others': 'Pendapatan Lainnya',
-};
-
+// Nama kategori kini KANONIK dalam Indonesia (lihat categoryLocale.ts). translateCategory tetap ada
+// untuk menerjemahkan sisa data lama yang masih berlabel Inggris (pass-through bila sudah Indonesia).
 const translateCategory = (catName: string, isIndonesian: boolean): string => {
   if (!isIndonesian) return catName;
-  return categoryTranslations[catName] || catName;
+  return CATEGORY_EN_TO_ID[catName] || catName;
 };
 
-const expenseCategories = [
-  { name: 'Housing', icon: 'home' },
-  { name: 'Food', icon: 'restaurant' },
-  { name: 'Utilities', icon: 'bolt' },
-  { name: 'Healthcare', icon: 'medical_services' },
-  { name: 'Transportation', icon: 'directions_car' },
-  { name: 'Debt', icon: 'credit_card' },
-  { name: 'Personal Care', icon: 'spa' },
-  { name: 'Education', icon: 'school' },
-  { name: 'Childcare', icon: 'child_care' },
-  { name: 'Household', icon: 'living' },
-  { name: 'Pets', icon: 'pets' },
-  { name: 'Clothing and Accessories', icon: 'checkroom' },
-  { name: 'Insurance', icon: 'health_and_safety' },
-  { name: 'Work Expenses', icon: 'work' },
-  { name: 'Entertainment', icon: 'sports_esports' },
-  { name: 'Gift', icon: 'card_giftcard' },
-  { name: 'Travel', icon: 'flight' },
-  { name: 'Subscription', icon: 'workspace_premium' },
-  { name: 'Bills', icon: 'receipt_long' },
-];
-
-const incomeCategories = [
-  { name: 'Salary', icon: 'work' },
-  { name: 'Partner Salary', icon: 'diversity_3' },
-  { name: 'Side Hustle / Freelance', icon: 'two_wheeler' },
-  { name: 'Business Income', icon: 'storefront' },
-  { name: 'Investments Income / Dividends / Capital Gains', icon: 'pie_chart' },
-  { name: 'Rental Income', icon: 'real_estate_agent' },
-  { name: 'Commissions', icon: 'percent' },
-  { name: 'Bonuses', icon: 'star' },
-  { name: 'Pension Income', icon: 'elderly' },
-  { name: 'Scholarships / Grants', icon: 'school' },
-  { name: 'Inheritance', icon: 'volunteer_activism' },
-  { name: 'Lottery / Gambling Winnings', icon: 'casino' },
-  { name: 'Gifts', icon: 'card_giftcard' },
-  { name: 'Refunds / Reimbursements', icon: 'currency_exchange' },
-  { name: 'Others', icon: 'payments' },
-];
+const expenseCategories = EXPENSE_CATEGORIES;
+const incomeCategories = INCOME_CATEGORIES;
 
 interface SearchableSelectOption {
   value: string;
@@ -242,7 +168,7 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
   const [amount, setAmount] = useState('0');
   const [account, setAccount] = useState('');
   const [toAccount, setToAccount] = useState('');
-  const [category, setCategory] = useState('Housing');
+  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0].name);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [desc, setDesc] = useState('');
   const [isSaving, setIsSaving] = useState(false);

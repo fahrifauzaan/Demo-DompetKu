@@ -221,8 +221,8 @@ const csvCell = (v: string) => (/[",\n;]/.test(v) ? `"${v.replace(/"/g, '""')}"`
 export function buildTemplateCSV(sampleAccount = 'Nama Akun Anda'): string {
   const rows = [
     TEMPLATE_HEADERS,
-    ['2026-07-01', 'CONTOH — hapus baris ini · Gaji bulanan', '10000000', 'Pemasukan', 'Salary', sampleAccount],
-    ['2026-07-02', 'CONTOH — hapus baris ini · Belanja Indomaret', '150000', 'Pengeluaran', 'Food', sampleAccount],
+    ['2026-07-01', 'CONTOH — hapus baris ini · Gaji bulanan', '10000000', 'Pemasukan', 'Gaji Pokok', sampleAccount],
+    ['2026-07-02', 'CONTOH — hapus baris ini · Belanja Indomaret', '150000', 'Pengeluaran', 'Makanan & Minuman', sampleAccount],
   ];
   return rows.map((r) => r.map((c) => csvCell(String(c))).join(',')).join('\r\n');
 }

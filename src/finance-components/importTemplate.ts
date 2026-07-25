@@ -15,7 +15,7 @@ export async function buildTemplateXLSXBlob(accounts: Account[], categories: str
   const ref = wb.addWorksheet('Referensi');
 
   const tipe = ['Pemasukan', 'Pengeluaran'];
-  const cats = (categories.length ? categories : ['Salary', 'Food', 'Transport', 'Bills', 'Lainnya']).slice(0, 300);
+  const cats = (categories.length ? categories : ['Gaji Pokok', 'Makanan & Minuman', 'Transportasi & Bensin', 'Tagihan Bulanan', 'Lainnya']).slice(0, 300);
   const accList = accounts.map((a) => a.name).filter(Boolean);
   if (!accList.length) accList.push('Nama Akun Anda');
 
@@ -37,8 +37,8 @@ export async function buildTemplateXLSXBlob(accounts: Account[], categories: str
   ws.views = [{ state: 'frozen', ySplit: 1 }];
 
   // Baris contoh (hapus saat mengisi)
-  ws.addRow(['2026-07-01', 'CONTOH — hapus baris ini · Gaji bulanan', 10000000, 'Pemasukan', cats[0] || 'Salary', accList[0]]);
-  ws.addRow(['2026-07-02', 'CONTOH — hapus baris ini · Belanja Indomaret', 150000, 'Pengeluaran', 'Food', accList[0]]);
+  ws.addRow(['2026-07-01', 'CONTOH — hapus baris ini · Gaji bulanan', 10000000, 'Pemasukan', 'Gaji Pokok', accList[0]]);
+  ws.addRow(['2026-07-02', 'CONTOH — hapus baris ini · Belanja Indomaret', 150000, 'Pengeluaran', 'Makanan & Minuman', accList[0]]);
 
   // Dropdown (data validation) untuk baris 2..300
   const putDV = (col: string, formula: string) => {

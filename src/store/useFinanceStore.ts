@@ -3,6 +3,10 @@ import { persist } from 'zustand/middleware';
 import { TRANSACTIONS_DATA, DEBTS_DATA } from '../finance-components/FinanceData';
 import { useAuthStore } from './useAuthStore';
 import { addRowToSheet, appendRowsToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet, batchRenameTransactionCategories } from '../services/googleApiService';
+import { CATEGORY_EN_TO_ID } from '../finance-components/categoryLocale';
+
+// Cegah migrasi kategori berjalan ganda saat sync tumpang-tindih.
+let _catMigrationRunning = false;
 
 // ===================== TYPES =====================
 
@@ -247,6 +251,7 @@ interface FinanceState {
   addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
   addTransactionsBulk: (txns: (Omit<Transaction, 'id'> & { id?: string })[]) => Promise<{ ok: boolean; saved: number; failed: number }>;
   renameTransactionCategories: (mapping: Record<string, string>) => Promise<{ updated: number }>;
+  migrateCategoriesToIndonesian: () => Promise<{ budgets: number; transactions: number }>;
   updateTransaction: (tx: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addAccount: (account: Omit<Account, 'id'>) => Promise<void>;
@@ -474,10 +479,10 @@ const DEFAULT_ACCOUNTS: Account[] = [
 ];
 
 const DEFAULT_BUDGET_CATEGORIES: BudgetCategory[] = [
-  { id: 'bcat1', name: 'Housing', icon: 'home', color: '#1565c0', type: 'Pengeluaran', allocated: 46400000, includeInTotal: true, alertAt: 80 },
-  { id: 'bcat2', name: 'Food', icon: 'restaurant', color: '#ba1a1a', type: 'Pengeluaran', allocated: 8700000, includeInTotal: true, alertAt: 80 },
-  { id: 'bcat3', name: 'Healthcare', icon: 'medical_services', color: '#ef6c00', type: 'Pengeluaran', allocated: 58000000, includeInTotal: true, alertAt: 90 },
-  { id: 'bcat4', name: 'Transportation', icon: 'directions_car', color: '#00695c', type: 'Pengeluaran', allocated: 6525000, includeInTotal: true, alertAt: 80 },
+  { id: 'bcat1', name: 'Tempat Tinggal / KPR', icon: 'home', color: '#1565c0', type: 'Pengeluaran', allocated: 46400000, includeInTotal: true, alertAt: 80 },
+  { id: 'bcat2', name: 'Makanan & Minuman', icon: 'restaurant', color: '#ba1a1a', type: 'Pengeluaran', allocated: 8700000, includeInTotal: true, alertAt: 80 },
+  { id: 'bcat3', name: 'Kesehatan & Obat', icon: 'medical_services', color: '#ef6c00', type: 'Pengeluaran', allocated: 58000000, includeInTotal: true, alertAt: 90 },
+  { id: 'bcat4', name: 'Transportasi & Bensin', icon: 'directions_car', color: '#00695c', type: 'Pengeluaran', allocated: 6525000, includeInTotal: true, alertAt: 80 },
 ];
 
 const DEFAULT_ASSETS: Asset[] = [
@@ -738,6 +743,59 @@ export const useFinanceStore = create<FinanceState>()(
           set((s) => ({ pendingWrites: Math.max(0, s.pendingWrites - 1) }));
         }
         return { updated: changed.length };
+      },
+
+      // Migrasi SATU-ARAH: samakan bahasa kategori Anggaran & Transaksi ke Indonesia (kanonik baru).
+      // Data lama menyimpan nama Inggris ('Food'); impor menyimpan Indonesia ('Makanan & Minuman') →
+      // Budget vs Aktual tak cocok. Di sini kita ubah keduanya ke Indonesia + tulis ke Sheet user.
+      // Idempoten: kalau tak ada nama Inggris tersisa, no-op. Dipanggil otomatis di akhir sync.
+      migrateCategoriesToIndonesian: async () => {
+        if (_catMigrationRunning) return { budgets: 0, transactions: 0 };
+        _catMigrationRunning = true;
+        try {
+          const lcMap = new Map<string, string>();
+          for (const [k, v] of Object.entries(CATEGORY_EN_TO_ID)) lcMap.set(k.toLowerCase(), v);
+
+          // 1) Kategori Anggaran yang masih Inggris → Indonesia (lokal + Sheet).
+          const cats = get().budgetCategories;
+          const changedCats = cats.filter((c) => c.name && CATEGORY_EN_TO_ID[c.name]);
+          let budgets = 0;
+          if (changedCats.length) {
+            set({ budgetCategories: cats.map((c) => CATEGORY_EN_TO_ID[c.name] ? { ...c, name: CATEGORY_EN_TO_ID[c.name] } : c) });
+            budgets = changedCats.length;
+            const token = get().googleAccessToken, sid = get().spreadsheetId, url = get().googleSheetUrl;
+            set((s) => ({ pendingWrites: s.pendingWrites + 1, saveError: null }));
+            try {
+              for (const c of changedCats) {
+                const updated = { ...c, name: CATEGORY_EN_TO_ID[c.name] };
+                await postToSheet(url, token, sid, 'BudgetCategories', 'update', updated as unknown as Record<string, unknown>);
+              }
+            } catch (e) {
+              console.error('[FinanceStore] ❌ Gagal migrasi kategori Anggaran ke Sheet:', e);
+              set({ saveError: 'Gagal menyimpan perubahan kategori Anggaran ke Google Sheets.' });
+            } finally {
+              set((s) => ({ pendingWrites: Math.max(0, s.pendingWrites - 1) }));
+            }
+          }
+
+          // 2) Kategori Transaksi yang masih Inggris → Indonesia (pakai aksi batch yang sudah ada).
+          let transactions = 0;
+          const hasEnglishTx = get().transactions.some((t) => {
+            const lc = t.category ? lcMap.get(String(t.category).toLowerCase()) : undefined;
+            return !!lc && lc !== t.category;
+          });
+          if (hasEnglishTx) {
+            const res = await get().renameTransactionCategories(CATEGORY_EN_TO_ID);
+            transactions = res.updated;
+          }
+
+          if (budgets || transactions) {
+            console.log(`[FinanceStore] 🌐 Migrasi kategori ke Indonesia: ${budgets} anggaran, ${transactions} transaksi`);
+          }
+          return { budgets, transactions };
+        } finally {
+          _catMigrationRunning = false;
+        }
       },
 
       updateTransaction: async (transaction) => {
@@ -1379,6 +1437,9 @@ export const useFinanceStore = create<FinanceState>()(
             updates.syncError = null;
             set(updates as FinanceState);
             console.log('[FinanceStore] ✅ Full sync dari Google Sheets berhasil');
+            // Setelah data segar diterapkan, samakan bahasa kategori (Anggaran+Transaksi) ke Indonesia.
+            // Fire-and-forget; idempoten & self-healing bila push gagal (retry di sync berikutnya).
+            get().migrateCategoriesToIndonesian().catch((e) => console.error('[FinanceStore] migrasi kategori:', e));
           } else {
             throw new Error(result?.error || 'Format data tidak valid');
           }

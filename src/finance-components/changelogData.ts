@@ -17,9 +17,22 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.17.0';
+export const CURRENT_VERSION = '3.18.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.18.0', date: '2026-07-25', title: 'Kategori Serba-Indonesia (Anggaran & Transaksi Sinkron)', tag: 'migration', impact: 'none',
+    changed: [
+      'Kategori Anggaran & Transaksi kini seragam Bahasa Indonesia. Dulu Anggaran memakai nama Inggris ("Food", "Housing", "Healthcare") sementara transaksi — terutama hasil impor — memakai Indonesia ("Makanan & Minuman", "Tempat Tinggal / KPR"), sehingga Budget vs Aktual tak terhitung. Sekarang keduanya Indonesia dan cocok otomatis.',
+      'Pilihan kategori di form Tambah Transaksi, template impor (Excel/CSV), dan kategori Anggaran baku semuanya kini Bahasa Indonesia.',
+    ],
+    fixed: [
+      'Budget vs Aktual kini langsung terisi untuk transaksi hasil impor — tanpa perlu menyamakan kategori manual lagi.',
+    ],
+    added: [
+      'Migrasi otomatis & aman saat sinkron: kategori lama berbahasa Inggris di Anggaran maupun Transaksi diubah ke Indonesia lalu disimpan ke Google Sheet Anda. Idempoten (aman diulang), hanya menyentuh kategori baku, dan self-healing bila sempat gagal. Template Database yang masih Inggris pun ikut tersesuaikan otomatis pada login pertama.',
+    ],
+  },
   {
     version: '3.17.0', date: '2026-07-25', title: 'Samakan Kategori (Budget vs Aktual)', tag: 'feature', impact: 'none',
     added: [
