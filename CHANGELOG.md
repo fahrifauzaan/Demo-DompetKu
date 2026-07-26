@@ -9,6 +9,62 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.19.0] — 2026-07-26 · Perbaikan Penting: Anggaran per-Bulan Tidak Hilang Lagi
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (data-integrity + migrasi kategori lanjutan).
+
+### Latar (temuan dari audit)
+User mengubah "Rencana (Budget)" tiap kategori di Anggaran → nilainya balik ke angka lama. Sheet user
+menunjukkan tab `MonthlyBudgets` berisi nilai baru (mis. `2026-07__Gaji Pokok` = 9.400.000) **dan baris
+duplikat** (baris 25 & 29 id sama), sementara aplikasi menampilkan 9.200.000 (= `allocated` lama).
+
+**Root cause (rantai 3 langkah):**
+1. `fetchAllDataFromSheets` hanya menarik tab yang ada di `HEADERS` (`Object.keys(HEADERS).filter(...)`) —
+   dan **`MonthlyBudgets` TIDAK terdaftar** di sana. Jadi tab itu **tak pernah dibaca** untuk pengguna
+   Login-Google → `result.data.MonthlyBudgets` selalu `undefined` → `tabBudgets = {}`.
+2. Sinkron lalu menjalankan `updates.monthlyBudgets = tabHasData ? tabBudgets : blobBudgets` **tanpa syarat**;
+   blob `Settings.monthlyBudgets` milik user sudah `{}` (sudah termigrasi v2.7.0) → **seluruh anggaran
+   per-bulan ditimpa `{}` setiap sinkron**. `FinanceBudget` lalu jatuh ke `cat.allocated` (baris 156-160) →
+   terlihat "balik ke angka lama".
+3. Karena state lokal selalu kosong, `updateMonthlyBudget` menghitung `existed = false` → aksi **`'add'`**
+   untuk id yang sebenarnya sudah ada di sheet → **baris duplikat menumpuk** tiap penyuntingan.
+   (Penulisan tetap sampai ke sheet karena `isApiSheet('MonthlyBudgets')` false → jatuh ke jalur makro.)
+
+### Diperbaiki
+- **`MonthlyBudgets` didaftarkan ke API `HEADERS`** (`['id','month','category','amount']`) → kini **dibaca**
+  oleh sinkron dan **ditulis via API** (tak lagi bergantung makro). Tab otomatis dibuat bila belum ada.
+- **Pengaman anti-hilang di sinkron**: `monthlyBudgets` hanya ditimpa bila ADA sumbernya (tab berisi, atau
+  blob lama berisi). Bila keduanya kosong → **state lokal dipertahankan**, tidak dihapus.
+- **`upsertRowInSheet` (baru)**: penulisan MonthlyBudgets memakai upsert — cek sheet langsung, perbarui bila
+  id ada, tambah bila belum. Duplikat tak bisa tercipta lagi. Bila id sudah punya beberapa baris duplikat
+  (warisan bug lama), **semua baris itu ditulis nilai sama** → pembacaan (last-wins) selalu konsisten.
+- **`batchRenameMonthlyBudgetCategories` (baru)** dipanggil dari `migrateCategoriesToIndonesian`: mengganti
+  nama kategori pada MonthlyBudgets **beserta kolom `id`** (`2026-06__Food` → `2026-06__Makanan & Minuman`).
+  Melengkapi v3.18.0 yang hanya memigrasi BudgetCategories + Transactions; tanpa ini override anggaran
+  bulan-bulan lama jadi yatim. Idempoten, satu `values:batchUpdate`.
+
+### Audit (permintaan user: pastikan tak ada data lain yang hilang)
+Menyisir semua `updates.<key> = ...` di `syncFromGoogleSheets` vs tab yang benar-benar ditarik API:
+Transactions/Accounts/BudgetCategories/Debts dijaga `if (result.data.X)`; Assets dijaga anti-wipe (v3.15.0);
+Goals/Recurring/Insurance/Retirement merge-by-id; Settings merge + `LOCAL_ONLY` (PIN). **`monthlyBudgets`
+adalah satu-satunya penimpaan tanpa syarat atas tab yang tak ditarik** — dan itulah bug ini. Sisa kunci yang
+dibaca tapi tak ada di HEADERS (`Assets`, `Kripto`, `Fixed Income Investment`) hanya alias makro/legacy dan
+jalurnya sudah aman (merge/guard), bukan penimpaan.
+
+### Verifikasi
+- Unit test 12/12: (a) reproduksi bug lama (tab tak terbaca + blob `{}` → anggaran terhapus) vs perilaku baru
+  (state dipertahankan); tab menang bila berisi; blob dipakai bila tab kosong; (b) upsert tidak menambah baris
+  untuk id yang ada, menulis SEMUA duplikat, append untuk id baru, plus reproduksi akar duplikat lama;
+  (c) rename MonthlyBudgets mengubah kolom category + id, melewati nama non-kanonik, idempoten.
+- Live (localhost, modul segar): `isApiSheet('MonthlyBudgets') === true`; anggaran per-bulan **bertahan**
+  setelah `syncFromGoogleSheets()` (run sebelum perbaikan pada sesi yang sama menghasilkan `{}` — bug
+  terreproduksi, lalu hilang setelah fix). `tsc` & build bersih.
+- **Batas verifikasi (jujur):** alur UI ujung-ke-ujung pada akun Login-Google tak bisa diuji dari sini (butuh
+  token OAuth user), dan penyuntikan state ke app tidak terpakai karena duplikasi modul Vite. Silakan
+  konfirmasi di akun Anda: ubah Rencana → sinkron/refresh → angkanya harus menetap.
+
+---
+
 ## [3.18.7] — 2026-07-26 · Perbaikan: Menu "Tujuan" Muncul di Tampilan Mobile
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (styling/nav).

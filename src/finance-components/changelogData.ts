@@ -17,9 +17,20 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.18.7';
+export const CURRENT_VERSION = '3.19.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.19.0', date: '2026-07-26', title: 'Perbaikan Penting: Anggaran per-Bulan Tidak Hilang Lagi', tag: 'migration', impact: 'none',
+    fixed: [
+      'Angka "Rencana (Budget)" yang Anda ubah per kategori kini benar-benar tersimpan. Sebelumnya nilainya kembali ke angka lama karena tab MonthlyBudgets belum terdaftar di jalur sinkronisasi Login-Google — jadi tab itu tak pernah dibaca, dan anggaran per-bulan ikut terhapus dari aplikasi setiap kali sinkronisasi berjalan (tampilan lalu jatuh ke nilai alokasi tahunan yang lama).',
+      'Baris duplikat di tab MonthlyBudgets tidak akan tercipta lagi. Dulu aplikasi menebak "tambah baris" vs "perbarui baris" dari data di browser; kalau datanya kosong (akibat bug di atas), setiap penyuntingan menambah baris baru. Kini aplikasi memeriksa langsung ke sheet Anda (upsert). Baris duplikat yang sudah ada pun otomatis diseragamkan nilainya, jadi angka yang tampil selalu konsisten.',
+      'Anggaran per-bulan tidak akan pernah dihapus lagi saat sinkronisasi bila sumber datanya sedang tak terbaca — data di perangkat dipertahankan (pengaman anti-hilang).',
+    ],
+    added: [
+      'Migrasi otomatis lanjutan: nama kategori pada anggaran per-bulan (mis. "Food", "Salary") ikut diubah ke Indonesia — termasuk kolom id-nya. Ini melengkapi v3.18.0; tanpa ini, anggaran bulan-bulan lama Anda menjadi "yatim" dan angkanya tak pernah tampil lagi.',
+    ],
+  },
   {
     version: '3.18.7', date: '2026-07-26', title: 'Perbaikan: Menu "Tujuan" Muncul di Tampilan Mobile', tag: 'fix', impact: 'none',
     fixed: [

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TRANSACTIONS_DATA, DEBTS_DATA } from '../finance-components/FinanceData';
 import { useAuthStore } from './useAuthStore';
-import { addRowToSheet, appendRowsToSheet, updateRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet, batchRenameTransactionCategories, batchRenameBudgetCategories } from '../services/googleApiService';
+import { addRowToSheet, appendRowsToSheet, updateRowInSheet, upsertRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet, batchRenameTransactionCategories, batchRenameBudgetCategories, batchRenameMonthlyBudgetCategories } from '../services/googleApiService';
 import { CATEGORY_EN_TO_ID } from '../finance-components/categoryLocale';
 
 // Cegah migrasi kategori berjalan ganda saat sync tumpang-tindih.
@@ -251,7 +251,7 @@ interface FinanceState {
   addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
   addTransactionsBulk: (txns: (Omit<Transaction, 'id'> & { id?: string })[]) => Promise<{ ok: boolean; saved: number; failed: number }>;
   renameTransactionCategories: (mapping: Record<string, string>) => Promise<{ updated: number }>;
-  migrateCategoriesToIndonesian: () => Promise<{ budgets: number; transactions: number }>;
+  migrateCategoriesToIndonesian: () => Promise<{ budgets: number; transactions: number; monthly: number }>;
   updateTransaction: (tx: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   addAccount: (account: Omit<Account, 'id'>) => Promise<void>;
@@ -389,6 +389,7 @@ async function postToSheet(url: string, token: string | null, spreadsheetId: str
     // kini memunculkan saveError (jujur), bukan nyasar ke tempat lain.
     if (token && spreadsheetId && isApiSheet(sheet)) {
       if (action === 'add') await addRowToSheet(token, spreadsheetId, sheet, data);
+      else if (action === 'upsert') await upsertRowInSheet(token, spreadsheetId, sheet, data);
       else if (action === 'update') await updateRowInSheet(token, spreadsheetId, sheet, data);
       else if (action === 'delete') await deleteRowFromSheet(token, spreadsheetId, sheet, String(data.id || data.key));
       console.log(`[FinanceStore] ✅ ${action} → ${sheet} synced via API`);
@@ -753,7 +754,7 @@ export const useFinanceStore = create<FinanceState>()(
       // Budget vs Aktual tak cocok. Di sini kita ubah keduanya ke Indonesia + tulis ke Sheet user.
       // Idempoten: kalau tak ada nama Inggris tersisa, no-op. Dipanggil otomatis di akhir sync.
       migrateCategoriesToIndonesian: async () => {
-        if (_catMigrationRunning) return { budgets: 0, transactions: 0 };
+        if (_catMigrationRunning) return { budgets: 0, transactions: 0, monthly: 0 };
         _catMigrationRunning = true;
         try {
           const lcMap = new Map<string, string>();
@@ -797,10 +798,36 @@ export const useFinanceStore = create<FinanceState>()(
             transactions = res.updated;
           }
 
-          if (budgets || transactions) {
-            console.log(`[FinanceStore] 🌐 Migrasi kategori ke Indonesia: ${budgets} anggaran, ${transactions} transaksi`);
+          // 3) Kategori pada tab MonthlyBudgets (anggaran per-bulan). Tanpa ini, override bulan-bulan lama
+          // (mis. "2026-06__Food") jadi yatim setelah kategori di-Indonesia-kan → angkanya tak pernah tampil.
+          let monthly = 0;
+          {
+            const token = get().googleAccessToken, sid = get().spreadsheetId;
+            if (token && sid) {
+              try {
+                monthly = await batchRenameMonthlyBudgetCategories(token, sid, CATEGORY_EN_TO_ID);
+                if (monthly > 0) {
+                  // Selaraskan state lokal agar angkanya langsung tampil tanpa menunggu sinkron berikutnya.
+                  const mb = get().monthlyBudgets;
+                  const next: Record<string, Record<string, number>> = {};
+                  for (const mo of Object.keys(mb || {})) {
+                    next[mo] = {};
+                    for (const [cat, amt] of Object.entries(mb[mo] || {})) {
+                      next[mo][CATEGORY_EN_TO_ID[cat] || cat] = amt as number;
+                    }
+                  }
+                  set({ monthlyBudgets: next });
+                }
+              } catch (e) {
+                console.error('[FinanceStore] ❌ Gagal migrasi kategori MonthlyBudgets:', e);
+              }
+            }
           }
-          return { budgets, transactions };
+
+          if (budgets || transactions || monthly) {
+            console.log(`[FinanceStore] 🌐 Migrasi kategori ke Indonesia: ${budgets} anggaran, ${transactions} transaksi, ${monthly} sel anggaran-bulanan`);
+          }
+          return { budgets, transactions, monthly };
         } finally {
           _catMigrationRunning = false;
         }
@@ -1005,7 +1032,11 @@ export const useFinanceStore = create<FinanceState>()(
         if (rounded > 0) {
           current[yearMonth] = { ...(current[yearMonth] || {}), [categoryName]: rounded };
           set({ monthlyBudgets: current });
-          await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'MonthlyBudgets', existed ? 'update' : 'add', { id, month: yearMonth, category: categoryName, amount: rounded });
+          // Jalur API: UPSERT (cek sheet langsung) — memilih add/update dari state lokal rapuh: state yang
+          // kosong bikin 'add' dipakai untuk id yang sudah ada → baris duplikat. Jalur makro tetap add/update.
+          const token = get().googleAccessToken, sid = get().spreadsheetId;
+          const action = token && sid && isApiSheet('MonthlyBudgets') ? 'upsert' : (existed ? 'update' : 'add');
+          await postToSheet(get().googleSheetUrl, token, sid, 'MonthlyBudgets', action, { id, month: yearMonth, category: categoryName, amount: rounded });
         } else {
           // Prune: hapus override (jangan simpan nol).
           if (current[yearMonth]) {
@@ -1432,7 +1463,13 @@ export const useFinanceStore = create<FinanceState>()(
                 tabBudgets[mo][cat] = parseNumber(row.amount);
               }
               const tabHasData = Object.keys(tabBudgets).length > 0;
-              updates.monthlyBudgets = tabHasData ? tabBudgets : blobBudgets;
+              // ANTI-WIPE: hanya timpa bila ADA sumber datanya. Dulu `= tabHasData ? tabBudgets : blobBudgets`
+              // tanpa syarat — jadi ketika tab tak terbaca (mis. belum terdaftar di HEADERS) DAN blob sudah
+              // kosong `{}`, seluruh anggaran per-bulan terhapus tiap sinkron dan tampilan balik ke `allocated`.
+              // Bila kedua sumber kosong, biarkan state lokal apa adanya.
+              const blobHasData = Object.keys(blobBudgets).length > 0;
+              if (tabHasData) updates.monthlyBudgets = tabBudgets;
+              else if (blobHasData) updates.monthlyBudgets = blobBudgets;
 
               // Migrasi satu kali (tab kosong tetapi blob lama berisi) — non-blocking.
               if (!tabHasData && Object.keys(blobBudgets).length > 0) {

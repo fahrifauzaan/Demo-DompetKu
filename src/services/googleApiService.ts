@@ -10,6 +10,10 @@ const HEADERS: Record<string, string[]> = {
   // Tab lama tetap dibaca via macro untuk kompatibilitas; penulisan baru selalu ke 'FixedIncome'.
   'FixedIncome': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'ticker', 'interestRate', 'maturityDate', 'fixedIncomeType', 'bondType', 'depositType', 'type', 'issuer', 'tenor', 'tenorUnit', 'couponType', 'tax', 'paymentDate', 'interestPaymentPeriod', 'equity'],
   'BudgetCategories': ['id', 'name', 'icon', 'color', 'type', 'allocated', 'includeInTotal', 'alertAt'],
+  // Anggaran per-bulan (tidy). WAJIB terdaftar di sini: `fetchAllDataFromSheets` hanya menarik tab yang
+  // ada di HEADERS, jadi tab yang tidak terdaftar TAK PERNAH terbaca — dan `monthlyBudgets` lalu ditimpa
+  // kosong tiap sinkron (edit Rencana/Budget hilang & tampil balik ke `allocated` lama).
+  'MonthlyBudgets': ['id', 'month', 'category', 'amount'],
   'Debts': ['id', 'name', 'type', 'balance', 'interestRate', 'minPayment', 'icon', 'originalAmount', 'interestType', 'startDate', 'endDate', 'dueDate', 'lender', 'status'],
   'Settings': ['key', 'value'],
   'AssetsNonLiquid': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate'],
@@ -323,6 +327,56 @@ export async function batchRenameBudgetCategories(accessToken: string, spreadshe
 }
 
 /**
+ * Ganti nama kategori pada tab MonthlyBudgets (anggaran per-bulan) sesuai `mapping` (old→new,
+ * case-insensitive), dalam SATU `values:batchUpdate`. Ikut memperbarui kolom `id` karena id = "<month>__<category>";
+ * kalau id dibiarkan memakai nama lama, penyuntingan berikutnya tak menemukan barisnya lalu membuat duplikat.
+ * Tanpa ini, override anggaran bulan-bulan lama (mis. "2026-06__Food") jadi yatim setelah kategori
+ * di-Indonesia-kan (v3.18.0) — angkanya tak pernah tampil lagi. Idempoten. Mengembalikan jumlah baris diubah.
+ */
+export async function batchRenameMonthlyBudgetCategories(accessToken: string, spreadsheetId: string, mapping: Record<string, string>): Promise<number> {
+  const lc = new Map<string, string>();
+  for (const [k, v] of Object.entries(mapping)) if (v && v !== k) lc.set(k.toLowerCase(), v);
+  if (!lc.size) return 0;
+
+  const getResp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent('MonthlyBudgets')}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  }));
+  if (!getResp.ok) {
+    const errText = await getResp.text().catch(() => '');
+    if (isMissingSheetError(getResp.status, errText)) return 0; // tab belum ada → tak ada yang dimigrasi
+    throw new Error(writeErrorMessage('MonthlyBudgets', getResp.status));
+  }
+  const rows: any[][] = (await getResp.json()).values || [];
+  if (rows.length <= 1) return 0;
+  const headers = rows[0].map((h: any) => String(h));
+  const idIdx = headers.findIndex((h: string) => h.toLowerCase() === 'id');
+  const moIdx = headers.findIndex((h: string) => h.toLowerCase() === 'month');
+  const catIdx = headers.findIndex((h: string) => h.toLowerCase() === 'category');
+  if (catIdx < 0) return 0;
+
+  const data: { range: string; values: string[][] }[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const cur = String(rows[i][catIdx] ?? '');
+    const next = lc.get(cur.toLowerCase());
+    if (!next || next === cur) continue;
+    data.push({ range: `MonthlyBudgets!${columnLetter(catIdx)}${i + 1}`, values: [[next]] });
+    if (idIdx >= 0 && moIdx >= 0) {
+      const month = String(rows[i][moIdx] ?? '');
+      if (month) data.push({ range: `MonthlyBudgets!${columnLetter(idIdx)}${i + 1}`, values: [[`${month}__${next}`]] });
+    }
+  }
+  if (!data.length) return 0;
+
+  const resp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'RAW', data })
+  }));
+  if (!resp.ok) { console.error('Batch rename monthly budgets error:', await resp.text().catch(() => '')); throw new Error(writeErrorMessage('MonthlyBudgets', resp.status)); }
+  return data.length;
+}
+
+/**
  * Updates an existing row in a specific sheet by ID.
  * Warning: This requires reading the sheet first to find the row index.
  */
@@ -386,6 +440,57 @@ export async function updateRowInSheet(accessToken: string, spreadsheetId: strin
     console.error('Update Row Error:', await updateResponse.text().catch(() => ''));
     // THROW agar kegagalan update TAMPIL (saveError), tidak lagi hilang diam-diam.
     throw new Error(writeErrorMessage(sheetName, updateResponse.status));
+  }
+}
+
+/**
+ * UPSERT baris berdasarkan kolom id: perbarui bila id sudah ada, tambah bila belum.
+ * Kenapa perlu: memilih 'add' vs 'update' dari state LOKAL rapuh — kalau state kebetulan kosong
+ * (mis. tab-nya belum pernah terbaca), 'add' dipakai untuk id yang sebenarnya SUDAH ada di sheet →
+ * baris duplikat menumpuk. Upsert memeriksa sheet-nya langsung, jadi duplikat tak bisa tercipta.
+ * Bila id kebetulan sudah punya beberapa baris duplikat (warisan bug lama), SEMUA baris itu ditulis
+ * nilai yang sama — jadi pembacaan (yang mengambil kemunculan terakhir) selalu konsisten.
+ */
+export async function upsertRowInSheet(accessToken: string, spreadsheetId: string, sheetName: string, data: any) {
+  const headers = HEADERS[sheetName];
+  if (!headers) throw new Error(`Sheet ${sheetName} not found in headers mapping.`);
+  const idToFind = String(data.id ?? data.key ?? '');
+  if (!idToFind) throw new Error(`Upsert ${sheetName}: data tanpa id.`);
+
+  const getResp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent(sheetName)}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  }));
+  // Tab belum ada → biarkan addRowToSheet yang membuat tab + header.
+  if (!getResp.ok) {
+    const errText = await getResp.text().catch(() => '');
+    if (isMissingSheetError(getResp.status, errText)) return addRowToSheet(accessToken, spreadsheetId, sheetName, data);
+    throw new Error(writeErrorMessage(sheetName, getResp.status));
+  }
+
+  const rows: any[][] = (await getResp.json()).values || [];
+  const actualHeaders: string[] = (rows[0] && rows[0].length ? rows[0] : headers).map((h: any) => String(h));
+  const matches: number[] = [];
+  for (let i = 1; i < rows.length; i++) if (String(rows[i][0]) === idToFind) matches.push(i);
+
+  if (!matches.length) return addRowToSheet(accessToken, spreadsheetId, sheetName, data);
+
+  const buildRow = (existingRow: any[]) => actualHeaders.map((h, col) => {
+    const v = getValueCaseInsensitive(data, h);
+    return v !== undefined ? v : (existingRow?.[col] !== undefined ? existingRow[col] : '');
+  });
+  const payload = matches.map((rowIdx) => ({
+    range: `${sheetName}!A${rowIdx + 1}`,
+    values: [buildRow(rows[rowIdx])],
+  }));
+
+  const resp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: payload }),
+  }));
+  if (!resp.ok) {
+    console.error('Upsert Row Error:', await resp.text().catch(() => ''));
+    throw new Error(writeErrorMessage(sheetName, resp.status));
   }
 }
 
