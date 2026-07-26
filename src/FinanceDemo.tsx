@@ -717,6 +717,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
                 <NavItem id="budget" icon="payments" label="Anggaran" />
                 <NavItem id="assets" icon="account_balance" label="Aset" />
                 <NavItem id="debts" icon="leaderboard" label="Rencana Utang" />
+                <NavItem id="goals" icon="flag" label="Tujuan" />
                 <NavItem id="analytics" icon="query_stats" label="Laporan" />
                 <NavItem id="guide" icon="menu_book" label="Panduan" />
                 <NavItem id="settings" icon="settings" label="Pengaturan" />

@@ -9,6 +9,19 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.18.7] — 2026-07-26 · Perbaikan: Menu "Tujuan" Muncul di Tampilan Mobile
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (styling/nav).
+
+### Diperbaiki
+- **Item nav "Tujuan" (goals) hilang di menu mobile.** `FinanceDemo.tsx` punya dua daftar `NavItem`
+  terpisah — sidebar desktop (punya `goals`) dan drawer mobile (tidak). Ditambahkan
+  `<NavItem id="goals" icon="flag" label="Tujuan" />` setelah `debts` di drawer mobile, sehingga urutan
+  identik dengan desktop: Dasbor · Transaksi · Anggaran · Aset · Rencana Utang · Tujuan · Laporan ·
+  Panduan · Pengaturan. Diverifikasi di viewport mobile (375px): "Tujuan" tampil di posisi yang benar.
+
+---
+
 ## [3.18.6] — 2026-07-26 · Perbaikan: Edit Harga Reksadana Tidak Balik Sendiri
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

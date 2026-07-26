@@ -17,9 +17,15 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.18.6';
+export const CURRENT_VERSION = '3.18.7';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.18.7', date: '2026-07-26', title: 'Perbaikan: Menu "Tujuan" Muncul di Tampilan Mobile', tag: 'fix', impact: 'none',
+    fixed: [
+      'Menu "Tujuan" kini tampil di navigasi versi mobile — sebelumnya hanya ada di desktop karena daftar menu mobile tertinggal satu item (Tujuan). Urutannya kini sama persis: Dasbor · Transaksi · Anggaran · Aset · Rencana Utang · Tujuan · Laporan · Panduan · Pengaturan.',
+    ],
+  },
   {
     version: '3.18.6', date: '2026-07-26', title: 'Perbaikan: Edit Harga Reksadana Tidak Balik Sendiri', tag: 'fix', impact: 'none',
     fixed: [
