@@ -273,7 +273,10 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
                 if (user) {
                   const found = registeredUsers.find(u => u.email.toLowerCase() === user.email.toLowerCase());
                   if (found) {
-                    useAuthStore.getState().signup(found.email, found.password, found.name, user.photoURL, user.sheetUrl, user.spreadsheetId);
+                    // Dulu: signup(found.email, found.password, …) — memakai kata sandi POLOS yang kini
+                    // sudah tidak disimpan, sehingga akan menimpa kredensial jadi kosong. Cukup
+                    // perbarui field profil tanpa menyentuh kata sandi.
+                    useAuthStore.getState().updateUserProfile(found.email, { photoURL: user.photoURL, sheetUrl: user.sheetUrl, spreadsheetId: user.spreadsheetId });
                   }
                 }
                 
@@ -311,14 +314,16 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
     }
   };
 
-  const handlePasswordUnlock = (e: React.FormEvent) => {
+  const handlePasswordUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setLockPasswordError(false);
     
     if (!user) return;
     
-    const found = registeredUsers.find(u => u.email.toLowerCase() === user.email.toLowerCase());
-    if (found && lockPasswordInput === found.password) {
+    // Verifikasi lewat hash (kata sandi polos sudah tidak disimpan lagi). `verifyPassword` juga
+    // memigrasi akun lama ke hash saat pertama kali cocok.
+    const okPwd = await useAuthStore.getState().verifyPassword(user.email, lockPasswordInput);
+    if (okPwd) {
       setIsAppLocked(false);
       setLockPasswordInput('');
       lastActiveTime.current = Date.now();

@@ -155,8 +155,8 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
       upsertSetting('notification_security', String(notifications.security));
     }
 
-    // Save password ONLY when explicitly updating password (e.g. from the change password modal)
-    const passToSave = typeof overridePassword === 'string' ? overridePassword : getSetting('last_password', 'password123');
+    // Kata sandi TIDAK lagi dibaca dari sheet (baris `last_password` sudah dikosongkan) dan tidak lagi
+    // dipakai untuk membuat ulang akun — perubahan kata sandi kini lewat `changePassword` (hash saja).
     if (typeof overridePassword === 'string') {
       // KATA SANDI TIDAK LAGI DITULIS KE GOOGLE SHEET. Sebelumnya disimpan apa adanya pada baris
       // `last_password`, sehingga siapa pun yang bisa melihat spreadsheet (atau tautan yang pernah
@@ -174,7 +174,13 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
     if (user && (activeSection === 'profil' || typeof overridePassword === 'string')) {
       const nameToSave = activeSection === 'profil' ? profileName : getSetting('userName', 'Admin Demo User');
       const emailToSave = activeSection === 'profil' ? profileEmail : getSetting('email', '');
-      signup(emailToSave, passToSave, nameToSave, user.photoURL);
+      // Dulu memanggil `signup(email, passToSave, …)` dengan kata sandi yang dibaca dari baris sheet
+      // `last_password`. Setelah penyimpanan itu dihentikan, pola lama akan MENIMPA kata sandi dengan
+      // string kosong. Kini: ganti kata sandi hanya bila memang diminta, dan profil diperbarui terpisah.
+      useAuthStore.getState().updateUserProfile(user.email, { name: nameToSave, photoURL: user.photoURL });
+      if (typeof overridePassword === 'string' && overridePassword) {
+        await useAuthStore.getState().changePassword(emailToSave || user.email, overridePassword);
+      }
     }
     
     // Auto sync if user is logged in with Google (in case spreadsheet ID changed)

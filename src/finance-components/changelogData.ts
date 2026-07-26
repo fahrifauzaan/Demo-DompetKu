@@ -17,9 +17,18 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.27.0';
+export const CURRENT_VERSION = '3.28.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.28.0', date: '2026-07-26', title: 'Kata Sandi Kini Di-hash (Tidak Bisa Dibaca Lagi)', tag: 'fix', impact: 'none',
+    fixed: [
+      'Kata sandi tidak lagi tersimpan dalam bentuk terbaca di perangkat Anda. Sejak sekarang hanya "sidik jari" acak (hash SHA-256 + salt unik) yang disimpan \u2014 kata sandi aslinya tidak bisa dibaca kembali oleh siapa pun, termasuk dari penyimpanan browser.',
+      'Migrasi otomatis & mulus: saat Anda login pertama kali setelah pembaruan ini, kata sandi lama diverifikasi sekali lalu langsung diganti dengan hash, dan versi terbacanya DIHAPUS. Anda tidak perlu melakukan apa pun.',
+      'Membuka kunci layar dengan kata sandi dan mengubah kata sandi di Pengaturan kini memakai jalur hash yang sama \u2014 tak ada lagi perbandingan kata sandi terbaca.',
+      'Menyambungkan ulang Google & menyimpan profil tidak lagi menyentuh kredensial. Sebelumnya keduanya "mendaftar ulang" akun memakai kata sandi terbaca dari spreadsheet; setelah penyimpanan itu dihentikan (v3.23.0), pola lama berisiko menimpa kata sandi Anda menjadi kosong.',
+    ],
+  },
   {
     version: '3.27.0', date: '2026-07-26', title: 'Kejelasan Periode Laporan, Profil Aman, Simpan Lebih Hemat', tag: 'fix', impact: 'none',
     fixed: [

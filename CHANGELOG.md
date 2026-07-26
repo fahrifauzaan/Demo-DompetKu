@@ -9,6 +9,43 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.28.0] — 2026-07-26 · Hashing Kata Sandi (audit SEDANG · F4, penutup)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+Melengkapi v3.23.0 (yang menghentikan penulisan kata sandi ke spreadsheet). Kini representasi di
+**localStorage perangkat** pun tak lagi terbaca.
+
+### Diperbaiki
+- **`RegisteredUser.password` (plaintext) → `passwordHash` + `salt`.** Hash = `SHA-256(salt + ':' + password)`
+  via Web Crypto; salt acak 16 byte per pengguna (mencegah dua kata sandi identik menghasilkan hash sama).
+  Field `password` kini opsional dan hanya dibaca untuk **migrasi sekali jalan**.
+- **`login` & `signup` menjadi async.** `login` memverifikasi hash; bila akun masih menyimpan plaintext
+  (data lama), diverifikasi sekali dengan cara lama lalu **langsung dimigrasi** ke hash dan plaintext-nya
+  `undefined`. Semua pemanggil di `FinanceLogin` di-`await` (handler dijadikan `async`).
+- **`verifyPassword(email, password)` (baru)** dipakai lock screen — dulu `lockPasswordInput === found.password`
+  (perbandingan plaintext langsung). Ikut memigrasi akun lama saat pertama cocok.
+- **`changePassword(email, newPassword)` (baru)** — Pengaturan kini memanggil ini; hash baru dibuat dan
+  plaintext tidak pernah ditulis. Kata sandi lama otomatis tak berlaku.
+- **`updateUserProfile(email, patch)` (baru)** menggantikan pola `signup(email, plaintextLama, …)` di dua
+  tempat: rekoneksi Google (`FinanceDemo`) dan simpan profil (`FinanceSettings`). Setelah v3.23.0
+  mengosongkan `last_password`, pola lama akan **menimpa kata sandi menjadi string kosong** — kini kredensial
+  tak tersentuh saat memperbarui profil. Variabel `passToSave` yang membaca `last_password` dihapus.
+
+### Verifikasi (browser, implementasi asli + Web Crypto)
+10/10: sebelum → plaintext ada; login benar **sukses** dan sesudahnya **plaintext terhapus** (`undefined`)
+dengan `passwordHash`+`salt` terisi; hash cocok pola **64 hex** (SHA-256); kata sandi salah **ditolak**;
+`verifyPassword` mengembalikan `true`/`false` dengan benar; `changePassword` membuat sandi lama **tidak
+berlaku** & sandi baru berlaku, tetap tanpa plaintext. (Akun demo dikembalikan ke sandi semula setelah uji.)
+`tsc` & build bersih.
+
+### Catatan jujur
+Hash SHA-256+salt sudah menghapus paparan "kata sandi terbaca", tetapi ini **bukan** KDF lambat
+(PBKDF2/bcrypt/Argon2) — untuk aplikasi tanpa server yang seluruh datanya sudah dijaga login Google dan
+PIN per-perangkat, ini proporsional. Bila kelak ada backend, gunakan PBKDF2/Argon2 dengan iterasi tinggi.
+
+---
+
 ## [3.27.0] — 2026-07-26 · Periode Laporan, Profil & Efisiensi Simpan (audit SEDANG · F3)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

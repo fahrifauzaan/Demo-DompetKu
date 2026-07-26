@@ -23,18 +23,18 @@ const FinanceLogin: React.FC = () => {
   const isDemoDomain = typeof window !== 'undefined' && (window.location.hostname === 'demo-dompetku.vercel.app' || window.location.hostname === 'demo.bantu-umkm.tech');
 
   // Direct login for demo mode on demo website
-  const handleDirectDemoLogin = () => {
+  const handleDirectDemoLogin = async () => {
     const email = import.meta.env.VITE_DEMO_EMAIL || 'demo@dompetku.com';
     const password = 'password123';
     
     showToast('Masuk ke Mode Demo...', 'info');
     
-    const result = login(email, password);
+    const result = await login(email, password);
     if (!result.success) {
       // Register demo user on the fly if not exists
       const photoURL = `https://ui-avatars.com/api/?name=Demo+Admin&background=0D8ABC&color=fff`;
-      signup(email, password, 'Demo Admin', photoURL);
-      const retryResult = login(email, password);
+      await signup(email, password, 'Demo Admin', photoURL);
+      const retryResult = await login(email, password);
       if (retryResult.success) {
         showToast('Berhasil masuk ke Mode Demo!', 'success');
       } else {
@@ -102,7 +102,7 @@ const FinanceLogin: React.FC = () => {
   }, [mode, otpTimer]);
 
   // Handle Login
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
 
@@ -111,7 +111,7 @@ const FinanceLogin: React.FC = () => {
       return;
     }
 
-    const result = login(loginEmail, loginPassword);
+    const result = await login(loginEmail, loginPassword);
     if (!result.success) {
       setLoginError(result.error || 'Terjadi kesalahan saat masuk.');
       showToast(result.error || 'Gagal masuk.', 'error');
@@ -172,7 +172,7 @@ const FinanceLogin: React.FC = () => {
           loginWithGoogle(userInfo.email);
         } else {
           // New user signup starts with empty spreadsheetId and sheetUrl (blank slate)
-          signup(userInfo.email, password, userInfo.name, userInfo.picture, '', '');
+          await signup(userInfo.email, password, userInfo.name, userInfo.picture, '', '');
         }
         showToast('Berhasil masuk dengan Akun Google!', 'success');
       } catch (err) {
@@ -211,7 +211,7 @@ const FinanceLogin: React.FC = () => {
       if (exists) {
         loginWithGoogle(pendingSetup.userInfo.email);
       } else {
-        signup(pendingSetup.userInfo.email, password, pendingSetup.userInfo.name, pendingSetup.userInfo.picture, undefined, sheetId);
+        await signup(pendingSetup.userInfo.email, password, pendingSetup.userInfo.name, pendingSetup.userInfo.picture, undefined, sheetId);
       }
       setPendingSetup(null);
     } catch (err) {
@@ -285,7 +285,7 @@ const FinanceLogin: React.FC = () => {
   };
 
   // Complete Sign Up
-  const handleSignUpComplete = (e: React.FormEvent) => {
+  const handleSignUpComplete = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignUpError('');
 
@@ -301,7 +301,7 @@ const FinanceLogin: React.FC = () => {
 
     // Sign Up & Sign In in Zustand store
     const photoURL = `https://ui-avatars.com/api/?name=${encodeURIComponent(signUpName)}&background=0D8ABC&color=fff`;
-    signup(signUpEmail, signUpPassword, signUpName, photoURL);
+    await signup(signUpEmail, signUpPassword, signUpName, photoURL);
     showToast('Pendaftaran akun berhasil! Selamat datang.', 'success');
   };
 
