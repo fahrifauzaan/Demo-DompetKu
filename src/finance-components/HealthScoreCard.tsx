@@ -33,7 +33,11 @@ const HealthScoreCard: React.FC = () => {
     transactions.forEach((t) => {
       const d = new Date(t.date); if (isNaN(d.getTime())) return;
       const diff = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
-      if (diff < 0 || diff >= 3) return;
+      // HANYA bulan LENGKAP (diff >= 1). Dulu `diff < 0` ikut memasukkan bulan BERJALAN (diff === 0) yang
+      // baru jalan beberapa hari, lalu membaginya sebagai satu bulan penuh → rata-rata pengeluaran anjlok
+      // (mis. tgl 2: (8jt + 8jt + 0,2jt)/3 = 5,4jt padahal sebenarnya 8jt) sehingga skor likuiditas/tabungan
+      // ikut melambung. Pola yang benar sudah dipakai `cashflowUtils` (`m.month < nowMonth`).
+      if (diff < 1 || diff > 3) return;
       const mk = `${d.getFullYear()}-${d.getMonth()}`;
       if (t.type === 'PEMASUKAN') { inc += Math.abs(t.amount || 0); incM.add(mk); }
       else if (t.type === 'PENGELUARAN') { exp += Math.abs(t.amount || 0); expM.add(mk); }

@@ -27,7 +27,10 @@ const PassiveIncomeCard: React.FC = () => {
       const d = new Date(t.date);
       if (isNaN(d.getTime())) return;
       const diffM = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
-      if (diffM >= 0 && diffM < 3) { total += Math.abs(t.amount || 0); months.add(`${d.getFullYear()}-${d.getMonth()}`); }
+      // Hanya bulan LENGKAP (diffM >= 1). Bulan berjalan yang baru beberapa hari dulu ikut dihitung sebagai
+      // satu bulan penuh → rata-rata pengeluaran terlalu rendah → rasio kemandirian (FIRE) terlihat jauh
+      // lebih tinggi dari kenyataan, hanya karena tanggal.
+      if (diffM >= 1 && diffM <= 3) { total += Math.abs(t.amount || 0); months.add(`${d.getFullYear()}-${d.getMonth()}`); }
     });
     const n = Math.max(1, months.size);
     return total / n;

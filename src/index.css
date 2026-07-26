@@ -506,6 +506,40 @@
     page-break-before: always !important;
     break-before: page !important;
   }
+
+  /* ---- ANTI-KOLOM-TERPOTONG ----
+     Tabel lebar di layar dibungkus `overflow-x-auto` dengan `min-w-[600px]` (mis. tabel holdings di
+     Portofolio/Kinerja). Saat dicetak, area yang bisa di-scroll TIDAK bisa di-scroll: bagian kanan
+     (mis. kolom "Nilai Pasar" & "Return%") terpotong hilang. Netralkan pembatas itu agar konten
+     mengecil mengikuti lebar kertas. */
+  .overflow-x-auto,
+  .overflow-auto,
+  .overflow-hidden,
+  .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  [class*="min-w-["],
+  [class*="min-w-max"] {
+    min-width: 0 !important;
+  }
+  table {
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+  th, td {
+    white-space: normal !important;   /* biarkan teks membungkus, jangan memaksa lebar */
+    word-break: break-word !important;
+  }
+  /* Elemen melayang/menempel tak relevan di kertas dan bisa menutupi konten. */
+  .fixed, .sticky {
+    position: static !important;
+  }
+  /* Jangan potong baris tabel/kartu di tengah halaman. */
+  tr, .break-inside-avoid, .print\:break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
 }
 
 /* Hide printable report canvas on screen mode */

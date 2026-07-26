@@ -462,30 +462,36 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
   };
 
   const handleExportCSV = () => {
-    const transactions = useFinanceStore.getState().transactions;
+    // IKUTI FILTER PERIODE yang aktif di header. Dulu fungsi ini mengekspor SELURUH transaksi
+    // (`getState().transactions` tanpa filter) padahal pemilih periode ada tepat di sebelah tombolnya —
+    // memilih "Bulan Ini" lalu Ekspor menghasilkan file berisi semua data sejak awal.
+    const allTx = useFinanceStore.getState().transactions;
+    const transactions = allTx.filter((tx) => isTxInPeriod(tx.date));
     if (transactions.length === 0) {
-      alert("Tidak ada transaksi untuk diekspor!");
+      alert(`Tidak ada transaksi pada periode "${getPeriodLabel(selectedPeriod)}" untuk diekspor!`);
       return;
     }
 
-    // Build CSV Content
+    // Escaping penuh untuk SEMUA kolom teks (kategori/akun bisa memuat koma) + BOM agar Excel
+    // membaca karakter Indonesia dengan benar.
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const headers = ["Tanggal", "Deskripsi", "Lokasi", "Nominal (IDR)", "Kategori", "Akun", "Tipe"];
     const rows = transactions.map(tx => [
-      tx.date,
-      `"${tx.desc.replace(/"/g, '""')}"`,
-      `"${tx.location ? tx.location.replace(/"/g, '""') : ''}"`,
+      esc(tx.date),
+      esc(tx.desc),
+      esc(tx.location),
       tx.amount,
-      tx.category,
-      tx.account,
-      tx.type
+      esc(tx.category),
+      esc(tx.account),
+      esc(tx.type)
     ]);
 
-    const csvString = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const csvString = '﻿' + [headers.map(esc).join(","), ...rows.map(e => e.join(","))].join("\n");
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `${(import.meta.env.VITE_APP_NAME || 'dompetku').toLowerCase()}_transaksi_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", `${(import.meta.env.VITE_APP_NAME || 'dompetku').toLowerCase()}_transaksi_${selectedPeriod}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

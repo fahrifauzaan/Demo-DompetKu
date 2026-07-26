@@ -17,9 +17,21 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.21.0';
+export const CURRENT_VERSION = '3.22.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.22.0', date: '2026-07-26', title: 'Audit Menyeluruh (3/4): Laporan, Cetak & Ekspor Akurat', tag: 'fix', impact: 'none',
+    fixed: [
+      'Hasil CETAK tidak lagi terpotong. Tabel lebar (mis. Portofolio/Kinerja) dibungkus area yang bisa di-scroll \u2014 di kertas tidak bisa di-scroll, sehingga kolom kanan (Nilai Pasar, Return%) hilang. Sekarang tabel menyesuaikan lebar kertas, elemen melayang disembunyikan, dan baris tak terpotong di antara halaman.',
+      'Ekspor CSV di Laporan kini mengikuti filter periode yang Anda pilih. Sebelumnya memilih "Bulan Ini" tetap menghasilkan file berisi SELURUH transaksi sejak awal.',
+      'Ekspor CSV Laporan Kinerja kini memakai angka yang SAMA dengan layar. Sebelumnya dihitung ulang dari data mentah sehingga SBN/Deposito (yang tidak dinilai-pasar) dilaporkan \u2212100% padahal di layar untung dari kupon; kini ada kolom kupon/bunga diterima, untung/rugi total, dan label periode.',
+      'Ekspor CSV kini ber-BOM UTF-8 dan seluruh kolom teks di-escape, jadi karakter Indonesia tidak rusak di Excel dan nama akun/kategori yang memuat koma tidak menggeser kolom.',
+      'Skor Kesehatan Keuangan & kartu Pendapatan Pasif tidak lagi memakai bulan yang sedang berjalan. Bulan yang baru jalan beberapa hari sebelumnya dihitung sebagai bulan penuh sehingga rata-rata pengeluaran anjlok (mis. 5,4 jt padahal 8 jt) \u2014 membuat skor dan rasio kemandirian terlihat lebih bagus dari kenyataan.',
+      'Laporan cetak kini memberi label jujur: bagian saldo & aset ditandai "Posisi terkini" (bukan angka historis periode), sementara bagian transaksi tetap per periode yang dipilih.',
+      'Perlindungan pemisah halaman pada Buku Besar & Daftar Harta SPT kini benar-benar aktif (sebelumnya memakai nama kelas yang tidak menghasilkan aturan cetak apa pun).',
+    ],
+  },
   {
     version: '3.21.0', date: '2026-07-26', title: 'Audit Menyeluruh (2/4): Fitur yang Rusak Kini Berfungsi', tag: 'fix', impact: 'none',
     fixed: [

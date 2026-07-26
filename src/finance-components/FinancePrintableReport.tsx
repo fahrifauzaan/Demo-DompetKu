@@ -141,7 +141,7 @@ const FinancePrintableReport: React.FC = () => {
       {/* 3. CONSOLIDATED BALANCE SHEET SUMMARY */}
       <div className="mb-8">
         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest border-b border-slate-300 pb-1.5 mb-3">
-          I. Ringkasan Eksekutif (Periode: {periodString})
+          I. Ringkasan Eksekutif (Transaksi periode: {periodString} · Saldo & aset: posisi terkini)
         </h3>
         <div className="grid grid-cols-4 gap-4">
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
@@ -166,7 +166,7 @@ const FinancePrintableReport: React.FC = () => {
       {/* 4. DETAILED LEDGER: ACCOUNTS & PHYSICAL ASSETS */}
       <div className="mb-8">
         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest border-b border-slate-300 pb-1.5 mb-3">
-          II. Rincian Aset Likuiditas & Non-Likuid (Periode: {periodString})
+          II. Rincian Aset Likuiditas & Non-Likuid (Posisi terkini)
         </h3>
         
         {/* Accounts Table */}
@@ -233,7 +233,7 @@ const FinancePrintableReport: React.FC = () => {
       {debts.length > 0 && (
         <div className="mb-8">
           <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest border-b border-slate-300 pb-1.5 mb-3">
-            III. Kewajiban & Rencana Pelunasan Utang (Periode: {periodString})
+            III. Kewajiban & Rencana Pelunasan Utang (Posisi terkini)
           </h3>
           <table className="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
             <thead>

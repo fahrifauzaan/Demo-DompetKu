@@ -444,31 +444,38 @@ const FinancePerformanceReport: React.FC<FinancePerformanceReportProps> = ({ onS
   const { stdDev, beta, sharpe, jensenAlpha, treynor } = getRiskMetrics();
 
   const handleExportCSV = () => {
-    const headers = ["Sektor", "Simbol / Aset", "Lembar / Unit", "Modal Awal (IDR)", "Nilai Pasar (IDR)", "Return (%)"];
+    // Pakai NILAI YANG SAMA DENGAN LAYAR. Dulu fungsi ini menghitung ulang dari field mentah
+    // (`item.purchasePrice`/`item.currentValue`) sehingga MENGABAIKAN koreksi pendapatan tetap yang sudah
+    // dipakai di layar: SBN/deposito yang `currentValue === 0` (tak di-mark-to-market) diperlakukan sebagai
+    // nilai pasar 0 → CSV melaporkan −100% padahal layar menampilkan return positif dari kupon.
+    // `sectorAssets` sudah berisi item dari `portfolioItemsWithLive` (initial/marketValue/pl/percentChange/
+    // couponsReceived), jadi cukup dipakai langsung. Kupon dihitung sesuai periode yang dipilih.
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const headers = ["Sektor", "Simbol / Aset", "Lembar / Unit", "Modal Awal (IDR)", "Nilai Pasar (IDR)", "Kupon/Bunga Diterima (IDR)", "Untung/Rugi Total (IDR)", "Return (%)", "Periode"];
     const rows: (string | number)[][] = [];
+    const PERIOD_LABELS: Record<string, string> = {
+      this_month: 'Bulan Ini', '3_months': '3 Bulan Terakhir', '12_months': '12 Bulan Terakhir', ytd: 'Tahun Ini (YTD)',
+    };
+    const periodLabel = PERIOD_LABELS[selectedPeriod] || String(selectedPeriod || '');
 
     Object.entries(sectorAssets).forEach(([sectorKey, items]) => {
       const secName = SECTORS_META[sectorKey as keyof typeof SECTORS_META]?.name || sectorKey;
       items.forEach(item => {
-        const ticker = item.ticker || item.title;
-        const shares = item.shares || 1;
-        const initial = item.purchasePrice || item.currentValue;
-        let marketValue = item.currentValue;
-        const pl = marketValue - initial;
-        const ret = initial > 0 ? (pl / initial) * 100 : 0;
-
         rows.push([
-          secName,
-          ticker,
-          shares,
-          initial,
-          marketValue,
-          ret.toFixed(2)
+          esc(secName),
+          esc(item.ticker || item.title),
+          item.shares || 1,
+          Math.round(item.initial || 0),
+          Math.round(item.marketValue || 0),
+          Math.round(item.couponsReceived || 0),
+          Math.round(item.pl || 0),
+          (item.percentChange || 0).toFixed(2),
+          esc(periodLabel)
         ]);
       });
     });
 
-    const csvString = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const csvString = '﻿' + [headers.map(esc).join(","), ...rows.map(e => e.join(","))].join("\n");
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");

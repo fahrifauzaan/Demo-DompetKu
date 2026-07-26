@@ -81,7 +81,7 @@ const FinancePrintableLedger: React.FC = () => {
           <tbody className="divide-y divide-gray-300">
             {ledgerPrintTransactions.length > 0 ? (
               ledgerPrintTransactions.map((t, idx) => (
-                <tr key={idx} className="page-break-inside-avoid">
+                <tr key={idx} className="print:break-inside-avoid">
                   <td className="py-3 px-2 whitespace-nowrap align-top">{t.date || '-'}</td>
                   <td className="py-3 px-2 align-top">
                     <div className="font-semibold">{t.desc}</div>
@@ -111,7 +111,7 @@ const FinancePrintableLedger: React.FC = () => {
       </div>
 
       {/* REKAPITULASI FOOTER */}
-      <div className="mt-8 pt-4 border-t-2 border-black flex justify-end page-break-inside-avoid">
+      <div className="mt-8 pt-4 border-t-2 border-black flex justify-end print:break-inside-avoid">
         <div className="w-64">
           <table className="w-full text-sm">
             <tbody>
@@ -129,7 +129,7 @@ const FinancePrintableLedger: React.FC = () => {
       </div>
 
       {/* TTD VALIDATOR */}
-      <div className="mt-16 pt-16 flex justify-end page-break-inside-avoid">
+      <div className="mt-16 pt-16 flex justify-end print:break-inside-avoid">
         <div className="text-center">
           <p className="text-xs text-gray-500 mb-16">Divalidasi Oleh Sistem</p>
           <p className="font-bold border-b border-black inline-block px-4 pb-1">DompetKu Automated Ledger</p>

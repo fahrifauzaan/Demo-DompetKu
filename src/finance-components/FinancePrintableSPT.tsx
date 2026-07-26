@@ -47,7 +47,7 @@ const FinancePrintableSPT: React.FC = () => {
         </thead>
         <tbody className="divide-y divide-gray-300">
           {rows.length > 0 ? rows.map((r, idx) => (
-            <tr key={r.id} className="page-break-inside-avoid align-top">
+            <tr key={r.id} className="print:break-inside-avoid align-top">
               <td className="py-2.5 px-2">{idx + 1}</td>
               <td className="py-2.5 px-2 font-mono font-semibold whitespace-nowrap">{hartaCodeLabel(r.kode)}</td>
               <td className="py-2.5 px-2 font-semibold">{r.nama}</td>

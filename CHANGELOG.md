@@ -9,6 +9,44 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.22.0] — 2026-07-26 · Audit Menyeluruh (3/4): Laporan, Cetak & Ekspor
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Diperbaiki
+- **Kolom terpotong saat mencetak.** Tabel lebar dibungkus `overflow-x-auto` + `min-w-[600px]`
+  (mis. holdings di Portofolio/Kinerja); di kertas area itu tak bisa di-scroll → kolom kanan hilang.
+  `@media print` di `index.css` kini menetralkan `overflow-*` & `min-w-[...]`, memaksa `table{width:100%}`,
+  membolehkan teks membungkus, menjadikan `.fixed/.sticky` → `static`, dan `break-inside: avoid` pada baris.
+  Ini memperbaiki SEMUA layar sekaligus (WYSIWYG), bukan hanya satu tombol.
+- **`page-break-inside-avoid` bukan kelas Tailwind** (tak menghasilkan CSS) di `FinancePrintableLedger` (3×)
+  dan `FinancePrintableSPT` (1×) → diganti `print:break-inside-avoid`, dan aturannya juga ditambahkan eksplisit
+  di blok `@media print`.
+- **`FinanceAnalytics.handleExportCSV` mengabaikan filter periode** (`getState().transactions` tanpa filter)
+  meski pemilih periode ada persis di sebelahnya → kini `isTxInPeriod`, pesan kosong menyebut nama periode,
+  nama file memuat periode, plus BOM UTF-8 & escaping SEMUA kolom teks (nama akun berkoma dulu menggeser kolom).
+- **`FinancePerformanceReport.handleExportCSV` menghitung ulang dari field mentah**, mengabaikan koreksi
+  pendapatan tetap yang dipakai di layar → SBN/deposito dengan `currentValue === 0` diekspor −100% padahal
+  layar menunjukkan return positif dari kupon. Kini memakai `item.initial/marketValue/pl/percentChange/
+  couponsReceived` dari `portfolioItemsWithLive` (sumber yang sama dengan layar) + kolom kupon, untung/rugi
+  total, dan label periode.
+- **Bulan berjalan yang belum lengkap ikut dirata-rata** di `HealthScoreCard` (`diff < 0` → menerima diff 0)
+  dan `PassiveIncomeCard` (`diffM >= 0`) → rata-rata pengeluaran 3 bulan anjlok hanya karena tanggal
+  (2 Juli: (8jt+8jt+0,2jt)/3 = 5,4jt, seharusnya 8jt), menaikkan skor kesehatan & rasio FIRE secara semu.
+  Kini keduanya hanya bulan LENGKAP (`diff >= 1`), pola yang sudah benar di `cashflowUtils`.
+- **`FinancePrintableReport` label menyesatkan**: bagian I–III memakai saldo/aset LIVE tapi berjudul
+  "(Periode: …)". Kini ditandai "Posisi terkini"; bagian transaksi tetap per-periode.
+
+### Verifikasi
+Unit test 9/9: rata-rata 3 bulan 5,4jt (lama) → 8,0jt (baru) dan rasio FIRE 74% → 50%; CSV hanya periode
+terpilih; BOM ada; escaping kategori/akun berkoma; SBN CSV −100% (lama) → +2,88% dengan kupon Rp2.880.000
+(baru, cocok layar). Bundle CSS terbukti memuat aturan anti-terpotong (`overflow:visible`, `table-layout:auto`,
+neutralisasi `min-w-[`). `tsc` & build bersih.
+**Batas verifikasi:** hasil cetak sebenarnya (dialog print/PDF) tak bisa dipicu otomatis di lingkungan ini —
+perubahan diverifikasi pada level CSS yang termuat di bundle.
+
+---
+
 ## [3.21.0] — 2026-07-26 · Audit Menyeluruh (2/4): Fitur Rusak
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
