@@ -215,7 +215,13 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
 
   // Monthly totals
   const getGroupTotals = (group: 'INCOME' | 'EXPENSES' | 'SAVINGS' | 'INVESTMENT') => {
-    const list = processedData[group];
+    // Hormati toggle "Masuk Anggaran Total" (includeInTotal). Dulu nilai ini disimpan & ditampilkan di form
+    // ("Hitung kategori ini dalam limit bulanan global") tetapi TIDAK PERNAH dibaca di perhitungan mana pun,
+    // jadi mematikannya tak berefek sama sekali. Default true agar data lama tetap terhitung.
+    const list = processedData[group].filter((item: any) => {
+      const cat = budgetCategories.find((c) => c.name === item.name);
+      return cat ? cat.includeInTotal !== false : true;
+    });
     const budgetTotal = list.reduce((sum, item) => sum + item.budget, 0);
     const actualTotal = list.reduce((sum, item) => sum + item.actual, 0);
     return { budgetTotal, actualTotal };

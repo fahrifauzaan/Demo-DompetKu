@@ -9,6 +9,42 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.25.0] — 2026-07-26 · Audit: Kolom Skema Baru + Anggaran Total + Peringatan Faraid
+
+**Dampak Google Sheet/Apps Script: ADA (ringan).** Kolom baru ditambahkan otomatis oleh aplikasi (aditif).
+Pengguna mode makro perlu memperbarui Apps Script sekali dari Panduan; pengguna Login-Google otomatis.
+
+### Diperbaiki
+- **`classification` (50/30/20) tak punya kolom sheet** → di-set pengguna di `FinanceAddCategory` dan dibaca
+  pertama oleh mesin CFP (`FinanceBudget`), tetapi HEADERS `BudgetCategories` tak memuatnya sehingga dibuang
+  setiap tulis dan selalu `undefined` setelah sinkron → rasio jatuh ke heuristik kata kunci tanpa
+  pemberitahuan. Kolom ditambahkan di app + Apps Script + template.
+- **`documentLink` (sertifikat/BPKB) tak punya kolom** di `FixedIncome`/`AssetsNonLiquid` → di-set saat
+  membuat aset & ditampilkan sebagai tautan di kartu, tapi hilang pada sinkron berikutnya. Kolom ditambahkan.
+- **Self-healing skema — `ensureColumns()`**: saat menulis, kolom skema yang belum ada di sheet pengguna
+  ditambahkan **di ujung kanan** (aditif, idempoten, kolom & data lama utuh, kolom kustom pengguna
+  dipertahankan). Dipakai oleh `addRowToSheet`, `appendRowsToSheet`, dan `upsertRowInSheet`. Tanpa ini,
+  menambah kolom di HEADERS hanya berguna untuk sheet baru.
+- **`includeInTotal` tak pernah dibaca**: disimpan, ditampilkan sebagai "Hitung kategori ini dalam limit
+  bulanan global", tetapi nol referensi di perhitungan total/ZBB/50-30-20 → sakelarnya tak berefek. Kini total
+  per-grup mengecualikan kategori dengan `includeInTotal === false` (default tetap ikut agar data lama aman).
+- **Faraid: sisa harta tak terdistribusi tanpa peringatan** — `raddHeirs` tidak menyertakan pasangan, jadi
+  pilihan "hanya pasangan" menyisakan 75% (istri 1/4) yang tak dikembalikan ke siapa pun, sementara modal
+  hanya menampilkan "Istri: 25%". Kini muncul peringatan berisi nominal + persentase sisa dan penjelasan bahwa
+  sisanya jatuh ke ‘ashabah/baitul mal — di luar cakupan kalkulator.
+
+### Verifikasi
+Skema **selaras di tiga tempat** (dicek otomatis): app HEADERS == Apps Script HEADERS == template v5 untuk
+`BudgetCategories` (9 kolom), `AssetsNonLiquid` (19), `FixedIncome` (26). Unit test 10/10: `ensureColumns`
+aditif/idempoten/mempertahankan kolom kustom; `classification` mendarat di kolom ke-9 (dulu hilang);
+`includeInTotal=false` mengecualikan (total 1.000 bukan 1.500) dan default tetap ikut; peringatan Faraid muncul
+pada sisa 75% dan tidak muncul saat terdistribusi penuh. **Live (fungsi asli `computeFaraid`)**: pasangan-saja →
+terdistribusi Rp250jt dari Rp1M = sisa **75%** → peringatan `true`; ahli waris lengkap → Rp1M pas → `false`.
+Template v5 diregenerasi (`scratch/build_template_v5.py`), Panduan diregenerasi dengan Apps Script baru
+(`classification`/`documentLink` terbukti ter-embed di `index.html` & `kode.txt`). `tsc` & build bersih.
+
+---
+
 ## [3.24.0] — 2026-07-26 · Audit Menyeluruh: Sapu Temuan SEDANG (1/2)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

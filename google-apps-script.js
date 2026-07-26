@@ -29,10 +29,10 @@ const HEADERS = {
   Transactions: ['id', 'date', 'desc', 'location', 'amount', 'category', 'icon', 'status', 'account', 'type'],
   Accounts: ['id', 'name', 'type', 'balance', 'currency', 'icon', 'startDate', 'valuationReminder', 'lastValuationUpdate'],
   'Fixed Income Investment': ['id', 'title', 'category', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'equity', 'notes', 'ticker', 'shares', 'avgCost', 'interestRate', 'maturityDate', 'subType'],
-  BudgetCategories: ['id', 'name', 'icon', 'color', 'type', 'allocated', 'includeInTotal', 'alertAt'],
+  BudgetCategories: ['id', 'name', 'icon', 'color', 'type', 'allocated', 'includeInTotal', 'alertAt', 'classification'],
   Debts: ['id', 'name', 'type', 'balance', 'interestRate', 'minPayment', 'icon', 'originalAmount', 'interestType', 'startDate', 'endDate', 'dueDate', 'lender', 'status'],
   Settings: ['key', 'value'],
-  AssetsNonLiquid: ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate'],
+  AssetsNonLiquid: ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate', 'documentLink'],
   Saham: ['ID', 'Title', 'Ticker', 'Shares', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   Crypto: ['ID', 'Title', 'Ticker', 'Coins', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   Reksadana: ['ID', 'Title', 'Ticker', 'Units', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
@@ -46,7 +46,7 @@ const HEADERS = {
   // ── Jilid 2 (v3.2) — Dana Pensiun Indonesia (BPJS TK/JHT/JP/DPLK) ──
   Retirement: ['id', 'name', 'progType', 'provider', 'currentBalance', 'monthlyContribution', 'contributionType', 'employerContribution', 'startDate', 'targetAge', 'expectedReturn', 'status', 'notes'],
   // ── FixedIncome (plain) — SBN/Deposito/P2P sebagai tabel data biasa (pengganti dashboard 'Fixed Income Investment') ──
-  FixedIncome: ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'ticker', 'interestRate', 'maturityDate', 'fixedIncomeType', 'bondType', 'depositType', 'type', 'issuer', 'tenor', 'tenorUnit', 'couponType', 'tax', 'paymentDate', 'interestPaymentPeriod', 'equity']
+  FixedIncome: ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'ticker', 'interestRate', 'maturityDate', 'fixedIncomeType', 'bondType', 'depositType', 'type', 'issuer', 'tenor', 'tenorUnit', 'couponType', 'tax', 'paymentDate', 'interestPaymentPeriod', 'equity', 'documentLink']
 };
 
 // ===================== HELPER =====================

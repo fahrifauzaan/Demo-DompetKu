@@ -17,9 +17,22 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.24.0';
+export const CURRENT_VERSION = '3.25.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.25.0', date: '2026-07-26', title: 'Audit: Kolom Skema Baru + Anggaran Total + Peringatan Faraid', tag: 'migration', impact: 'appsscript',
+    fixed: [
+      'Klasifikasi kategori (Needs/Wants/Savings/Investment) kini TERSIMPAN. Sebelumnya pilihan Anda di "Tambah Kategori" tidak punya kolom di spreadsheet, jadi dibuang setiap kali menyimpan dan selalu kosong setelah sinkron \u2014 membuat rasio 50/30/20 diam-diam memakai perkiraan dari kata kunci, bukan pilihan Anda.',
+      'Tautan dokumen aset (sertifikat/BPKB/bukti kepemilikan) kini tersimpan permanen. Sebelumnya hilang pada sinkronisasi berikutnya karena tidak ada kolomnya di sheet.',
+      'Kolom baru ditambahkan OTOMATIS & aman ke spreadsheet Anda saat menyimpan (ditambahkan di ujung kanan; kolom dan data yang sudah ada tidak diubah sedikit pun).',
+      'Sakelar "Masuk Anggaran Total" kini berpengaruh. Sebelumnya nilainya disimpan dan labelnya menjanjikan pengaruh ke limit bulanan, tetapi tidak pernah dibaca di perhitungan mana pun \u2014 mematikannya tak berefek.',
+      'Kalkulator Waris (Faraid) kini memperingatkan bila ada harta yang BELUM terbagi. Contoh: bila hanya ada pasangan, 75% harta tidak terdistribusi (pasangan tidak menerima Radd) \u2014 sebelumnya modal hanya menampilkan "Istri: 25%" tanpa penjelasan apa pun tentang sisanya.',
+    ],
+    changed: [
+      'Template Database diperbarui ke v5 (menambah kolom classification & documentLink). Pengguna mode Web App/Apps Script: perbarui Apps Script sekali dari Panduan. Pengguna Login-Google: otomatis, tanpa aksi.',
+    ],
+  },
   {
     version: '3.24.0', date: '2026-07-26', title: 'Audit Menyeluruh: Sapu Temuan Sedang (1/2)', tag: 'fix', impact: 'none',
     fixed: [

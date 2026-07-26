@@ -8,15 +8,18 @@ const HEADERS: Record<string, string[]> = {
   // 'FixedIncome' = tab DATA BIASA (plain) untuk SBN/Deposito/P2P — pengganti tab lama
   // 'Fixed Income Investment' yang berupa dashboard ber-merged-cell (tak kompatibel dgn jalur API).
   // Tab lama tetap dibaca via macro untuk kompatibilitas; penulisan baru selalu ke 'FixedIncome'.
-  'FixedIncome': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'ticker', 'interestRate', 'maturityDate', 'fixedIncomeType', 'bondType', 'depositType', 'type', 'issuer', 'tenor', 'tenorUnit', 'couponType', 'tax', 'paymentDate', 'interestPaymentPeriod', 'equity'],
-  'BudgetCategories': ['id', 'name', 'icon', 'color', 'type', 'allocated', 'includeInTotal', 'alertAt'],
+  'FixedIncome': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'ticker', 'interestRate', 'maturityDate', 'fixedIncomeType', 'bondType', 'depositType', 'type', 'issuer', 'tenor', 'tenorUnit', 'couponType', 'tax', 'paymentDate', 'interestPaymentPeriod', 'equity', 'documentLink'],
+  // +classification: klasifikasi CFP 50/30/20 (NEEDS/WANTS/SAVINGS/INVESTMENT) yang di-set pengguna di
+  // "Tambah Kategori". Dulu TIDAK ada kolomnya → nilainya dibuang tiap tulis & selalu undefined setelah
+  // sinkron, sehingga rasio 50/30/20 diam-diam jatuh ke heuristik kata kunci.
+  'BudgetCategories': ['id', 'name', 'icon', 'color', 'type', 'allocated', 'includeInTotal', 'alertAt', 'classification'],
   // Anggaran per-bulan (tidy). WAJIB terdaftar di sini: `fetchAllDataFromSheets` hanya menarik tab yang
   // ada di HEADERS, jadi tab yang tidak terdaftar TAK PERNAH terbaca — dan `monthlyBudgets` lalu ditimpa
   // kosong tiap sinkron (edit Rencana/Budget hilang & tampil balik ke `allocated` lama).
   'MonthlyBudgets': ['id', 'month', 'category', 'amount'],
   'Debts': ['id', 'name', 'type', 'balance', 'interestRate', 'minPayment', 'icon', 'originalAmount', 'interestType', 'startDate', 'endDate', 'dueDate', 'lender', 'status'],
   'Settings': ['key', 'value'],
-  'AssetsNonLiquid': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate'],
+  'AssetsNonLiquid': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate', 'documentLink'],
   'Saham': ['ID', 'Title', 'Ticker', 'Shares', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   'Crypto': ['ID', 'Title', 'Ticker', 'Coins', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   'Reksadana': ['ID', 'Title', 'Ticker', 'Units', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
@@ -168,6 +171,27 @@ function writeErrorMessage(sheetName: string, status: number): string {
 }
 
 /**
+ * Tambahkan kolom header yang BELUM ada di sheet (di ujung kanan), tanpa mengubah kolom yang sudah ada.
+ * Dipakai agar field baru pada skema aplikasi (mis. `classification`, `documentLink`) tidak diam-diam
+ * dibuang saat menulis ke spreadsheet lama yang belum punya kolomnya. Idempoten & aditif (aman).
+ */
+async function ensureColumns(accessToken: string, spreadsheetId: string, sheetName: string, wanted: string[], actual: string[]): Promise<string[]> {
+  const norm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const have = new Set(actual.map(norm));
+  const missing = wanted.filter((w) => !have.has(norm(w)));
+  if (!missing.length) return actual;
+  const merged = [...actual, ...missing];
+  const resp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!1:1?valueInputOption=RAW`, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values: [merged] }),
+  }));
+  if (!resp.ok) { console.warn(`[Sheets] Gagal menambah kolom ${missing.join(', ')} di ${sheetName}; nilainya dilewati.`); return actual; }
+  console.log(`[Sheets] Kolom baru ditambahkan di ${sheetName}: ${missing.join(', ')}`);
+  return merged;
+}
+
+/**
  * Baca baris header (baris 1) sebuah tab. Mengembalikan null bila tab belum ada / gagal dibaca,
  * sehingga pemanggil bisa jatuh ke konstanta HEADERS (lalu tab dibuat oleh ensureSheetWithHeader).
  */
@@ -193,7 +217,8 @@ export async function addRowToSheet(accessToken: string, spreadsheetId: string, 
   // Susun nilai mengikuti HEADER ASLI sheet bila terbaca. `updateRowInSheet`/`upsertRowInSheet` sudah
   // melakukan ini (v3.18.4); jalur ADD masih memakai konstanta, sehingga sheet lama yang urutan kolomnya
   // berbeda akan menerima baris baru dengan SEMUA kolom bergeser — kelas bug yang sama seperti Reksadana.
-  const actualHeaders = await readSheetHeaders(accessToken, spreadsheetId, sheetName) || headers;
+  const readHeaders = await readSheetHeaders(accessToken, spreadsheetId, sheetName);
+  const actualHeaders = readHeaders ? await ensureColumns(accessToken, spreadsheetId, sheetName, headers, readHeaders) : headers;
   const rowData = actualHeaders.map(h => {
     const val = getValueCaseInsensitive(data, h);
     return val !== undefined ? val : '';
@@ -235,7 +260,8 @@ export async function appendRowsToSheet(accessToken: string, spreadsheetId: stri
   if (!dataArray.length) return;
 
   // Sama seperti addRowToSheet: ikuti header ASLI sheet agar impor massal tak menggeser kolom.
-  const actualHeaders = await readSheetHeaders(accessToken, spreadsheetId, sheetName) || headers;
+  const readHeaders2 = await readSheetHeaders(accessToken, spreadsheetId, sheetName);
+  const actualHeaders = readHeaders2 ? await ensureColumns(accessToken, spreadsheetId, sheetName, headers, readHeaders2) : headers;
   const values = dataArray.map(data =>
     actualHeaders.map(h => {
       const val = getValueCaseInsensitive(data, h);
@@ -490,7 +516,9 @@ export async function upsertRowInSheet(accessToken: string, spreadsheetId: strin
   }
 
   const rows: any[][] = (await getResp.json()).values || [];
-  const actualHeaders: string[] = (rows[0] && rows[0].length ? rows[0] : headers).map((h: any) => String(h));
+  let actualHeaders: string[] = (rows[0] && rows[0].length ? rows[0] : headers).map((h: any) => String(h));
+  // Sejajarkan skema: kolom baru (mis. classification/documentLink) ditambahkan bila sheet belum punya.
+  if (rows[0] && rows[0].length) actualHeaders = await ensureColumns(accessToken, spreadsheetId, sheetName, headers, actualHeaders);
   const matches: number[] = [];
   for (let i = 1; i < rows.length; i++) if (String(rows[i][0]) === idToFind) matches.push(i);
 

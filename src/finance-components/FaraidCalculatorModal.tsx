@@ -91,6 +91,21 @@ const FaraidCalculatorModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
                     {r.usedRadd && 'Ada sisa → diberlakukan Radd (dikembalikan ke ahli waris non-pasangan).'}
                   </div>
                 )}
+                {/* SISA HARTA WAJIB DIBERITAHU. Contoh: hanya ada pasangan (istri 1/4) — Radd tidak berlaku
+                    untuk pasangan, sehingga 75% harta TIDAK terdistribusi. Sebelumnya modal hanya menampilkan
+                    "Istri: 25%" tanpa penjelasan apa pun tentang sisanya, sangat berisiko disalahpahami. */}
+                {estate > 0 && r.totalDistributed < estate - 1 && (
+                  <div className="px-4 py-3 bg-amber-500/10 border-t border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">
+                    <strong className="block mb-0.5">
+                      Sisa belum terbagi: Rp {Math.max(0, Math.round(estate - r.totalDistributed)).toLocaleString('id-ID')}
+                      {' '}({(((estate - r.totalDistributed) / estate) * 100).toFixed(1)}%)
+                    </strong>
+                    Ahli waris yang dipilih hanya berhak atas bagian tetap (fardh) dan sisanya tidak dapat
+                    dikembalikan kepada mereka (mis. pasangan tidak menerima Radd). Dalam praktik, sisa ini
+                    jatuh ke ahli waris lain (‘ashabah seperti saudara/kakek/paman) atau baitul mal —
+                    <strong> di luar cakupan kalkulator ini</strong>. Wajib dikonfirmasi ke ahli faraid.
+                  </div>
+                )}
               </div>
             )}
             <p className="text-[10px] text-on-surface-variant/60 dark:text-slate-500">Metode ashab al-furud + ashabah. Verifikasi ke ahli faraid sebelum pembagian nyata.</p>
