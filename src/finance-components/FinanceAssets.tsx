@@ -1760,7 +1760,7 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   }`}
                 >
                   <span className="material-symbols-outlined text-[15px] sm:text-sm lg:text-base">trending_up</span>
-                  Saham &amp; Reksadana
+                  Saham, Reksadana &amp; Kripto
                 </button>
                 <button
                   onClick={() => setSubTab('sbn-deposito')}
@@ -1818,8 +1818,12 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                   avgCost: a.avgCost || a.purchasePrice || a.currentValue,
                   subType
                 };
-              }).filter(a => 
-                a.subType === 'saham' || a.subType === 'reksadana'
+              }).filter(a =>
+                // KRIPTO ikut di sini. Dulu hanya saham|reksadana yang dirender sebagai kartu, sehingga aset
+                // kripto tak muncul di sub-tab mana pun (SBN & Deposito hanya menerima sbn|deposito|p2p) —
+                // akibatnya harga kripto MUSTAHIL diperbarui dan tak bisa dijual, meski modal & store
+                // sepenuhnya mendukungnya. Hanya tampil sebagai baris pasif di tabel Ikhtisar.
+                a.subType === 'saham' || a.subType === 'reksadana' || a.subType === 'kripto' || a.subType === 'crypto'
               );
 
               let liveTotalMarketValue = 0;
@@ -1977,15 +1981,27 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
                             </span>
                           </div>
 
-                          {/* Wave B: Jual holding */}
-                          {asset.currentValue > 0 && (
+                          {/* Wave B: Jual holding + Hapus. Dulu TIDAK ADA aksi hapus untuk aset investasi
+                              (deleteAsset hanya terpasang di kartu aset fisik), jadi holding yang salah
+                              input nyangkut permanen. */}
+                          <div className="mt-2 flex gap-2">
+                            {asset.currentValue > 0 && (
+                              <button
+                                onClick={() => setSellAsset(asset)}
+                                className="flex-1 py-2 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-sm">sell</span> Jual
+                              </button>
+                            )}
                             <button
-                              onClick={() => setSellAsset(asset)}
-                              className="mt-2 w-full py-2 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
+                              onClick={() => setDeletingAssetId(asset.id)}
+                              title="Hapus aset ini"
+                              className={`${asset.currentValue > 0 ? 'px-3' : 'flex-1'} py-2 rounded-xl bg-error/10 text-error dark:text-[#ffb4ab] font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-error/20 border border-error/20 transition-colors cursor-pointer`}
                             >
-                              <span className="material-symbols-outlined text-sm">sell</span> Jual
+                              <span className="material-symbols-outlined text-sm">delete</span>
+                              {asset.currentValue > 0 ? '' : 'Hapus'}
                             </button>
-                          )}
+                          </div>
                         </div>
                       );
                     })}

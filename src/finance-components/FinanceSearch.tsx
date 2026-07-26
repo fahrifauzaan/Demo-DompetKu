@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TRANSACTIONS_DATA, ASSETS_DATA, NAV_ITEMS, SearchResult } from './FinanceData';
+import { NAV_ITEMS, SearchResult } from './FinanceData';
 import { FinanceTab } from '../FinanceDemo';
+import { useFinanceStore } from '../store/useFinanceStore';
 
 interface FinanceSearchProps {
   onNavigate: (tab: FinanceTab) => void;
@@ -13,6 +14,15 @@ const FinanceSearch: React.FC<FinanceSearchProps> = ({ onNavigate, onClose }) =>
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Data NYATA milik pengguna. Dulu file ini mengimpor TRANSACTIONS_DATA/ASSETS_DATA dari FinanceData
+  // (data contoh statis: "Apple Store Jakarta", "Porsche 911"), jadi pencarian global ⌘K tak pernah
+  // menemukan transaksi/aset pengguna dan justru memunculkan entri palsu.
+  const transactions = useFinanceStore((s) => s.transactions);
+  const assets = useFinanceStore((s) => s.assets);
+  const accounts = useFinanceStore((s) => s.accounts);
+  const debts = useFinanceStore((s) => s.debts);
+  const goals = useFinanceStore((s) => s.goals);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -67,37 +77,80 @@ const FinanceSearch: React.FC<FinanceSearchProps> = ({ onNavigate, onClose }) =>
       }
     });
 
-    // Search Transactions
-    TRANSACTIONS_DATA.forEach(t => {
-      if (t.desc.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)) {
+    const rp = (n: number) => `Rp ${Math.abs(Math.round(n || 0)).toLocaleString('id-ID')}`;
+
+    // Transaksi NYATA (deskripsi, kategori, akun, lokasi) — terbaru dulu.
+    [...transactions]
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+      .forEach((t) => {
+        const hay = `${t.desc || ''} ${t.category || ''} ${t.account || ''} ${t.location || ''}`.toLowerCase();
+        if (!hay.includes(q)) return;
         filtered.push({
           id: `tx-${t.id}`,
-          title: t.desc,
-          description: `${t.category} • ${t.amount < 0 ? '-' : '+'}Rp ${Math.abs(t.amount).toLocaleString('id-ID')}`,
-          icon: t.icon,
+          title: t.desc || '(tanpa keterangan)',
+          description: `${t.date || ''} · ${t.category || '-'} · ${(t.amount || 0) < 0 ? '-' : '+'}${rp(t.amount || 0)}`,
+          icon: t.icon || 'receipt_long',
           category: 'Transaksi',
-          targetTab: 'transactions'
+          targetTab: 'transactions',
         });
-      }
+      });
+
+    // Aset NYATA (judul, ticker, lokasi/broker).
+    assets.forEach((a) => {
+      const hay = `${a.title || ''} ${a.ticker || ''} ${a.location || ''}`.toLowerCase();
+      if (!hay.includes(q)) return;
+      filtered.push({
+        id: `asset-${a.id}`,
+        title: a.title || '(aset tanpa nama)',
+        description: `Nilai: ${rp(a.currentValue || 0)}${a.ticker ? ` · ${a.ticker}` : ''}`,
+        icon: a.icon || 'account_balance',
+        category: 'Aset',
+        targetTab: 'assets',
+      });
     });
 
-    // Search Assets
-    ASSETS_DATA.forEach(a => {
-      if (a.title.toLowerCase().includes(q)) {
-        filtered.push({
-          id: `asset-${a.id}`,
-          title: a.title,
-          description: `Nilai: Rp ${a.value.toLocaleString('id-ID')}`,
-          icon: a.icon,
-          category: 'Aset',
-          targetTab: 'assets'
-        });
-      }
+    // Rekening / akun.
+    accounts.forEach((a) => {
+      if (!`${a.name || ''} ${a.type || ''}`.toLowerCase().includes(q)) return;
+      filtered.push({
+        id: `acc-${a.id}`,
+        title: a.name,
+        description: `Saldo: ${rp(a.balance || 0)}`,
+        icon: a.icon || 'account_balance_wallet',
+        category: 'Aset',
+        targetTab: 'assets',
+      });
     });
 
-    setResults(filtered.slice(0, 8));
+    // Utang.
+    debts.forEach((d) => {
+      if (!`${d.name || ''} ${d.type || ''}`.toLowerCase().includes(q)) return;
+      filtered.push({
+        id: `debt-${d.id}`,
+        title: d.name,
+        description: `Sisa pokok: ${rp(d.balance || 0)}`,
+        icon: 'leaderboard',
+        category: 'Aset',
+        targetTab: 'debts',
+      });
+    });
+
+    // Tujuan keuangan.
+    goals.forEach((g) => {
+      if (!(g.name || '').toLowerCase().includes(q)) return;
+      filtered.push({
+        id: `goal-${g.id}`,
+        title: g.name,
+        description: `Target: ${rp(g.targetAmount || 0)}`,
+        icon: g.icon || 'flag',
+        category: 'Aset',
+        targetTab: 'goals',
+      });
+    });
+
+    setResults(filtered.slice(0, 12));
     setSelectedIndex(0);
-  }, [query]);
+  }, [query, transactions, assets, accounts, debts, goals]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {

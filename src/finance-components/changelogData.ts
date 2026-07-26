@@ -17,9 +17,20 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.20.0';
+export const CURRENT_VERSION = '3.21.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.21.0', date: '2026-07-26', title: 'Audit Menyeluruh (2/4): Fitur yang Rusak Kini Berfungsi', tag: 'fix', impact: 'none',
+    fixed: [
+      'Pencarian global (ikon kaca pembesar / \u2318K) kini mencari DATA ANDA. Sebelumnya ia membaca data contoh statis, jadi transaksi & aset asli Anda tak pernah ditemukan dan justru memunculkan entri yang bukan milik Anda. Kini mencakup transaksi (keterangan/kategori/akun/lokasi), aset, rekening, utang, dan tujuan.',
+      'Notifikasi & kalender keuangan tidak lagi membuka halaman kosong. Tujuh tombol memakai nama halaman yang tidak dikenal aplikasi sehingga layar jadi kosong dan judulnya berubah jadi "Manajemen"; semuanya diperbaiki, plus pengaman agar target navigasi tak dikenal diabaikan alih-alih mengosongkan layar.',
+      'Peringatan "Anggaran Menipis" kini benar-benar muncul. Tiga kesalahan membuatnya mati total: filter tipe transaksi yang tak pernah cocok, perbandingan kategori peka huruf besar/kecil, dan penjumlahan nilai pengeluaran (negatif) tanpa nilai absolut sehingga ambang batas mustahil tercapai.',
+      'Aset KRIPTO kini muncul sebagai kartu di Portofolio Investasi, sehingga harganya bisa diperbarui dan bisa dijual. Sebelumnya kripto tak muncul di sub-tab mana pun (hanya baris pasif di tabel Ikhtisar). Nama sub-tab menjadi "Saham, Reksadana & Kripto".',
+      'Aset investasi kini bisa DIHAPUS. Tombol hapus sebelumnya hanya ada pada aset fisik, jadi saham/kripto/obligasi yang salah input nyangkut permanen.',
+      'Judul halaman lengkap untuk semua menu \u2014 membuka "Rencana Utang" tidak lagi menampilkan judul "Manajemen" (begitu juga Buku Besar dan halaman Tambah\u2026).',
+    ],
+  },
   {
     version: '3.20.0', date: '2026-07-26', title: 'Audit Menyeluruh (1/4): Tidak Ada Lagi Data Hilang Diam-diam', tag: 'fix', impact: 'none',
     fixed: [

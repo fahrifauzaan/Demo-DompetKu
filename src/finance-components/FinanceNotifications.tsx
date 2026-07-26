@@ -177,7 +177,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
         timeText: `Keterangan: ${alert.time}`,
         onClick: () => {
           if (onNavigate) {
-            onNavigate('aset');
+            onNavigate('assets');
             if (onClose) onClose();
           } else {
             onShowCTA({
@@ -196,9 +196,18 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
       const currentYear = now.getFullYear();
 
       budgetCategories.filter(c => c.type === 'Pengeluaran').forEach(cat => {
+        // Tiga hal yang dulu membuat peringatan ini MATI TOTAL:
+        // (1) `t.type === 'expense'` — nilai sebenarnya 'PENGELUARAN', jadi filter tak pernah cocok;
+        // (2) perbandingan kategori case-sensitive (Anggaran memakai case-insensitive);
+        // (3) menjumlahkan `t.amount` apa adanya — pengeluaran bernilai NEGATIF, sehingga `spent` negatif
+        //     dan `percentage` tak mungkin mencapai ambang. Wajib `Math.abs`.
+        const catNameLc = (cat.name || '').toLowerCase();
         const spent = transactions
-          .filter(t => t.type === 'expense' && t.category === cat.name && new Date(t.date).getMonth() === currentMonth && new Date(t.date).getFullYear() === currentYear)
-          .reduce((sum, t) => sum + t.amount, 0);
+          .filter(t => t.type === 'PENGELUARAN'
+            && String(t.category || '').toLowerCase() === catNameLc
+            && new Date(t.date).getMonth() === currentMonth
+            && new Date(t.date).getFullYear() === currentYear)
+          .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
         
         const limit = cat.allocated || 1;
         const percentage = (spent / limit) * 100;
@@ -215,7 +224,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
             isBudget: true,
             onClick: () => {
               if (onNavigate) {
-                onNavigate('anggaran');
+                onNavigate('budget');
                 if (onClose) onClose();
               } else {
                 onShowCTA({
@@ -246,7 +255,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
               isBill: true,
               onClick: () => {
                 if (onNavigate) {
-                  onNavigate('rencana utang');
+                  onNavigate('debts');
                   if (onClose) onClose();
                 } else {
                   onShowCTA({
@@ -290,7 +299,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
         id: `cal-debt-${debt.id}`, date, group: groupForDate(date, today), icon: debt.icon || 'credit_card',
         title: `Jatuh tempo: ${debt.name}`,
         subtitle: debt.minPayment ? `Angsuran min. ${fmtRp(debt.minPayment)}` : (debt.type || 'Cicilan'),
-        accent: 'debt', onClick: go('rencana utang'),
+        accent: 'debt', onClick: go('debts'),
       });
     });
 
@@ -305,7 +314,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
         id: `cal-mat-${ast.id}`, date, group: groupForDate(date, today), icon: ast.icon || 'event_available',
         title: `Jatuh tempo: ${ast.title}`,
         subtitle: `Pokok ${fmtRp(ast.currentValue || ast.purchasePrice || 0)} cair`,
-        accent: 'maturity', onClick: go('aset'),
+        accent: 'maturity', onClick: go('assets'),
       });
     });
 
@@ -320,7 +329,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
         id: `cal-ins-${pol.id}`, date, group: groupForDate(date, today), icon: 'shield',
         title: `Perpanjangan: ${pol.name}`,
         subtitle: `Renewal polis ${pol.insType}`,
-        accent: 'tax', onClick: go('aset'),
+        accent: 'tax', onClick: go('assets'),
       });
     });
 
@@ -346,7 +355,7 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
       events.push({
         id: 'cal-spt', date: sptDate, group: groupForDate(sptDate, today), icon: 'receipt_long',
         title: 'Batas Lapor SPT Tahunan', subtitle: 'Lapor pajak pribadi via e-Filing DJP',
-        accent: 'tax', onClick: go('laporan'),
+        accent: 'tax', onClick: go('analytics'),
       });
     }
 

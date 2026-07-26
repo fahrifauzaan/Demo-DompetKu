@@ -37,6 +37,31 @@ interface FinanceDemoProps {
 
 export type FinanceTab = 'dashboard' | 'transactions' | 'budget' | 'assets' | 'debts' | 'goals' | 'analytics' | 'portfolio-report' | 'performance-report' | 'equity-ledger' | 'add-transaction' | 'add-category' | 'add-asset' | 'add-account' | 'notifications' | 'settings' | 'guide';
 
+/**
+ * Judul halaman per tab. Dulu berupa rantai ternary yang MELEWATKAN beberapa tab (a.l. 'debts',
+ * 'equity-ledger', 'add-*'), sehingga membuka "Rencana Utang" menampilkan judul fallback "Manajemen".
+ * Peta eksplisit ini mencakup SEMUA nilai FinanceTab, jadi tab baru tak bisa lolos tanpa judul.
+ */
+const TAB_TITLES: Record<FinanceTab, string> = {
+  dashboard: 'Dasbor',
+  transactions: 'Transaksi',
+  budget: 'Anggaran',
+  assets: 'Aset',
+  debts: 'Rencana Utang',
+  goals: 'Tujuan',
+  analytics: 'Laporan',
+  'portfolio-report': 'Laporan',
+  'performance-report': 'Laporan',
+  'equity-ledger': 'Buku Besar',
+  'add-transaction': 'Tambah Transaksi',
+  'add-category': 'Tambah Kategori',
+  'add-asset': 'Tambah Aset',
+  'add-account': 'Tambah Akun',
+  notifications: 'Notifikasi',
+  settings: 'Pengaturan',
+  guide: 'Panduan',
+};
+
 const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
   const [activeTab, setActiveTab] = useState<FinanceTab>('dashboard');
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
@@ -507,7 +532,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
               <span className="material-symbols-outlined">menu</span>
             </button>
             <h1 className="text-lg sm:text-xl font-bold text-blue-950 dark:text-white font-headline tracking-tight capitalize truncate">
-              {activeTab === 'dashboard' ? 'Dasbor' : activeTab === 'transactions' ? 'Transaksi' : activeTab === 'budget' ? 'Anggaran' : activeTab === 'assets' ? 'Aset' : activeTab === 'goals' ? 'Tujuan' : activeTab === 'analytics' || activeTab.includes('report') ? 'Laporan' : activeTab === 'notifications' ? 'Notifikasi' : activeTab === 'guide' ? 'Panduan' : activeTab === 'settings' ? 'Pengaturan' : 'Manajemen'}
+              {TAB_TITLES[activeTab] || 'Manajemen'}
             </h1>
           </div>
           
@@ -645,7 +670,11 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
             <FinanceNotifications 
               onShowCTA={handleShowCTA} 
               onNavigate={(tab) => {
-                setActiveTab(tab as any);
+                // Pengaman: hanya terima nilai tab yang benar-benar ada. Dulu `tab as any` diteruskan
+                // apa adanya, sehingga target salah (mis. 'aset'/'rencana utang') membuat activeTab tak
+                // cocok dengan cabang render mana pun → KONTEN KOSONG + judul "Manajemen".
+                if (tab && Object.prototype.hasOwnProperty.call(TAB_TITLES, tab)) setActiveTab(tab as FinanceTab);
+                else console.warn('[FinanceDemo] Target navigasi tidak dikenal, diabaikan:', tab);
               }}
             />
           )}

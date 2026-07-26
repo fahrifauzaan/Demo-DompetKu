@@ -9,6 +9,46 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.21.0] — 2026-07-26 · Audit Menyeluruh (2/4): Fitur Rusak
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+Batch 2 dari 4 hasil audit A–Z. Menutup temuan "fitur ada tapi tidak berfungsi".
+
+### Diperbaiki
+- **Pencarian global memakai data contoh, bukan data pengguna.** `FinanceSearch.tsx` mengimpor
+  `TRANSACTIONS_DATA`/`ASSETS_DATA` dari `FinanceData` (entri statis) → ⌘K tak pernah menemukan transaksi
+  atau aset nyata. Kini membaca store: transaksi (desc/kategori/akun/lokasi, terbaru dulu), aset
+  (judul/ticker/broker), rekening, utang, dan tujuan; hasil dinaikkan 8 → 12.
+- **Tujuh target navigasi notifikasi/kalender tidak valid** (`onNavigate('aset'|'anggaran'|'rencana utang'|'laporan')`
+  dan `go(...)` sejenis) sedangkan `FinanceTab` memakai `assets|budget|debts|analytics` → `activeTab` tak cocok
+  cabang render mana pun = **konten kosong** + judul fallback. Semua dipetakan ke nilai yang benar, DAN
+  handler `onNavigate` di `FinanceDemo` kini memvalidasi target (tak dikenal → diabaikan + `console.warn`).
+- **Peringatan "Anggaran Menipis" mati total** (`FinanceNotifications.tsx:200`). Tiga sebab sekaligus:
+  (1) `t.type === 'expense'` padahal nilainya `'PENGELUARAN'`; (2) `t.category === cat.name` peka huruf
+  (Anggaran memakai case-insensitive); (3) `sum + t.amount` — pengeluaran NEGATIF sehingga `spent` negatif dan
+  `percentage` tak mungkin mencapai `alertAt`. Kini `'PENGELUARAN'` + lowercase compare + `Math.abs`.
+- **Kripto tak punya UI update-harga/jual.** Grid kartu ekuitas memfilter `saham|reksadana` saja, dan sub-tab
+  lain hanya menerima `sbn|deposito|p2p` → aset `kripto` tak muncul sebagai kartu di mana pun (padahal modal
+  & store mendukung). Filter kini menyertakan `kripto|crypto`; label sub-tab → "Saham, Reksadana & Kripto".
+- **Tak ada aksi hapus untuk aset investasi.** `deleteAsset` hanya terpasang di kartu aset fisik. Ditambahkan
+  tombol hapus (memakai modal konfirmasi yang sudah ada) di kartu investasi.
+- **Judul halaman tak lengkap.** Rantai ternary melewatkan `debts`, `equity-ledger`, `add-*` → judul
+  "Manajemen". Diganti peta eksplisit `TAB_TITLES: Record<FinanceTab, string>` (tab baru tak bisa lolos).
+
+### Verifikasi (browser, akun demo)
+Pencarian: transaksi bertanda unik yang disuntik ke state DITEMUKAN; `FinanceSearch` terbukti tak lagi
+mengimpor data contoh (`searchStillImportsDemoData: false`, `searchUsesStore: true`); tujuan ("Umroh") ikut
+tercari. Catatan: kemunculan "Porsche 911 Carrera S" awalnya dikira kebocoran data contoh — ternyata memang
+aset NYATA akun demo (judulnya beda satu huruf dari entri contoh). Judul: tab Utang → "Rencana Utang",
+`equity-ledger` → "Buku Besar" (dulu keduanya "Manajemen"). Kartu investasi: **18 tombol Hapus** terender
+(sebelumnya 0). `tsc` & build bersih.
+**Batas verifikasi:** kartu kripto tak bisa diuji dengan data nyata (akun demo tak punya aset kripto) dan
+penyuntikan state tak sampai ke instance app (duplikasi modul Vite) — perubahannya satu baris filter pada
+jalur render yang sama dengan saham/reksadana yang sudah terbukti bekerja.
+
+---
+
 ## [3.20.0] — 2026-07-26 · Audit Menyeluruh (1/4): Anti Data-Hilang
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
