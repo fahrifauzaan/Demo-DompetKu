@@ -9,6 +9,30 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.18.6] — 2026-07-26 · Perbaikan: Edit Harga Reksadana Tidak Balik Sendiri
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Latar
+User update NAV Reksadana (turun) → tersimpan sesaat lalu "kembali sendiri" ke harga awal setelah sinkron;
+sheet kolom `Current Price` tetap nilai lama. **Root cause** (`FinanceAssets.tsx` handleSaveLastPrice, cabang
+investment): untuk reksadana, `updatedAsset.currentPrice` di-set **`undefined`** dan harga baru hanya masuk
+`currentNav`. Saat `updateRowInSheet` menulis kolom bernama **`Current Price`**, `getValueCaseInsensitive`
+mencocokkan key `currentPrice` (=`undefined`) LEBIH DULU (exact-clean-match) → nilai `undefined` → fallback ke
+sel lama → harga tak berubah di sheet → sinkron berikutnya membaca harga lama → "balik sendiri".
+
+### Diperbaiki
+- **`currentPrice` kini di-set ke harga baru untuk SEMUA subType** (bukan `undefined` khusus reksadana);
+  `currentNav` tetap diisi utk reksadana (dipakai display/oldPrice). Verifikasi unit test: skema `Current Price`
+  → tulis lama (undefined) mempertahankan 33.110 (bug), tulis baru menulis 29.728 dengan Avg. Cost & Units utuh.
+- **`HEADERS['Reksadana']` diselaraskan** dari `NAV_Per_Unit`/`Current_NAV` → **`Avg. Cost`/`Current Price`**,
+  identik dengan Template Database & tab Saham (jawaban atas pertanyaan user: Template sudah best-practice;
+  aplikasi kini mengikutinya persis — ADD/`ensureSheetWithHeader` membuat header yang sama). Baca tetap fuzzy;
+  update pakai header ASLI sheet (v3.18.4), jadi sheet lama apa pun tetap kompatibel.
+- tsc & build bersih.
+
+---
+
 ## [3.18.5] — 2026-07-25 · Perbaikan: Simpan ke Sheet Lebih Tahan (Anti Rate-Limit) + Pesan Error Jelas
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (reliability).

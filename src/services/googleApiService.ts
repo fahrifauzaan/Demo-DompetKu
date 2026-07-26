@@ -15,7 +15,7 @@ const HEADERS: Record<string, string[]> = {
   'AssetsNonLiquid': ['id', 'title', 'category', 'subType', 'purchasePrice', 'currentValue', 'purchaseDate', 'location', 'icon', 'notes', 'specification', 'landArea', 'buildingArea', 'mfgYear', 'usefulLife', 'depreciationMethod', 'valuationReminder', 'lastValuationUpdate'],
   'Saham': ['ID', 'Title', 'Ticker', 'Shares', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   'Crypto': ['ID', 'Title', 'Ticker', 'Coins', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
-  'Reksadana': ['ID', 'Title', 'Ticker', 'Units', 'NAV_Per_Unit', 'Current_NAV', 'Purchase Date', 'Location', 'Icon', 'Notes'],
+  'Reksadana': ['ID', 'Title', 'Ticker', 'Units', 'Avg. Cost', 'Current Price', 'Purchase Date', 'Location', 'Icon', 'Notes'],
   // Entitas berikut sebelumnya hanya lewat macro fallback (bisa nyasar ke sheet demo untuk user OAuth).
   // Kolom PERSIS sama dengan google-apps-script.js agar API & macro konsisten membaca/menulis sheet yang sama.
   'Goals': ['id', 'name', 'icon', 'color', 'goalType', 'targetAmount', 'targetDate', 'startDate', 'initialAmount', 'expectedReturn', 'monthlyContribution', 'priority', 'status', 'notes'],

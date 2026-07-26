@@ -895,7 +895,11 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
       const updatedAsset = {
         ...editingAsset,
-        currentPrice: editingAsset.subType === 'reksadana' ? undefined : parsedNewPrice,
+        // Reksadana harga per-unit disimpan di kolom 'Current Price' (sama seperti Saham). DULU di-set
+        // undefined (harga baru hanya masuk currentNav) → saat menulis, kolom 'Current Price' cocok ke
+        // key `currentPrice` (undefined) lebih dulu → nilai lama dipertahankan (harga "kembali sendiri").
+        // Set currentPrice ke harga baru untuk SEMUA jenis; currentNav tetap diisi utk reksadana (display).
+        currentPrice: parsedNewPrice,
         currentNav: editingAsset.subType === 'reksadana' ? parsedNewPrice : undefined,
         currentValue: updatedValue,
         lastValuationUpdate: effectiveDate,

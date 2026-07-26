@@ -17,9 +17,16 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.18.5';
+export const CURRENT_VERSION = '3.18.6';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.18.6', date: '2026-07-26', title: 'Perbaikan: Edit Harga Reksadana Tidak Balik Sendiri', tag: 'fix', impact: 'none',
+    fixed: [
+      'Memperbarui NAV/harga terkini Reksadana kini benar-benar tersimpan — sebelumnya harga "kembali sendiri" ke nilai awal setelah sinkron. Penyebab: saat mengedit, harga baru hanya di-set ke field internal currentNav sedangkan currentPrice dibiarkan kosong, sehingga penulisan ke kolom "Current Price" di sheet malah mempertahankan nilai lama. Kini harga baru di-set dengan benar untuk semua jenis aset.',
+      'Definisi kolom internal tab Reksadana diselaraskan dengan Template Database & tab Saham (Ticker, Avg. Cost, Current Price) untuk konsistensi — Template Anda sudah best-practice, aplikasi kini mengikutinya persis.',
+    ],
+  },
   {
     version: '3.18.5', date: '2026-07-25', title: 'Perbaikan: Simpan ke Sheet Lebih Tahan (Anti Rate-Limit) + Pesan Error Jelas', tag: 'fix', impact: 'none',
     fixed: [
