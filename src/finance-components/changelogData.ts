@@ -17,9 +17,18 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.26.0';
+export const CURRENT_VERSION = '3.27.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.27.0', date: '2026-07-26', title: 'Kejelasan Periode Laporan, Profil Aman, Simpan Lebih Hemat', tag: 'fix', impact: 'none',
+    fixed: [
+      'Kartu analitik kini MENULISKAN jendela waktunya sendiri (mis. Skor Kesehatan & Arus Kas: rata-rata 3 bulan LENGKAP). Sebelumnya ada pemilih periode besar di atas layar yang seolah mengatur semuanya, padahal kartu-kartu itu tak mengikutinya \u2014 mudah menyesatkan. Pemilih periode juga diberi keterangan cakupan: berlaku untuk ringkasan, tabel, ekspor & cetak.',
+      'Berpindah profil kini aman. Bila sinkronisasi profil tujuan gagal (URL/izin salah), koneksi otomatis DIKEMBALIKAN ke profil sebelumnya beserta pesan jelas \u2014 sebelumnya aplikasi menampilkan "profil baru aktif" sambil menampilkan data profil lama, dan berisiko menulis ke sheet yang salah.',
+      'Daftar profil tidak lagi terhapus saat keluar akun. Isinya hanya nama + tautan spreadsheet (bukan kata sandi), hanya ada di perangkat ini, dan tidak bisa dipulihkan otomatis \u2014 menghapusnya berarti kehilangan data. Akses ke sheet tetap dijaga login Google.',
+      'Menyimpan halaman Pengaturan kini jauh lebih hemat: satu permintaan batch untuk semua isian (sebelumnya 2 permintaan per isian, sehingga menyimpan belasan isian bisa menyentuh batas laju Google). Migrasi anggaran bulanan juga dijadikan satu permintaan.',
+    ],
+  },
   {
     version: '3.26.0', date: '2026-07-26', title: 'Kategori Anggaran Bisa Diubah & Dihapus', tag: 'feature', impact: 'none',
     added: [

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TRANSACTIONS_DATA, DEBTS_DATA } from '../finance-components/FinanceData';
 import { useAuthStore } from './useAuthStore';
-import { addRowToSheet, appendRowsToSheet, updateRowInSheet, upsertRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet, batchRenameTransactionCategories, batchRenameBudgetCategories, batchRenameMonthlyBudgetCategories } from '../services/googleApiService';
+import { addRowToSheet, appendRowsToSheet, updateRowInSheet, upsertRowInSheet, deleteRowFromSheet, fetchAllDataFromSheets, isApiSheet, batchRenameTransactionCategories, batchRenameBudgetCategories, batchRenameMonthlyBudgetCategories, batchUpsertSettings } from '../services/googleApiService';
 import { CATEGORY_EN_TO_ID } from '../finance-components/categoryLocale';
 
 // Cegah migrasi kategori berjalan ganda saat sync tumpang-tindih.
@@ -646,14 +646,25 @@ export const useFinanceStore = create<FinanceState>()(
       switchProfile: async (id) => {
         const prof = get().profiles.find((p) => p.id === id);
         if (!prof) return;
-        // Ganti koneksi aktif langsung (tanpa menyentuh catatan sheet user utama di authStore),
-        // lalu tarik ulang seluruh data dari Sheet profil tersebut.
+        // ROLLBACK bila gagal. Dulu koneksi & profil aktif diganti lebih dulu lalu sinkron; kalau sinkronnya
+        // gagal (URL/izin salah) tak ada pemulihan — UI menampilkan "Profil B aktif" sambil MENAMPILKAN data
+        // profil A, mudah menyesatkan (dan berisiko menulis ke sheet yang salah).
+        const prev = {
+          activeProfileId: get().activeProfileId,
+          googleSheetUrl: get().googleSheetUrl,
+          spreadsheetId: get().spreadsheetId,
+        };
         set({
           activeProfileId: id,
           googleSheetUrl: prof.googleSheetUrl || '',
           spreadsheetId: prof.spreadsheetId ? prof.spreadsheetId : null,
+          syncError: null,
         });
         await get().syncFromGoogleSheets();
+        if (get().syncError) {
+          set({ ...prev, syncError: `Gagal membuka profil "${prof.name}" — koneksi dikembalikan ke profil sebelumnya. (${get().syncError})` });
+          return;
+        }
       },
       captureCurrentAsProfile: (name, emoji, color) => {
         const id = generateId();
@@ -1079,9 +1090,24 @@ export const useFinanceStore = create<FinanceState>()(
         // Only sync the changed/new settings to Google Sheets.
         // Kunci keamanan (PIN) LOKAL per-browser — jangan ditulis ke Sheet (tetap di perangkat ini).
         const LOCAL_ONLY = new Set(['security_pin', 'security_pinActive']);
-        for (const setting of changedSettings) {
-          if (LOCAL_ONLY.has(setting.key)) continue;
-          await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Settings', 'update', setting as unknown as Record<string, unknown>);
+        // SATU batch untuk semua kunci. Dulu loop per-kunci = 1 GET + 1 PUT tiap setelan (upsert), jadi
+        // menyimpan halaman Pengaturan yang mengubah belasan kunci bisa mendekati kuota ~60 tulis/menit.
+        const toSync = changedSettings.filter((s) => !LOCAL_ONLY.has(s.key));
+        const tokenS = get().googleAccessToken, sidS = get().spreadsheetId;
+        if (toSync.length && tokenS && sidS && isApiSheet('Settings')) {
+          set((st) => ({ pendingWrites: st.pendingWrites + 1, saveError: null }));
+          try {
+            await batchUpsertSettings(tokenS, sidS, toSync.map((s) => ({ key: s.key, value: String(s.value ?? '') })));
+          } catch (e: any) {
+            console.error('[FinanceStore] ❌ Gagal menyimpan Settings:', e);
+            set({ saveError: e?.message || 'Gagal menyimpan Pengaturan ke Google Sheets.' });
+          } finally {
+            set((st) => ({ pendingWrites: Math.max(0, st.pendingWrites - 1) }));
+          }
+        } else {
+          for (const setting of toSync) {
+            await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'Settings', 'update', setting as unknown as Record<string, unknown>);
+          }
         }
       },
 
@@ -1127,25 +1153,33 @@ export const useFinanceStore = create<FinanceState>()(
       migrateMonthlyBudgetsToTab: async (blob) => {
         const url = get().googleSheetUrl, token = get().googleAccessToken, sid = get().spreadsheetId;
         const clean: Record<string, Record<string, number>> = {};
-        const writes: Promise<unknown>[] = [];
+        const rows: Record<string, unknown>[] = [];
         for (const month of Object.keys(blob || {})) {
           for (const category of Object.keys(blob[month] || {})) {
             const amount = Math.round(Number(blob[month][category]) || 0);
             if (amount <= 0) continue;
             if (!clean[month]) clean[month] = {};
             clean[month][category] = amount;
-            writes.push(postToSheet(url, token, sid, 'MonthlyBudgets', 'add', { id: `${month}__${category}`, month, category, amount }));
+            rows.push({ id: `${month}__${category}`, month, category, amount });
           }
         }
         set({ monthlyBudgets: clean });
-        await Promise.all(writes);
+        // SATU append massal. Dulu satu `postToSheet('add')` per entri dijalankan paralel via Promise.all —
+        // migrasi dengan puluhan entri bisa langsung menabrak kuota tulis (~60/menit) dan gagal separuh jalan.
+        if (rows.length) {
+          if (token && sid && isApiSheet('MonthlyBudgets')) {
+            await appendRowsToSheet(token, sid, 'MonthlyBudgets', rows);
+          } else {
+            for (const r of rows) await postToSheet(url, token, sid, 'MonthlyBudgets', 'add', r);
+          }
+        }
         // Bersihkan blob lama di Settings.
         const idx = get().settings.findIndex(s => s.key === 'monthlyBudgets');
         if (idx !== -1) {
           set({ settings: get().settings.map(s => (s.key === 'monthlyBudgets' ? { ...s, value: '{}' } : s)) });
           await postToSheet(url, token, sid, 'Settings', 'update', { key: 'monthlyBudgets', value: '{}' });
         }
-        console.log(`[FinanceStore] Migrasi monthlyBudgets → tab MonthlyBudgets selesai (${writes.length} entri).`);
+        console.log(`[FinanceStore] Migrasi monthlyBudgets → tab MonthlyBudgets selesai (${rows.length} entri, 1 batch).`);
       },
 
       // ---- FULL SYNC (Pull dari Google Sheets) ----
@@ -1571,7 +1605,9 @@ export const useFinanceStore = create<FinanceState>()(
           googleSheetUrl: import.meta.env.VITE_DEFAULT_SHEET_URL || 'https://script.google.com/macros/s/AKfycbzhD4TrmhBhb1484U7thVyEJDvZAFYtAbiG0bRK_jcWCiLKwy1EtBFCOQKikaj9l6yL2Q/exec',
           googleAccessToken: null,
           spreadsheetId: null,
-          profiles: [],
+          // Profil TIDAK dibuang saat logout: isinya hanya nama + URL/ID spreadsheet (bukan kredensial),
+          // hanya ada di perangkat ini, dan TIDAK bisa dipulihkan otomatis — menghapusnya = kehilangan data
+          // sungguhan bagi pengguna multi-profil. Akses ke sheet tetap dijaga oleh login Google.
           activeProfileId: null,
           isSyncing: false,
           lastSyncAt: null,

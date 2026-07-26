@@ -79,7 +79,7 @@ const HealthScoreCard: React.FC = () => {
         <span className="material-symbols-outlined text-primary dark:text-[#a7c8ff]">monitor_heart</span>
         <div>
           <h3 className="font-headline font-bold text-base sm:text-lg text-on-surface dark:text-white">Skor Kesehatan Finansial</h3>
-          <p className="text-[11px] text-on-surface-variant dark:text-slate-400">Satu angka dari 6 rasio kunci — metodologi transparan</p>
+          <p className="text-[11px] text-on-surface-variant dark:text-slate-400">Satu angka dari 6 rasio kunci — metodologi transparan · rata-rata 3 bulan LENGKAP terakhir (tak mengikuti pemilih periode)</p>
         </div>
       </div>
 

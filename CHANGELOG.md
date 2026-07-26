@@ -9,6 +9,41 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.27.0] — 2026-07-26 · Periode Laporan, Profil & Efisiensi Simpan (audit SEDANG · F3)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Diperbaiki
+- **Kartu laporan mengabaikan pemilih periode.** `HealthScoreCard`, `CashFlowStatementCard`,
+  `FinancialIndependenceCard`, `PassiveIncomeCard`, dll. dipasang **tanpa props** di `FinanceAnalytics`
+  (hanya tile ringkasan + sub-tab Diversifikasi/Sektoral yang menerima `selectedPeriod`), sehingga pemilih
+  periode di header seolah mengatur seluruh halaman.
+  **Keputusan desain:** kartu-kartu itu memang *rolling window* / *forward-looking* (rata-rata 3 bulan lengkap,
+  proyeksi 12 bulan) — memaksanya mengikuti "Bulan Ini" akan merusak maknanya. Jadi tiap kartu sekarang
+  **menuliskan jendela waktunya** dan pemilih periode diberi keterangan cakupan (`PERIOD_SCOPE_NOTE`, tooltip
+  + ikon info): berlaku untuk ringkasan, tabel, ekspor & cetak.
+- **`switchProfile` tanpa rollback**: koneksi & `activeProfileId` diganti lebih dulu, lalu sinkron; bila gagal
+  tak ada pemulihan → UI menyatakan profil baru aktif sambil menampilkan data profil lama (dan penulisan
+  berikutnya bisa menuju sheet yang salah). Kini state sebelumnya disimpan dan **dipulihkan** bila
+  `syncError` muncul, dengan pesan yang menyebut nama profilnya.
+- **`logout` menghapus daftar profil** (`profiles: []`). Profil hanya memuat nama + URL/ID spreadsheet
+  (bukan kredensial), device-local, dan tak bisa dipulihkan otomatis → penghapusan = kehilangan data nyata.
+  Kini profil dipertahankan; `activeProfileId` tetap direset. Akses sheet tetap dijaga login Google.
+- **`updateSettings` menulis per-kunci** (tiap `'update'` = GET + PUT via upsert) → menyimpan halaman
+  Pengaturan yang mengubah belasan kunci mendekati kuota ~60 tulis/menit. Ditambahkan
+  **`batchUpsertSettings()`**: kunci yang sudah ada diperbarui lewat SATU `values:batchUpdate`, kunci baru
+  lewat SATU `values:append` (≤2 request untuk N kunci); jalur makro tetap seperti sebelumnya.
+- **`migrateMonthlyBudgetsToTab` menulis per-entri** secara paralel (`Promise.all`) → migrasi puluhan entri
+  bisa menabrak kuota dan gagal separuh jalan. Kini satu `appendRowsToSheet`.
+
+### Verifikasi
+Unit test 10/10: batch settings menghasilkan range kolom `value` yang benar (`Settings!B2`, `B3`), kunci baru
+di-append (bukan no-op), 3 kunci = **2 request** (dulu 6) dan 12 kunci tetap ≤2; migrasi anggaran membuang entri
+nol & memakai 1 request; rollback profil memulihkan `activeProfileId`+`spreadsheetId` saat sinkron gagal dan
+tetap berpindah saat sukses; logout mempertahankan daftar profil. `tsc` & build bersih.
+
+---
+
 ## [3.26.0] — 2026-07-26 · Kategori Anggaran: Ubah Nama & Hapus (audit SEDANG · F2)
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

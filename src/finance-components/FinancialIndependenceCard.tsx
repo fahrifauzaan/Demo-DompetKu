@@ -73,7 +73,7 @@ const FinancialIndependenceCard: React.FC = () => {
         </div>
         <div>
           <h3 className="text-lg font-black font-headline text-on-surface dark:text-white leading-none">Kemandirian Finansial</h3>
-          <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-1">Seberapa dekat Anda menuju bebas finansial (FIRE)</p>
+          <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-1">Seberapa dekat Anda menuju bebas finansial (FIRE) · basis rata-rata bulan LENGKAP, bukan pemilih periode</p>
         </div>
       </div>
 

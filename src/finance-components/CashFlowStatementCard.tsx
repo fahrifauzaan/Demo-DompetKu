@@ -54,7 +54,7 @@ const CashFlowStatementCard: React.FC = () => {
           </div>
           <div>
             <h3 className="text-lg font-black font-headline text-on-surface dark:text-white leading-none">Arus Kas</h3>
-            <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-1">Masuk vs keluar, burn rate &amp; runway</p>
+            <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-1">Masuk vs keluar, burn rate &amp; runway · hanya bulan LENGKAP (tak mengikuti pemilih periode)</p>
           </div>
         </div>
         <div className="flex bg-surface-container dark:bg-white/5 rounded-xl p-0.5">

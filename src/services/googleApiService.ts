@@ -375,6 +375,59 @@ export async function batchRenameBudgetCategories(accessToken: string, spreadshe
 }
 
 /**
+ * UPSERT banyak baris Settings sekaligus: kunci yang sudah ada di-update lewat SATU `values:batchUpdate`,
+ * kunci baru ditambahkan lewat SATU `values:append`. Menggantikan loop per-kunci (tiap kunci = GET + PUT)
+ * yang bisa mendekati kuota ~60 tulis/menit saat halaman Pengaturan menyimpan belasan kunci sekaligus.
+ */
+export async function batchUpsertSettings(accessToken: string, spreadsheetId: string, entries: { key: string; value: string }[]): Promise<{ updated: number; added: number }> {
+  if (!entries.length) return { updated: 0, added: 0 };
+  const headers = HEADERS['Settings'];
+
+  const getResp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent('Settings')}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  }));
+  if (!getResp.ok) {
+    const errText = await getResp.text().catch(() => '');
+    if (isMissingSheetError(getResp.status, errText)) {
+      await ensureSheetWithHeader(accessToken, spreadsheetId, 'Settings', headers);
+      await appendRowsToSheet(accessToken, spreadsheetId, 'Settings', entries);
+      return { updated: 0, added: entries.length };
+    }
+    throw new Error(writeErrorMessage('Settings', getResp.status));
+  }
+  const rows: any[][] = (await getResp.json()).values || [];
+  const hdr = (rows[0] || headers).map((h: any) => String(h));
+  const keyIdx = Math.max(0, hdr.findIndex((h: string) => h.toLowerCase() === 'key'));
+  const valIdx = hdr.findIndex((h: string) => h.toLowerCase() === 'value');
+  const valueCol = columnLetter(valIdx >= 0 ? valIdx : 1);
+
+  const rowOf = new Map<string, number>();
+  for (let i = 1; i < rows.length; i++) {
+    const k = String(rows[i]?.[keyIdx] ?? '');
+    if (k && !rowOf.has(k.toLowerCase())) rowOf.set(k.toLowerCase(), i + 1); // nomor baris 1-based
+  }
+
+  const data: { range: string; values: string[][] }[] = [];
+  const toAppend: { key: string; value: string }[] = [];
+  for (const e of entries) {
+    const rowNum = rowOf.get(e.key.toLowerCase());
+    if (rowNum) data.push({ range: `Settings!${valueCol}${rowNum}`, values: [[e.value]] });
+    else toAppend.push(e);
+  }
+
+  if (data.length) {
+    const resp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values:batchUpdate`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }),
+    }));
+    if (!resp.ok) { console.error('Batch settings error:', await resp.text().catch(() => '')); throw new Error(writeErrorMessage('Settings', resp.status)); }
+  }
+  if (toAppend.length) await appendRowsToSheet(accessToken, spreadsheetId, 'Settings', toAppend);
+  return { updated: data.length, added: toAppend.length };
+}
+
+/**
  * Ganti nama kategori pada tab MonthlyBudgets (anggaran per-bulan) sesuai `mapping` (old→new,
  * case-insensitive), dalam SATU `values:batchUpdate`. Ikut memperbarui kolom `id` karena id = "<month>__<category>";
  * kalau id dibiarkan memakai nama lama, penyuntingan berikutnya tak menemukan barisnya lalu membuat duplikat.

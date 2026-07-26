@@ -497,6 +497,11 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
     document.body.removeChild(link);
   };
 
+  // Catatan cakupan periode. Hanya ringkasan/tabel & sub-tab Diversifikasi/Sektoral yang menerima
+  // `selectedPeriod`; kartu analitik (Skor Kesehatan, Arus Kas, FIRE, Pendapatan Pasif, dll.) memakai
+  // jendela waktunya sendiri (rolling/forward-looking) dan kini menuliskannya di masing-masing kartu.
+  const PERIOD_SCOPE_NOTE = 'Pemilih periode berlaku untuk ringkasan, tabel, ekspor & cetak. Kartu analitik memakai jendela waktunya sendiri (tertulis pada tiap kartu).';
+
   const getPeriodLabel = (period: string) => {
     if (period === 'this_month') return 'Bulan Ini';
     if (period === '3_months') return '3 Bulan Terakhir';
@@ -561,7 +566,8 @@ const FinanceAnalytics: React.FC<FinanceAnalyticsProps> = ({ onShowCTA, onNaviga
               className="w-full bg-white/60 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-on-surface dark:text-white text-xs font-bold hover:bg-white/80 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer shadow-sm"
             >
               <span className="material-symbols-outlined text-sm text-primary dark:text-[#a7c8ff]">calendar_today</span>
-              <span>{getPeriodLabel(selectedPeriod)}</span>
+              <span title={PERIOD_SCOPE_NOTE}>{getPeriodLabel(selectedPeriod)}</span>
+              <span className="material-symbols-outlined text-[13px] opacity-60" title={PERIOD_SCOPE_NOTE}>info</span>
               <span className="material-symbols-outlined text-xs transition-transform duration-300" style={{ transform: isFilterDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>keyboard_arrow_down</span>
             </button>
 

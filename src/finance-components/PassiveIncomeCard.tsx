@@ -49,7 +49,7 @@ const PassiveIncomeCard: React.FC = () => {
         <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400">savings</span>
         <div>
           <h3 className="font-headline font-bold text-base sm:text-lg text-on-surface dark:text-white">Kalender Pendapatan Pasif</h3>
-          <p className="text-[11px] text-on-surface-variant dark:text-slate-400">Proyeksi kupon/bunga bersih 12 bulan ke depan</p>
+          <p className="text-[11px] text-on-surface-variant dark:text-slate-400">Proyeksi kupon/bunga bersih 12 bulan ke depan · rasio kemandirian memakai rata-rata 3 bulan LENGKAP</p>
         </div>
       </div>
 
