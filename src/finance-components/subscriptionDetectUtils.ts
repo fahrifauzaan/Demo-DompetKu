@@ -86,9 +86,17 @@ export function detectSubscriptions(
 
     const last = sorted[sorted.length - 1];
     const label = key.split('|')[0].split(' ').map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
-    const alreadyRecurring = recurring.some((r) =>
-      normalizeMerchant(r.name, '').includes(key.split('|')[0]) ||
-      (Math.abs((r.amount || 0) - meanAmt) / (meanAmt || 1) <= amountTol && r.type === 'PENGELUARAN'));
+    // Kecocokan harus berdasar NAMA. Dulu cabang `||` membuat setiap transaksi berulang mana pun yang
+    // nominalnya berdekatan (±5%) dianggap "sudah dilacak" TANPA melihat nama — mis. "Sewa Kos" Rp150rb
+    // menyembunyikan langganan Netflix Rp150rb yang sesungguhnya, sehingga tak pernah ditawarkan ke pengguna.
+    const merchantKey = key.split('|')[0];
+    const alreadyRecurring = recurring.some((r) => {
+      const rName = normalizeMerchant(r.name, '');
+      const nameMatch = !!merchantKey && (rName.includes(merchantKey) || merchantKey.includes(rName));
+      if (!nameMatch) return false;
+      // Nominal dipakai hanya sebagai penguat, bukan penentu tunggal.
+      return r.type === 'PENGELUARAN' || Math.abs((r.amount || 0) - meanAmt) / (meanAmt || 1) <= amountTol;
+    });
 
     out.push({
       key, label, amount: Math.round(meanAmt), frequency, occurrences: sorted.length,

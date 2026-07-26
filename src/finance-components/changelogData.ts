@@ -17,9 +17,23 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.23.0';
+export const CURRENT_VERSION = '3.24.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.24.0', date: '2026-07-26', title: 'Audit Menyeluruh: Sapu Temuan Sedang (1/2)', tag: 'fix', impact: 'none',
+    fixed: [
+      'Peringatan tagihan jatuh tempo kini muncul walau jatuh temponya bulan depan. Sebelumnya dihitung sebagai selisih tanggal mentah, jadi tanggal 28 dengan jatuh tempo tanggal 3 menghasilkan angka negatif dan peringatannya tak pernah tampil \u2014 padahal hanya 6 hari lagi.',
+      'Tombol "Tandai Dibaca" di Notifikasi kini benar-benar berfungsi (sebelumnya tanpa aksi). Peringatan yang sudah dibaca disembunyikan per-perangkat, dan bisa dimunculkan lagi lewat "Tampilkan semua".',
+      'Rasio Utang terhadap Pendapatan (DTI) kini konsisten. Dua kartu di halaman Rencana Utang memakai sumber pendapatan berbeda sehingga bisa menampilkan angka yang saling bertentangan; kini satu sumber (Setelan penghasilan, lalu kategori Pemasukan).',
+      'Grafik pelunasan utang tidak lagi menampilkan tanggal lunas yang mustahil. Bila cicilan lebih kecil/sama dengan bunga (utang tak akan pernah lunas), kini ditandai "Tak tercapai" alih-alih menampilkan tanggal yang terkesan pasti.',
+      'Impor tanpa kolom Kategori kini memberi kategori baku yang benar ("Pendapatan Lainnya"), sehingga transaksi hasil impor ikut terhitung di Budget vs Aktual. Sebelumnya memakai nama yang tak ada di daftar kategori mana pun.',
+      'Ekspor CSV Transaksi kini aman: seluruh kolom teks di-escape (nama akun/kategori yang memuat koma tak lagi menggeser kolom) dan diberi BOM UTF-8 agar karakter Indonesia benar di Excel.',
+      'Pemindai langganan tidak lagi salah menganggap langganan sudah terlacak hanya karena nominalnya mirip. Sebelumnya transaksi berulang lain dengan nominal berdekatan (\u00b15%) menyembunyikan langganan asli walau namanya beda; kini pencocokan berdasarkan nama.',
+      'Penambahan baris baru ke Google Sheet kini mengikuti urutan kolom ASLI di sheet Anda (bukan asumsi aplikasi), sehingga sheet lama dengan urutan kolom berbeda tidak lagi berisiko tergeser.',
+      'Kolom input kode 2FA kini benar-benar hanya menerima angka (filternya sebelumnya keliru sehingga tidak menyaring apa pun).',
+    ],
+  },
   {
     version: '3.23.0', date: '2026-07-26', title: 'Audit Menyeluruh (4/4): Keamanan Diperkuat', tag: 'fix', impact: 'none',
     fixed: [

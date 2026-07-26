@@ -168,13 +168,33 @@ function writeErrorMessage(sheetName: string, status: number): string {
 }
 
 /**
+ * Baca baris header (baris 1) sebuah tab. Mengembalikan null bila tab belum ada / gagal dibaca,
+ * sehingga pemanggil bisa jatuh ke konstanta HEADERS (lalu tab dibuat oleh ensureSheetWithHeader).
+ */
+async function readSheetHeaders(accessToken: string, spreadsheetId: string, sheetName: string): Promise<string[] | null> {
+  try {
+    const resp = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!1:1`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    }));
+    if (!resp.ok) return null;
+    const rows = (await resp.json()).values || [];
+    const hdr = (rows[0] || []).map((h: any) => String(h)).filter((h: string) => h.trim() !== '');
+    return hdr.length ? hdr : null;
+  } catch { return null; }
+}
+
+/**
  * Appends a new row to a specific sheet.
  */
 export async function addRowToSheet(accessToken: string, spreadsheetId: string, sheetName: string, data: any) {
   const headers = HEADERS[sheetName];
   if (!headers) throw new Error(`Sheet ${sheetName} not found in headers mapping.`);
 
-  const rowData = headers.map(h => {
+  // Susun nilai mengikuti HEADER ASLI sheet bila terbaca. `updateRowInSheet`/`upsertRowInSheet` sudah
+  // melakukan ini (v3.18.4); jalur ADD masih memakai konstanta, sehingga sheet lama yang urutan kolomnya
+  // berbeda akan menerima baris baru dengan SEMUA kolom bergeser — kelas bug yang sama seperti Reksadana.
+  const actualHeaders = await readSheetHeaders(accessToken, spreadsheetId, sheetName) || headers;
+  const rowData = actualHeaders.map(h => {
     const val = getValueCaseInsensitive(data, h);
     return val !== undefined ? val : '';
   });
@@ -214,8 +234,10 @@ export async function appendRowsToSheet(accessToken: string, spreadsheetId: stri
   if (!headers) throw new Error(`Sheet ${sheetName} not found in headers mapping.`);
   if (!dataArray.length) return;
 
+  // Sama seperti addRowToSheet: ikuti header ASLI sheet agar impor massal tak menggeser kolom.
+  const actualHeaders = await readSheetHeaders(accessToken, spreadsheetId, sheetName) || headers;
   const values = dataArray.map(data =>
-    headers.map(h => {
+    actualHeaders.map(h => {
       const val = getValueCaseInsensitive(data, h);
       return val !== undefined ? val : '';
     })

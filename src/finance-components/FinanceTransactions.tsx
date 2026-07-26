@@ -252,25 +252,26 @@ const FinanceTransactions: React.FC<FinanceTransactionsProps> = ({ onShowCTA, on
     }
 
     const headers = ['ID', 'Tanggal', 'Deskripsi', 'Kategori', 'Tipe', 'Akun', 'Nominal', 'Status', 'Lokasi'];
+    // Dulu hanya `desc` & `location` yang dikutip: nama AKUN/KATEGORI buatan pengguna bisa memuat koma
+    // (mis. "BCA, Fakhri") sehingga kolom bergeser dan file rusak. Tanpa BOM pula, Excel salah membaca
+    // karakter Indonesia. Kini semua kolom teks di-escape + BOM + unduh via Blob.
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const rows = filteredTransactions.map(t => [
-      t.id,
-      t.date || '',
-      `"${(t.desc || '').replace(/"/g, '""')}"`,
-      t.category || '',
-      t.type || '',
-      t.account || '',
+      esc(t.id),
+      esc(t.date),
+      esc(t.desc),
+      esc(t.category),
+      esc(t.type),
+      esc(t.account),
       t.amount,
-      t.status || '',
-      `"${(t.location || '').replace(/"/g, '""')}"`
+      esc(t.status),
+      esc(t.location)
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(',') + '\n' 
-      + rows.map(e => e.join(',')).join('\n');
-
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = '\ufeff' + headers.map(esc).join(',') + '\n' + rows.map(e => e.join(',')).join('\n');
+    const blobUrl = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", blobUrl);
     link.setAttribute("download", `DompetKu_Log_Transaksi_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();

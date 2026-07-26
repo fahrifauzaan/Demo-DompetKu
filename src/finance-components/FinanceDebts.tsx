@@ -99,7 +99,11 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
       projection.push(totalBalance);
     }
 
-    return { projection, totalMonths, totalInterestPaid };
+    // `feasible` = seluruh utang benar-benar mencapai 0 sebelum batas simulasi. Tanpa ini, utang dengan
+    // cicilan ≤ bunga (amortisasi negatif) menabrak batas 360 bulan lalu ditampilkan sebagai TANGGAL LUNAS
+    // yang pasti (mis. "Jul 2056") — padahal secara matematis tak akan pernah lunas.
+    const feasible = !currentDebts.some(d => d.currentBalance > 0.01);
+    return { projection, totalMonths, totalInterestPaid, feasible };
   }, [debts, strategy, extraPayment]);
 
   // --- LOGIKA PERHITUNGAN BASELINE (Min Payment Only) ---
@@ -148,12 +152,19 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
 
   const debtToAssetRatio = totalAssets > 0 ? (totalCurrentBalance / totalAssets) * 100 : 0;
 
+  // SATU sumber pendapatan untuk SEMUA kartu DTI di halaman ini. Dulu kartu di sini memakai jumlah
+  // `allocated` kategori Pemasukan, sedangkan DebtHealthCard memakai Setelan `monthlyIncome` — hasilnya dua
+  // angka DTI yang saling bertentangan di satu layar (mis. "Belum ada pendapatan" 0% berdampingan dengan
+  // rasio nyata dari 28,1jt). Urutan: Setelan → jumlah kategori Pemasukan.
+  const settings = useFinanceStore(state => state.settings);
   const monthlyIncome = useMemo(() => {
+    const fromSettings = Number(settings.find(s => s.key === 'monthlyIncome')?.value) || 0;
+    if (fromSettings > 0) return fromSettings;
     if (!budgetCategories) return 0;
     return budgetCategories
       .filter(c => c.type === 'Pemasukan' || (c.type && c.type.toLowerCase() === 'pemasukan'))
       .reduce((sum, c) => sum + (c.allocated || 0), 0);
-  }, [budgetCategories]);
+  }, [budgetCategories, settings]);
 
   const totalMonthlyDebtPayments = debts.reduce((sum, d) => sum + d.minPayment, 0);
   const debtToIncomeRatio = monthlyIncome > 0 ? (totalMonthlyDebtPayments / monthlyIncome) * 100 : 0;
@@ -233,7 +244,10 @@ const FinanceDebts: React.FC<FinanceDebtsProps> = ({ onShowCTA, onNavigate }) =>
   const baselinePath = generatePath(minOnlyData.projection);
 
   const payoffYear = new Date().getFullYear() + Math.floor(payoffData.totalMonths / 12);
-  const payoffMonth = new Date().toLocaleString('id-ID', { month: 'short' }) + " " + payoffYear;
+  // Bila simulasi tak pernah mencapai saldo 0 (cicilan ≤ bunga), JANGAN tampilkan tanggal seolah pasti.
+  const payoffMonth = payoffData.feasible
+    ? new Date().toLocaleString('id-ID', { month: 'short' }) + " " + payoffYear
+    : 'Tak tercapai';
   
   const minYear = new Date().getFullYear() + Math.floor(minOnlyData.totalMonths / 12);
   const minMonth = new Date().toLocaleString('id-ID', { month: 'short' }) + " " + minYear;

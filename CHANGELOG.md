@@ -9,6 +9,50 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.24.0] — 2026-07-26 · Audit Menyeluruh: Sapu Temuan SEDANG (1/2)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Diperbaiki
+- **Jatuh tempo lintas bulan terlewat** (`FinanceNotifications.tsx`): `debt.dueDate - currentDay` tanpa rollover
+  → hari ini 28, jatuh tempo tgl 3 = −25 → peringatan tak pernah muncul (padahal bagian kalender di file yang
+  sama sudah benar memakai kemunculan berikutnya). Kini menghitung selisih ke kemunculan berikutnya.
+- **"Tandai Dibaca" tanpa `onClick`** → tak ada mekanisme menandai/menyembunyikan. Kini id peringatan
+  terbaca disimpan (`dompetku_alerts_read`), tombol nonaktif saat tak ada peringatan, plus
+  "Tampilkan semua (n)" untuk memulihkan.
+- **Dua kartu DTI berbeda sumber pendapatan**: `FinanceDebts` menjumlahkan `allocated` kategori Pemasukan,
+  `DebtHealthCard` memakai Setelan `monthlyIncome` → satu layar bisa menampilkan "Belum ada pendapatan" 0%
+  berdampingan dengan rasio nyata. Kini satu urutan sumber: Setelan → kategori Pemasukan.
+- **Grafik pelunasan menampilkan tanggal padahal tak feasible**: simulasi inline dibatasi 360 bulan tanpa
+  memeriksa saldo mencapai 0 → utang ber-amortisasi negatif (cicilan ≤ bunga) tampil "lunas Jul 2056".
+  Kini `feasible` diperiksa; label menjadi **"Tak tercapai"** (pola yang sudah benar di `DebtHealthCard`
+  dan `FinanceDebtFreedomModal`).
+- **Fallback kategori impor non-kanonik** (`csvImportUtils.ts`): `'Pemasukan Lain'` tak ada di
+  `INCOME_CATEGORIES` (`'Pendapatan Lainnya'`) → transaksi impor tanpa kolom Kategori tak pernah cocok dengan
+  kategori Anggaran. Diperbaiki ke nama kanonik.
+- **CSV Transaksi**: hanya `desc`/`location` yang dikutip → nama akun/kategori berkoma menggeser kolom; juga
+  tanpa BOM. Kini semua kolom teks di-escape + BOM + unduh via Blob (bukan `data:` URI + `encodeURI`).
+- **Dedup pemindai langganan by NOMINAL saja** (`subscriptionDetectUtils.ts`): cabang `||` membuat transaksi
+  berulang apa pun dengan nominal ±5% menandai kandidat sebagai "sudah dilacak" tanpa melihat nama
+  (mis. "Sewa Kos" Rp150rb menyembunyikan Netflix Rp150rb). Kini wajib cocok NAMA (dua arah), nominal hanya penguat.
+- **`addRowToSheet`/`appendRowsToSheet` posisional by konstanta HEADERS**: jalur ADD belum ikut perbaikan
+  v3.18.4 (yang hanya menyentuh update/upsert), jadi sheet lama dengan urutan kolom berbeda akan menerima
+  baris baru dengan semua kolom bergeser. Ditambahkan `readSheetHeaders()` (baca baris 1, fallback ke
+  konstanta bila tab belum ada) dan kedua fungsi kini menyusun nilai mengikuti header asli.
+- **Filter input 2FA no-op**: `replace(/\\D/g, '')` (escape ganda) mencocokkan teks literal, bukan non-digit
+  → tak menyaring apa pun. Diperbaiki ke `/\D/g`.
+
+### Verifikasi
+Unit test 21/21, tiap butir membandingkan perilaku lama vs baru: jatuh tempo 28→tgl 3 (−25 → 6 hari, plus
+kasus hari-ini=0 dan tanggal 31 di Februari tak NaN); simulasi cicilan=bunga (360 bulan → `feasible:false`);
+DTI Setelan vs fallback; Netflix vs "Sewa Kos"; kategori kanonik; escaping `"BCA, Fakhri"` & kutip ganda + BOM;
+penyusunan baris ADD mengikuti header asli vs konstanta. Browser: tombol "Tandai Dibaca" ada & nonaktif saat
+tak ada peringatan (perilaku baru yang benar), halaman Rencana Utang render normal, `tsc` & build bersih.
+**Catatan lingkungan:** log demo menunjukkan error sinkron dari endpoint makro demo yang mengembalikan HTML —
+bukan regresi batch ini (`useFinanceStore.ts` tak tersentuh; pengguna Login-Google memakai jalur API).
+
+---
+
 ## [3.23.0] — 2026-07-26 · Audit Menyeluruh (4/4): Keamanan
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

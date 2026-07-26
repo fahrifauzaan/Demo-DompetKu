@@ -160,7 +160,10 @@ export function toTransactionPayload(p: ParsedTxn, defaultAccount: string): Omit
   const income = p.amount >= 0;
   return {
     date: p.date, desc: p.desc, location: 'Impor', amount: p.amount,
-    category: p.category || (income ? 'Pemasukan Lain' : 'Lainnya'),
+    // Fallback WAJIB memakai nama kanonik (categoryLocale). 'Pemasukan Lain' tidak ada di daftar kategori
+    // mana pun, sehingga transaksi impor tanpa kolom Kategori tak pernah cocok dengan kategori Anggaran
+    // → Budget vs Aktual gagal menghitungnya (kelas bug yang sama yang diperbaiki v3.18.0).
+    category: p.category || (income ? 'Pendapatan Lainnya' : 'Lainnya'),
     icon: income ? 'download' : 'upload', status: 'Selesai', account: p.account || defaultAccount,
     type: income ? 'PEMASUKAN' : 'PENGELUARAN',
   };

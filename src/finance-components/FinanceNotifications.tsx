@@ -50,6 +50,17 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
   };
   const [searchQuery, setSearchQuery] = React.useState('');
 
+  // "Tandai Dibaca" dulu hanya tombol tanpa `onClick` — tak ada mekanisme menandai/menyembunyikan apa pun.
+  // Sekarang id peringatan yang sudah dibaca disimpan per-perangkat, dan bisa dipulihkan lewat "Tampilkan semua".
+  const READ_KEY = 'dompetku_alerts_read';
+  const [readAlertIds, setReadAlertIds] = React.useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(READ_KEY) || '[]'); } catch { return []; }
+  });
+  const persistRead = (ids: string[]) => {
+    setReadAlertIds(ids);
+    try { localStorage.setItem(READ_KEY, JSON.stringify(ids)); } catch { /* ignore */ }
+  };
+
   // System announcement (template update) — dismissible + auto-expiring
   const [announceDismissed, setAnnounceDismissed] = React.useState<boolean>(() => {
     try { return localStorage.getItem(ANNOUNCE_KEY) === 'true'; } catch { return false; }
@@ -244,7 +255,15 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
       debts.forEach(debt => {
         if (debt.status === 'Lunas') return;
         if (debt.dueDate) {
-          let diff = debt.dueDate - currentDay;
+          // Dulu `debt.dueDate - currentDay` tanpa rollover bulan: hari ini tgl 28, jatuh tempo tgl 3
+          // bulan depan → diff = -25 → peringatan TIDAK PERNAH muncul walau hanya 6 hari lagi
+          // (padahal bagian kalender di file yang sama sudah benar memakai kemunculan berikutnya).
+          const nowD = new Date();
+          const dueThis = new Date(nowD.getFullYear(), nowD.getMonth(), debt.dueDate);
+          const dueRef = dueThis.getDate() === debt.dueDate && dueThis >= new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate())
+            ? dueThis
+            : new Date(nowD.getFullYear(), nowD.getMonth() + 1, debt.dueDate);
+          let diff = Math.round((dueRef.getTime() - new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate()).getTime()) / 86400000);
           if (diff >= 0 && diff <= 7) {
             list.push({
               id: `alert-debt-${debt.id}`,
@@ -368,9 +387,13 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
   }, [debts, assets, insurance, recurring, onNavigate, onClose]);
 
   const filteredWarnings = visibleWarnings.filter(w =>
-    w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    w.message.toLowerCase().includes(searchQuery.toLowerCase())
+    !readAlertIds.includes(w.id) && (
+      w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      w.message.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
+  // Jumlah yang tersembunyi karena sudah ditandai dibaca (agar bisa ditampilkan lagi).
+  const hiddenReadCount = visibleWarnings.filter(w => readAlertIds.includes(w.id)).length;
 
   const totalAlertsCount = filteredWarnings.length;
 
@@ -630,7 +653,23 @@ const FinanceNotifications: React.FC<FinanceNotificationsProps> = ({ onShowCTA, 
               <span className="material-symbols-outlined">warning</span>
               <h4 className="font-headline font-bold tracking-tight uppercase text-sm">Peringatan</h4>
             </div>
-            <button className="text-[10px] font-bold text-primary dark:text-[#a7c8ff] hover:underline uppercase tracking-wider bg-primary/5 dark:bg-[#a7c8ff]/10 px-3 py-1.5 rounded-md transition-colors">Tandai Dibaca</button>
+            <div className="flex items-center gap-2">
+              {hiddenReadCount > 0 && (
+                <button
+                  onClick={() => persistRead([])}
+                  className="text-[10px] font-bold text-on-surface-variant dark:text-slate-400 hover:underline uppercase tracking-wider px-2 py-1.5 rounded-md transition-colors cursor-pointer"
+                >
+                  Tampilkan semua ({hiddenReadCount})
+                </button>
+              )}
+              <button
+                onClick={() => persistRead([...new Set([...readAlertIds, ...filteredWarnings.map(w => w.id)])])}
+                disabled={filteredWarnings.length === 0}
+                className="text-[10px] font-bold text-primary dark:text-[#a7c8ff] hover:underline uppercase tracking-wider bg-primary/5 dark:bg-[#a7c8ff]/10 px-3 py-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-default"
+              >
+                Tandai Dibaca
+              </button>
+            </div>
           </div>
           
           <div className="space-y-1">

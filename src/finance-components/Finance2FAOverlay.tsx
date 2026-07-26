@@ -76,7 +76,7 @@ const Finance2FAOverlay: React.FC<Finance2FAOverlayProps> = ({ isOpen, secret, o
                   maxLength={6}
                   value={token}
                   onChange={(e) => {
-                    setToken(e.target.value.replace(/\\D/g, ''));
+                    setToken(e.target.value.replace(/\D/g, ''));  // dulu /\\D/ (escape ganda) → cocok teks literal, tak menyaring
                     setError(false);
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleVerify(); }}
