@@ -60,6 +60,18 @@ export const AssetSellModal: React.FC<AssetSellModalProps> = ({ isOpen, onClose,
     const desc = hasUnits
       ? `Jual ${ticker} — ${clampedQty} unit @ ${formatRp(price)}`
       : `Jual ${asset.title}`;
+    // Penjualan = 3 penulisan berurutan (transaksi → saldo akun → holding). Store TIDAK melempar error
+    // (postToSheet menampungnya ke `saveError`), jadi tanpa pemeriksaan ini langkah 2/3 tetap dijalankan
+    // walau langkah 1 gagal → tercatat laku + saldo naik padahal holding tak pernah berkurang di Sheet.
+    // Berhenti di langkah pertama yang gagal dan laporkan jujur; jangan tutup modal seolah sukses.
+    const failed = (step: string): boolean => {
+      const err = useFinanceStore.getState().saveError;
+      if (!err) return false;
+      setBusy(false);
+      alert(`Penjualan DIBATALKAN pada tahap "${step}".\n\n${err}\n\nSilakan periksa koneksi lalu coba lagi. Cek juga tab Transaksi/Aset di Google Sheet Anda untuk memastikan tidak ada catatan setengah jadi.`);
+      return true;
+    };
+
     await addTransaction({
       date: todayISO(),
       desc,
@@ -71,8 +83,13 @@ export const AssetSellModal: React.FC<AssetSellModalProps> = ({ isOpen, onClose,
       account: accountName,
       type: 'PEMASUKAN',
     });
+    if (failed('mencatat transaksi penjualan')) return;
+
     const acc = accounts.find((a) => a.name === accountName);
-    if (acc) await updateAccount({ ...acc, balance: acc.balance + proceeds });
+    if (acc) {
+      await updateAccount({ ...acc, balance: acc.balance + proceeds });
+      if (failed('memperbarui saldo rekening')) return;
+    }
 
     if (isFullSell) {
       await updateAsset({ ...asset, shares: 0, currentValue: 0, purchasePrice: 0, notes: `Terjual ${todayISO()} • ${(asset.notes || '').slice(0, 60)}` });
@@ -85,6 +102,8 @@ export const AssetSellModal: React.FC<AssetSellModalProps> = ({ isOpen, onClose,
         currentValue: remShares * (asset.currentPrice || price),
       });
     }
+    if (failed('memperbarui kepemilikan aset')) return;
+
     setBusy(false);
     onClose();
   };

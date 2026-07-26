@@ -9,6 +9,44 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.20.0] — 2026-07-26 · Audit Menyeluruh (1/4): Anti Data-Hilang
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+Batch 1 dari 4 hasil audit A–Z seluruh fitur (user meminta review menyeluruh; 15 temuan KRITIS + ~18 SEDANG,
+dikerjakan berurutan). Batch ini menutup semua temuan yang bisa MENGHILANGKAN data.
+
+### Diperbaiki
+- **`'update'` di jalur API kini UPSERT** (`useFinanceStore.ts` postToSheet). `updateRowInSheet` diam-diam
+  `return` bila id tak ditemukan (`googleApiService.ts:406`), menimbulkan dua kelas data-hilang:
+  (a) **Setelan berisian BARU tak pernah tersimpan** — `updateSettings` selalu memakai aksi `'update'`, lalu
+  `FinanceSettings.handleSave` memanggil `syncFromGoogleSheets()` yang langsung membuangnya (revert dalam
+  satu aksi simpan); (b) mengedit entitas yang masih bawaan/lokal (mis. akun default `acc1`) hilang meski
+  indikator berkata "Tersimpan". Upsert memeriksa sheet → perbarui bila ada, tambah bila belum, tanpa duplikat.
+- **`deleteRowFromSheet` kini `throw`** pada semua kegagalan HTTP (+ retry 429/503); "tab/baris tak ada"
+  tetap sukses (idempoten). Dulu 4 jalur `return` senyap → `postToSheet` melaporkan sukses, item hilang di UI
+  tapi masih ada di Sheet dan **muncul lagi** pada sinkron berikutnya.
+- **Hentikan "Sukses" palsu** di Aset (`FinanceAssets.tsx` edit harga & valuasi): `postToSheet` menampung error
+  ke `saveError` dan tidak rethrow, jadi `try/catch` di UI **selalu** masuk cabang sukses. Kedua alur kini
+  memeriksa `saveError` dan melaporkan kegagalan beserta sebabnya.
+- **`AssetSellModal` aman setengah jalan**: 3 penulisan berurutan (transaksi → saldo → holding) kini berhenti
+  pada langkah pertama yang gagal, melaporkan tahap mana yang batal, dan tidak menutup modal seolah sukses.
+- **`GoalFormModal`**: `initialAmount: linkedId ? linkedValue : ...` menimpa progres dengan **0** bila akun/aset
+  tertaut sudah dihapus (`linkedValue` jatuh ke 0). Kini pakai `linkResolved` (tautan benar-benar ada);
+  bila mati → progres manual dipertahankan dan tag `[link:<id>]` dilepas.
+- **`RecurringManagerModal.postOccurrence`**: memajukan `lastPostedDate` tanpa memeriksa hasil tulis → tagihan
+  berhenti tampil "jatuh tempo", tak pernah dicoba lagi, catatan hilang. Kini memeriksa `saveError` lebih dulu
+  (pola yang sudah benar di `AutoPostRunner`).
+
+### Verifikasi
+Unit test 18/18: reproduksi bug lama vs perilaku baru untuk setiap butir (setelan kunci baru no-op→append;
+edit `acc1` hilang→append; delete 429 throw + idempoten saat baris/tab tak ada; tautan Tujuan mati
+50jt→0 vs 50jt dipertahankan + tag dilepas; alur jual berhenti di langkah gagal; posting berulang tak
+memajukan tanggal saat gagal). Browser: nol error konsol, alur Aset/Portofolio/Tujuan render normal.
+`tsc` & build bersih.
+
+---
+
 ## [3.19.0] — 2026-07-26 · Perbaikan Penting: Anggaran per-Bulan Tidak Hilang Lagi
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side (data-integrity + migrasi kategori lanjutan).

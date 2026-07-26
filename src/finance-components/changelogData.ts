@@ -17,9 +17,21 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.19.0';
+export const CURRENT_VERSION = '3.20.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.20.0', date: '2026-07-26', title: 'Audit Menyeluruh (1/4): Tidak Ada Lagi Data Hilang Diam-diam', tag: 'fix', impact: 'none',
+    fixed: [
+      'Setelan (Pengaturan) dengan isian BARU kini benar-benar tersimpan. Sebelumnya penyimpanan hanya bisa memperbarui baris yang sudah ada, jadi isian baru gagal diam-diam lalu langsung hilang saat sinkronisasi — padahal aplikasi bilang "Tersimpan".',
+      'Mengedit data yang masih bawaan (mis. rekening default) tidak lagi hilang. Penyimpanan kini menambahkan barisnya bila belum ada di sheet, bukan diam-diam tidak melakukan apa pun.',
+      'Menghapus data kini jujur. Jika penghapusan di Google Sheets gagal (mis. batas laju), Anda mendapat peringatan — sebelumnya item hilang dari layar lalu MUNCUL LAGI setelah sinkron tanpa penjelasan.',
+      'Pesan "Sukses" palsu dihapus. Saat menyimpan harga/valuasi aset gagal, aplikasi kini bilang gagal beserta sebabnya, bukan menampilkan "Sukses" seolah tersimpan.',
+      'Jual aset kini aman setengah jalan. Proses jual = 3 langkah (catat transaksi → saldo rekening → kepemilikan aset); bila satu langkah gagal, prosesnya DIHENTIKAN dan dilaporkan — sebelumnya bisa tercatat laku & saldo naik padahal kepemilikan tak pernah berkurang.',
+      'Tujuan: progres tidak lagi jadi Rp 0. Bila akun/aset yang ditautkan sudah dihapus, membuka lalu menyimpan Tujuan tetap mempertahankan progres yang sudah terkumpul dan melepas tautan matinya.',
+      'Transaksi berulang: tombol "Posting" tidak lagi memajukan tanggal ketika penyimpanan gagal — item tetap tampil jatuh tempo agar bisa dicoba lagi (sebelumnya catatannya hilang tanpa jejak).',
+    ],
+  },
   {
     version: '3.19.0', date: '2026-07-26', title: 'Perbaikan Penting: Anggaran per-Bulan Tidak Hilang Lagi', tag: 'migration', impact: 'none',
     fixed: [

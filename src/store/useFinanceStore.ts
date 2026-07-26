@@ -389,8 +389,12 @@ async function postToSheet(url: string, token: string | null, spreadsheetId: str
     // kini memunculkan saveError (jujur), bukan nyasar ke tempat lain.
     if (token && spreadsheetId && isApiSheet(sheet)) {
       if (action === 'add') await addRowToSheet(token, spreadsheetId, sheet, data);
-      else if (action === 'upsert') await upsertRowInSheet(token, spreadsheetId, sheet, data);
-      else if (action === 'update') await updateRowInSheet(token, spreadsheetId, sheet, data);
+      // 'update' DIPERLAKUKAN SEBAGAI UPSERT di jalur API. `updateRowInSheet` diam-diam tidak melakukan
+      // apa pun bila id belum ada barisnya (warn + return) → dua kelas data-hilang: (a) Setelan dengan
+      // kunci BARU tak pernah tersimpan lalu terhapus oleh sync berikutnya; (b) mengedit entitas yang
+      // masih bawaan/lokal (mis. akun default `acc1`) hilang meski indikator bilang "Tersimpan".
+      // Upsert memeriksa sheet: perbarui bila ada, tambahkan bila belum — tanpa risiko duplikat.
+      else if (action === 'update' || action === 'upsert') await upsertRowInSheet(token, spreadsheetId, sheet, data);
       else if (action === 'delete') await deleteRowFromSheet(token, spreadsheetId, sheet, String(data.id || data.key));
       console.log(`[FinanceStore] ✅ ${action} → ${sheet} synced via API`);
       return;

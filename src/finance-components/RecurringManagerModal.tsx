@@ -58,6 +58,15 @@ export const RecurringManagerModal: React.FC<RecurringManagerModalProps> = ({ is
       account: rec.account,
       type: rec.type,
     });
+    // `addTransaction` tak melempar error (postToSheet menampungnya ke `saveError`). Tanpa pemeriksaan ini,
+    // `lastPostedDate` tetap dimajukan meski transaksi GAGAL tersimpan → tagihan itu tak lagi tampil "jatuh
+    // tempo", tak pernah dicoba lagi, dan catatannya hilang tanpa jejak. Pola ini sudah benar di
+    // AutoPostRunner (memakai hasil {ok} dari addTransactionsBulk); di sini sebelumnya belum.
+    const err = useFinanceStore.getState().saveError;
+    if (err) {
+      alert(`Gagal mencatat "${rec.name}" ke Google Sheets.\n\n${err}\n\nTanggal posting TIDAK dimajukan — item ini tetap tampil jatuh tempo agar bisa dicoba lagi.`);
+      return;
+    }
     const acc = accounts.find((a) => a.name === rec.account);
     if (acc) await updateAccount({ ...acc, balance: acc.balance + finalAmount });
     await updateRecurring({ ...rec, lastPostedDate: dueDate.toISOString().slice(0, 10) });

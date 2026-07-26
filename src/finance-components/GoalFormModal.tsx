@@ -26,12 +26,13 @@ export const GoalFormModal: React.FC<GoalFormModalProps> = ({ isOpen, onClose, e
     ...accounts.map((a) => ({ id: a.id, label: `${a.name} · ${formatRp(a.balance)}`, group: 'Akun' })),
     ...assets.filter((a) => a.category === 'investasi' && (a.currentValue || 0) > 0).map((a) => ({ id: a.id, label: `${a.title} · ${formatRp(a.currentValue)}`, group: 'Investasi' })),
   ];
-  const linkedValue = (() => {
-    const acc = accounts.find((a) => a.id === linkedId);
-    if (acc) return acc.balance || 0;
-    const ast = assets.find((a) => a.id === linkedId);
-    return ast ? (ast.currentValue || 0) : 0;
-  })();
+  // `linkResolved` = tautan benar-benar menunjuk akun/aset yang MASIH ADA. Penting: bila akun/aset tertaut
+  // sudah dihapus, `linkedValue` jatuh ke 0 — dan dulu nilai 0 itu ditulis menimpa `initialAmount`, sehingga
+  // sekadar membuka "Ubah Tujuan" lalu Simpan menghapus seluruh progres yang sudah terkumpul.
+  const linkedAccount = accounts.find((a) => a.id === linkedId);
+  const linkedAsset = assets.find((a) => a.id === linkedId);
+  const linkResolved = !!linkedId && !!(linkedAccount || linkedAsset);
+  const linkedValue = linkedAccount ? (linkedAccount.balance || 0) : (linkedAsset ? (linkedAsset.currentValue || 0) : 0);
 
   const [form, setForm] = useState<Omit<Goal, 'id'>>({
     name: '', icon: 'flag', color: '#2563eb', goalType: 'goal', targetAmount: 0,
@@ -52,7 +53,7 @@ export const GoalFormModal: React.FC<GoalFormModalProps> = ({ isOpen, onClose, e
   }, [isOpen, editingGoal]);
 
   const set = (patch: Partial<Goal>) => setForm((f) => ({ ...f, ...patch }));
-  const effectiveInitial = linkedId ? linkedValue : form.initialAmount;
+  const effectiveInitial = linkResolved ? linkedValue : form.initialAmount;
   const math = computeGoal({ ...form, initialAmount: effectiveInitial, id: 'preview' } as Goal);
 
   const applyPreset = (key: string) => {
@@ -66,8 +67,10 @@ export const GoalFormModal: React.FC<GoalFormModalProps> = ({ isOpen, onClose, e
     const payload = {
       ...form,
       expectedReturn: form.goalType === 'sinking' ? 0 : form.expectedReturn,
-      initialAmount: linkedId ? linkedValue : form.initialAmount,
-      notes: encodeGoalLink(form.notes, linkedId || null),
+      // Hanya pakai nilai tautan bila tautannya masih valid; kalau akun/aset-nya sudah dihapus, pertahankan
+      // progres manual yang ada dan LEPAS tautan mati itu dari catatan (jangan mengaku masih tertaut).
+      initialAmount: linkResolved ? linkedValue : form.initialAmount,
+      notes: encodeGoalLink(form.notes, linkResolved ? linkedId : null),
     };
     if (editingGoal) await updateGoal({ ...payload, id: editingGoal.id });
     else await addGoal(payload);

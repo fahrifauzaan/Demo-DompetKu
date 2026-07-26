@@ -500,24 +500,27 @@ export async function upsertRowInSheet(accessToken: string, spreadsheetId: strin
  * We must use batchUpdate with DeleteDimensionRequest.
  */
 export async function deleteRowFromSheet(accessToken: string, spreadsheetId: string, sheetName: string, idToDelete: string) {
-  // First, we need the sheetId (numeric ID) of the sheetName.
-  const getMetaResponse = await fetch(`${SHEETS_API_URL}/${spreadsheetId}`, {
+  // CATATAN: setiap kegagalan HTTP di bawah ini WAJIB throw. Dulu semuanya `return` diam-diam, sehingga
+  // `postToSheet` tetap melaporkan sukses: item hilang dari UI tapi masih ada di Sheet, lalu MUNCUL LAGI
+  // pada sinkron berikutnya tanpa penjelasan. "Tab/baris tidak ada" tetap dianggap sukses (idempoten:
+  // yang ingin dihapus memang sudah tidak ada).
+  const getMetaResponse = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}`, {
     headers: { 'Authorization': `Bearer ${accessToken}` }
-  });
-  if (!getMetaResponse.ok) return;
+  }));
+  if (!getMetaResponse.ok) throw new Error(writeErrorMessage(sheetName, getMetaResponse.status));
   const metaData = await getMetaResponse.json();
   const sheet = metaData.sheets.find((s: any) => s.properties.title === sheetName);
-  if (!sheet) return;
+  if (!sheet) return; // tab belum ada → tak ada yang perlu dihapus
   const numericSheetId = sheet.properties.sheetId;
 
   // Next, find the row index
-  const getResponse = await fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${sheetName}`, {
+  const getResponse = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}/values/${encodeURIComponent(sheetName)}`, {
     headers: { 'Authorization': `Bearer ${accessToken}` }
-  });
-  if (!getResponse.ok) return;
+  }));
+  if (!getResponse.ok) throw new Error(writeErrorMessage(sheetName, getResponse.status));
   const sheetData = await getResponse.json();
   const rows = sheetData.values || [];
-  
+
   let rowIndex = -1;
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][0]) === String(idToDelete)) {
@@ -526,10 +529,10 @@ export async function deleteRowFromSheet(accessToken: string, spreadsheetId: str
     }
   }
 
-  if (rowIndex === -1) return; // Not found
+  if (rowIndex === -1) return; // baris sudah tidak ada → hapus dianggap berhasil (idempoten)
 
   // Send batchUpdate to delete the row dimension
-  const batchUpdateResponse = await fetch(`${SHEETS_API_URL}/${spreadsheetId}:batchUpdate`, {
+  const batchUpdateResponse = await fetchSheetsWithRetry(() => fetch(`${SHEETS_API_URL}/${spreadsheetId}:batchUpdate`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -549,10 +552,12 @@ export async function deleteRowFromSheet(accessToken: string, spreadsheetId: str
         }
       ]
     })
-  });
+  }));
 
   if (!batchUpdateResponse.ok) {
-    console.error('Delete Row Error:', await batchUpdateResponse.text());
+    console.error('Delete Row Error:', await batchUpdateResponse.text().catch(() => ''));
+    // THROW agar kegagalan hapus tampil sebagai saveError, bukan "sukses" palsu.
+    throw new Error(writeErrorMessage(sheetName, batchUpdateResponse.status));
   }
 }
 

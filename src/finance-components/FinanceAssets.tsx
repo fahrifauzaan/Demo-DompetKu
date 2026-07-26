@@ -857,6 +857,12 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
       
       try {
         await updateAsset(updatedAs);
+        // Sama seperti di atas: cek saveError, jangan pernah klaim sukses saat penulisan gagal.
+        const errMsg = useFinanceStore.getState().saveError;
+        if (errMsg) {
+          alert(`Gagal menyimpan perubahan aset "${assetTitle}" ke Google Sheets.\n\n${errMsg}\n\nPerubahan belum tersimpan — silakan coba lagi.`);
+          return;
+        }
         alert(`Sukses: Detail dan valuasi aset "${assetTitle}" berhasil diperbarui!`);
         setTimeout(() => {
           syncFromGoogleSheets();
@@ -917,6 +923,13 @@ const FinanceAssets: React.FC<FinanceAssetsProps> = ({ onShowCTA, onNavigate }) 
 
       try {
         await updateAsset(updatedAsset);
+        // `updateAsset` tidak melempar error (postToSheet menampungnya ke `saveError`), jadi try/catch saja
+        // TIDAK cukup — dulu alert "Sukses" selalu muncul meski penulisan ke Sheet gagal. Periksa saveError.
+        const err = useFinanceStore.getState().saveError;
+        if (err) {
+          alert(`Gagal menyimpan harga "${assetTitle}" ke Google Sheets.\n\n${err}\n\nNilai di layar belum tersimpan — silakan coba lagi.`);
+          return;
+        }
         alert(`Sukses: Harga "${assetTitle}" diperbarui ke Rp ${formatPriceID(parsedNewPrice, decimals)} (per ${effectiveDate}).`);
         setTimeout(() => {
           syncFromGoogleSheets();
