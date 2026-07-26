@@ -37,6 +37,7 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
   const [isSaving, setIsSaving] = useState(false);
 
   const addBudgetCategory = useFinanceStore(state => state.addBudgetCategory);
+  const budgetCategories = useFinanceStore(state => state.budgetCategories);
 
   const handleLimitChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/\D/g, '');
@@ -50,6 +51,14 @@ const FinanceAddCategory: React.FC<FinanceAddCategoryProps> = ({ onShowCTA, onBa
   const handleSave = async () => {
     if (!categoryName.trim()) {
       alert('Nama kategori tidak boleh kosong!');
+      return;
+    }
+    // GUARD DUPLIKAT (case-insensitive). Budget vs Aktual & anggaran per-bulan berkunci NAMA kategori,
+    // jadi dua kategori bernama sama akan BERBAGI angka aktual dan override bulanan yang sama —
+    // dan sebelumnya tak ada cara memperbaikinya karena edit/hapus kategori belum tersedia.
+    const dupe = budgetCategories.find((c) => (c.name || '').trim().toLowerCase() === categoryName.trim().toLowerCase());
+    if (dupe) {
+      alert(`Kategori "${dupe.name}" sudah ada.\n\nGunakan nama lain, atau ubah kategori yang sudah ada dari halaman Anggaran (ikon gear di kartu kategori).`);
       return;
     }
     setIsSaving(true);

@@ -9,6 +9,44 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.26.0] — 2026-07-26 · Kategori Anggaran: Ubah Nama & Hapus (audit SEDANG · F2)
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Latar
+`updateBudgetCategory`/`deleteBudgetCategory` sudah ada di store tetapi **nol pemanggil** di seluruh app —
+tak ada UI edit/hapus kategori sama sekali. Ditambah `FinanceAddCategory` tanpa guard nama duplikat, dan
+Budget vs Aktual (`getActualAmount`) serta anggaran per-bulan (`monthlyBudgets[bulan][NAMA]`) berkunci **NAMA**,
+maka: kategori salah tulis permanen, dan dua kategori bernama sama diam-diam berbagi aktual + override bulanan.
+
+### Ditambahkan
+- **Modal "Kelola Kategori"** dari ikon gear di setiap kartu kategori Anggaran (portal ke `document.body` +
+  animasi CSS `animate-in`, mengikuti pola aman di repo ini — bukan `motion` di dalam portal).
+- **`renameBudgetCategoryDeep(id, newName)`** (store): rename menyeluruh & aman —
+  (1) guard duplikat case-insensitive, (2) update kategori (lokal + Sheet), (3) pindahkan kunci
+  `monthlyBudgets` lokal **dan** baris tab MonthlyBudgets via `batchRenameMonthlyBudgetCategories`
+  (kolom `category` + `id`), (4) rename kategori transaksi via satu `values:batchUpdate`.
+  Mengembalikan jumlah transaksi & sel anggaran yang terdampak, atau pesan error yang ditampilkan di modal.
+- **`deleteBudgetCategoryDeep(id)`**: prune override anggaran per-bulan milik kategori itu (nilai 0 → baris
+  dihapus), lalu hapus kategorinya; melaporkan jumlah transaksi terdampak untuk dikonfirmasi lebih dulu.
+  Transaksi **tidak** dihapus (data pengguna aman) dan pengguna diarahkan ke "Samakan Kategori".
+
+### Diperbaiki
+- **Guard nama duplikat** di `FinanceAddCategory` (case-insensitive) + pesan yang mengarahkan ke pengelolaan
+  kategori yang sudah ada.
+
+### Verifikasi
+Unit test 13/13: rename memindahkan kunci anggaran bulanan (tak yatim), tak menyentuh kategori lain, ikut
+mengganti 2 transaksi termasuk yang berbeda kapitalisasi, Budget vs Aktual tetap cocok; duplikat beda kapital
+DITOLAK & nama lama tetap utuh; nama kosong ditolak; nama sama = no-op sukses; hapus membersihkan 1 bulan
+override, melaporkan 2 transaksi terdampak, dan **tidak** menghapus transaksi. Browser: 4 tombol gear terender,
+modal terbuka sebagai overlay penuh (`parentElement === document.body`), memuat penjelasan perambatan +
+tombol "Simpan Nama"/"Hapus". `tsc` & build bersih.
+**Catatan:** kunci relasi masih NAMA (bukan id) — dengan guard duplikat + rename merambat, mode kegagalannya
+tertutup tanpa migrasi skema yang berisiko.
+
+---
+
 ## [3.25.0] — 2026-07-26 · Audit: Kolom Skema Baru + Anggaran Total + Peringatan Faraid
 
 **Dampak Google Sheet/Apps Script: ADA (ringan).** Kolom baru ditambahkan otomatis oleh aplikasi (aditif).

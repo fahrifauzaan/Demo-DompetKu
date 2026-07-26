@@ -263,6 +263,10 @@ interface FinanceState {
   addBudgetCategory: (cat: Omit<BudgetCategory, 'id'>) => Promise<void>;
   updateBudgetCategory: (cat: BudgetCategory) => Promise<void>;
   deleteBudgetCategory: (id: string) => Promise<void>;
+  /** Ganti nama kategori Anggaran + rambatkan ke transaksi & anggaran per-bulan (anti data yatim). */
+  renameBudgetCategoryDeep: (id: string, newName: string) => Promise<{ ok: boolean; transactions: number; monthly: number; error?: string }>;
+  /** Hapus kategori Anggaran + bersihkan override anggaran per-bulan miliknya. */
+  deleteBudgetCategoryDeep: (id: string) => Promise<{ ok: boolean; monthlyPruned: number; txAffected: number }>;
   addDebt: (debt: Omit<Debt, 'id'>) => Promise<void>;
   updateDebt: (debt: Debt) => Promise<void>;
   deleteDebt: (id: string) => Promise<void>;
@@ -910,6 +914,68 @@ export const useFinanceStore = create<FinanceState>()(
           budgetCategories: state.budgetCategories.map(c => c.id === cat.id ? cat : c)
         }));
         await postToSheet(get().googleSheetUrl, get().googleAccessToken, get().spreadsheetId, 'BudgetCategories', 'update', cat as unknown as Record<string, unknown>);
+      },
+
+      // Ganti nama kategori SECARA MENYELURUH. Tanpa ini, mengganti nama akan memutus tautan ke data lain:
+      // Budget vs Aktual mencocokkan transaksi berdasarkan NAMA kategori, dan override anggaran per-bulan
+      // (tab MonthlyBudgets) juga berkunci NAMA — jadi rename "polos" membuat aktual & anggaran bulanan yatim.
+      renameBudgetCategoryDeep: async (id, newName) => {
+        const target = get().budgetCategories.find((c) => c.id === id);
+        const nextName = (newName || '').trim();
+        if (!target) return { ok: false, transactions: 0, monthly: 0, error: 'Kategori tidak ditemukan.' };
+        if (!nextName) return { ok: false, transactions: 0, monthly: 0, error: 'Nama kategori tidak boleh kosong.' };
+        if (nextName === target.name) return { ok: true, transactions: 0, monthly: 0 };
+        // Guard duplikat (case-insensitive) — dua kategori bernama sama akan BERBAGI aktual & anggaran bulanan.
+        const clash = get().budgetCategories.some((c) => c.id !== id && (c.name || '').toLowerCase() === nextName.toLowerCase());
+        if (clash) return { ok: false, transactions: 0, monthly: 0, error: `Kategori "${nextName}" sudah ada. Gunakan nama lain.` };
+
+        const oldName = target.name;
+        // 1) Kategori itu sendiri (lokal + Sheet).
+        await get().updateBudgetCategory({ ...target, name: nextName });
+        const failed = get().saveError;
+        if (failed) return { ok: false, transactions: 0, monthly: 0, error: failed };
+
+        // 2) Anggaran per-bulan: kunci lokal + baris Sheet (kolom category & id).
+        const mb = get().monthlyBudgets || {};
+        let monthly = 0;
+        const nextMb: Record<string, Record<string, number>> = {};
+        for (const mo of Object.keys(mb)) {
+          nextMb[mo] = {};
+          for (const [cat, amt] of Object.entries(mb[mo] || {})) {
+            if (cat === oldName) { nextMb[mo][nextName] = amt as number; monthly++; }
+            else nextMb[mo][cat] = amt as number;
+          }
+        }
+        set({ monthlyBudgets: nextMb });
+        const token = get().googleAccessToken, sid = get().spreadsheetId;
+        if (token && sid && monthly > 0) {
+          try { await batchRenameMonthlyBudgetCategories(token, sid, { [oldName]: nextName }); }
+          catch (e) { console.error('[FinanceStore] rename MonthlyBudgets gagal:', e); }
+        }
+
+        // 3) Transaksi (satu batchUpdate) agar Budget vs Aktual tetap cocok.
+        let transactions = 0;
+        try { transactions = (await get().renameTransactionCategories({ [oldName]: nextName })).updated; }
+        catch (e) { console.error('[FinanceStore] rename transaksi gagal:', e); }
+
+        return { ok: true, transactions, monthly };
+      },
+
+      // Hapus kategori + bersihkan override anggaran per-bulan miliknya (kalau tidak, barisnya tertinggal di
+      // tab MonthlyBudgets dan bisa "menghidupkan" kembali angka anggaran untuk kategori yang sudah tak ada).
+      deleteBudgetCategoryDeep: async (id) => {
+        const target = get().budgetCategories.find((c) => c.id === id);
+        if (!target) return { ok: false, monthlyPruned: 0, txAffected: 0 };
+        const name = target.name;
+        const txAffected = get().transactions.filter((t) => String(t.category || '').toLowerCase() === (name || '').toLowerCase()).length;
+
+        const mb = get().monthlyBudgets || {};
+        const months = Object.keys(mb).filter((mo) => mb[mo] && mb[mo][name] !== undefined);
+        for (const mo of months) {
+          await get().updateMonthlyBudget(mo, name, 0); // 0 = prune baris
+        }
+        await get().deleteBudgetCategory(id);
+        return { ok: !get().saveError, monthlyPruned: months.length, txAffected };
       },
 
       deleteBudgetCategory: async (id) => {

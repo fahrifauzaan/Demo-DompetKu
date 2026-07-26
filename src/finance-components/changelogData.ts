@@ -17,9 +17,20 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.25.0';
+export const CURRENT_VERSION = '3.26.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.26.0', date: '2026-07-26', title: 'Kategori Anggaran Bisa Diubah & Dihapus', tag: 'feature', impact: 'none',
+    added: [
+      'Kelola kategori Anggaran langsung dari kartunya (ikon gear): UBAH NAMA dan HAPUS. Sebelumnya sama sekali tidak ada caranya \u2014 kategori yang salah tulis nyangkut permanen.',
+      'Mengganti nama kategori otomatis merambat: transaksi yang memakai kategori itu dan anggaran per-bulan (termasuk baris di Google Sheet) ikut diperbarui, sehingga Budget vs Aktual tetap cocok dan tidak ada data yang "yatim".',
+      'Menghapus kategori sekaligus membersihkan override anggaran per-bulan miliknya, dan memberi peringatan lebih dulu bila masih ada transaksi yang memakainya (transaksinya TIDAK dihapus).',
+    ],
+    fixed: [
+      'Nama kategori ganda kini dicegah (tanpa peduli besar-kecil huruf). Karena Budget vs Aktual dan anggaran bulanan dicocokkan berdasarkan NAMA, dua kategori bernama sama akan berbagi angka aktual dan anggaran yang sama \u2014 dan sebelumnya tak ada cara memperbaikinya.',
+    ],
+  },
   {
     version: '3.25.0', date: '2026-07-26', title: 'Audit: Kolom Skema Baru + Anggaran Total + Peringatan Faraid', tag: 'migration', impact: 'appsscript',
     fixed: [

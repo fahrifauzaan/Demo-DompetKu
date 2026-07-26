@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useState } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { FeatureCTA } from './MarketingCTAModal';
@@ -9,7 +10,7 @@ interface FinanceBudgetProps {
 }
 
 const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) => {
-  const { budgetCategories, transactions, monthlyBudgets, updateMonthlyBudget } = useFinanceStore();
+  const { budgetCategories, transactions, monthlyBudgets, updateMonthlyBudget, renameBudgetCategoryDeep, deleteBudgetCategoryDeep } = useFinanceStore();
   
   // State for active date
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -18,6 +19,12 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
   });
   const [activeTab, setActiveTab] = useState<'EXPENSES' | 'INCOME' | 'SAVINGS' | 'INVESTMENT'>('EXPENSES');
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  // Kelola kategori: ubah nama / hapus. Dulu TIDAK ADA UI-nya sama sekali (updateBudgetCategory &
+  // deleteBudgetCategory nol pemanggil), jadi kategori yang salah tulis nyangkut permanen.
+  const [managingCat, setManagingCat] = useState<{ id: string; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [manageBusy, setManageBusy] = useState(false);
+  const [manageMsg, setManageMsg] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [showRemap, setShowRemap] = useState(false);
 
@@ -560,7 +567,16 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
                         <span className="material-symbols-outlined text-slate-600 dark:text-slate-300 text-lg">{cat.icon}</span>
                       </div>
                       <div>
-                        <h4 className="font-extrabold font-headline text-slate-800 dark:text-slate-200">{cat.name}</h4>
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="font-extrabold font-headline text-slate-800 dark:text-slate-200">{cat.name}</h4>
+                          <button
+                            onClick={() => { setManagingCat({ id: cat.id, name: cat.name }); setRenameValue(cat.name); setManageMsg(null); }}
+                            title="Ubah nama / hapus kategori"
+                            className="p-1 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">settings</span>
+                          </button>
+                        </div>
                         <span className={`inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${healthBadgeClass}`}>
                           {healthText}
                         </span>
@@ -633,6 +649,79 @@ const FinanceBudget: React.FC<FinanceBudgetProps> = ({ onShowCTA, onNavigate }) 
           )}
         </div>
       </section>
+
+      {/* Kelola kategori — portal ke body + animasi CSS (bukan motion) sesuai pola aman di app ini. */}
+      {managingCat && createPortal(
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md" onClick={() => !manageBusy && setManagingCat(null)} />
+          <div className="relative w-full max-w-md bg-surface-container-lowest dark:bg-[#121416] rounded-3xl border border-outline-variant/20 dark:border-white/10 shadow-2xl p-5 sm:p-6 space-y-4 animate-in zoom-in-95 fade-in duration-200">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-headline font-black text-lg text-on-surface dark:text-white">Kelola Kategori</h3>
+                <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mt-0.5">{managingCat.name}</p>
+              </div>
+              <button onClick={() => !manageBusy && setManagingCat(null)} className="w-8 h-8 rounded-full bg-surface-container dark:bg-white/5 flex items-center justify-center cursor-pointer">
+                <span className="material-symbols-outlined text-lg text-on-surface dark:text-white">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-on-surface-variant dark:text-slate-400">Nama kategori</label>
+              <input
+                value={renameValue}
+                onChange={(e) => { setRenameValue(e.target.value); setManageMsg(null); }}
+                className="w-full bg-surface-container-low dark:bg-white/5 border border-outline-variant/20 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm font-semibold text-on-surface dark:text-white outline-none focus:border-primary/50"
+                placeholder="mis. Makanan & Minuman"
+              />
+              <p className="text-[10px] text-on-surface-variant/70 dark:text-slate-500 leading-relaxed">
+                Mengganti nama juga memperbarui <strong>transaksi</strong> dan <strong>anggaran per-bulan</strong> yang memakai
+                kategori ini, supaya Budget vs Aktual tetap cocok.
+              </p>
+            </div>
+
+            {manageMsg && (
+              <div className="text-[11px] font-semibold rounded-xl px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200">{manageMsg}</div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                disabled={manageBusy}
+                onClick={async () => {
+                  if (!managingCat) return;
+                  setManageBusy(true); setManageMsg(null);
+                  const res = await renameBudgetCategoryDeep(managingCat.id, renameValue);
+                  setManageBusy(false);
+                  if (!res.ok) { setManageMsg(res.error || 'Gagal mengganti nama.'); return; }
+                  setManagingCat(null);
+                }}
+                className="flex-[2] py-3 rounded-2xl bg-primary dark:bg-[#a7c8ff] text-white dark:text-[#001b3c] font-bold text-sm disabled:opacity-40 cursor-pointer"
+              >
+                {manageBusy ? 'Menyimpan…' : 'Simpan Nama'}
+              </button>
+              <button
+                disabled={manageBusy}
+                onClick={async () => {
+                  if (!managingCat) return;
+                  const used = transactions.filter((t) => String(t.category || '').toLowerCase() === managingCat.name.toLowerCase()).length;
+                  const warn = used > 0
+                    ? `\n\nPERHATIAN: ${used} transaksi memakai kategori ini. Transaksinya TIDAK dihapus, tetapi tidak akan lagi terhitung di Budget vs Aktual sampai Anda memindahkannya (bisa lewat tombol "Samakan Kategori").`
+                    : '';
+                  if (!window.confirm(`Hapus kategori "${managingCat.name}"?${warn}`)) return;
+                  setManageBusy(true);
+                  const res = await deleteBudgetCategoryDeep(managingCat.id);
+                  setManageBusy(false);
+                  if (!res.ok) { setManageMsg('Gagal menghapus — periksa koneksi lalu coba lagi.'); return; }
+                  setManagingCat(null);
+                }}
+                className="flex-1 py-3 rounded-2xl bg-error/10 text-error dark:text-[#ffb4ab] border border-error/20 font-bold text-sm disabled:opacity-40 cursor-pointer"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 };
