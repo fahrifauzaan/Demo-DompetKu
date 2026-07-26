@@ -17,9 +17,19 @@ export interface ChangelogEntry {
   fixed?: string[];
 }
 
-export const CURRENT_VERSION = '3.22.0';
+export const CURRENT_VERSION = '3.23.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.23.0', date: '2026-07-26', title: 'Audit Menyeluruh (4/4): Keamanan Diperkuat', tag: 'fix', impact: 'none',
+    fixed: [
+      'Kunci layar tidak bisa lagi dilewati dengan me-refresh halaman. Sebelumnya status terkunci hilang saat halaman dimuat ulang padahal sesi login tetap ada \u2014 siapa pun yang memegang perangkat Anda cukup menekan refresh untuk masuk tanpa PIN. Status kunci & waktu aktif terakhir kini tersimpan per-perangkat, termasuk bila tab ditutup lebih dari 15 menit.',
+      'PIN Transaksi kini benar-benar mengunci penyimpanan transaksi. Sebelumnya PIN hanya menahan penghapusan; menambah/mengubah transaksi tetap bisa tanpa PIN karena gerbangnya tidak pernah dipanggil.',
+      'Kata sandi TIDAK lagi ditulis ke Google Sheet Anda. Sebelumnya tersimpan terbuka pada baris last_password \u2014 siapa pun yang bisa melihat spreadsheet (atau tautan yang pernah dibagikan) mengetahui kata sandi akun. Baris itu kini dikosongkan otomatis saat Anda mengubah kata sandi.',
+      'Aplikasi juga berhenti membuat/menimpa akun dari kata sandi di dalam sheet. Sebelumnya isi sheet menjadi sumber kebenaran kredensial, sehingga siapa pun yang bisa mengedit sheet bisa menentukan kata sandi login.',
+      'Panduan "Lupa Password" diperbarui sesuai kondisi baru: pulihkan lewat Masuk dengan Akun Google, atau ubah kata sandi dari perangkat lain yang masih login \u2014 bukan lagi dengan melihat isi spreadsheet.',
+    ],
+  },
   {
     version: '3.22.0', date: '2026-07-26', title: 'Audit Menyeluruh (3/4): Laporan, Cetak & Ekspor Akurat', tag: 'fix', impact: 'none',
     fixed: [

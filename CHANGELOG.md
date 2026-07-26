@@ -9,6 +9,43 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/), penomoran [Sem
 
 ---
 
+## [3.23.0] — 2026-07-26 · Audit Menyeluruh (4/4): Keamanan
+
+**Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.
+
+### Diperbaiki
+- **Kunci layar bisa dilewati dengan refresh.** `isAppLocked` hanya `useState(false)` dan `lastActiveTime`
+  hanya `useRef` (`FinanceDemo.tsx`), keduanya hilang saat reload — sementara sesi login PERSISTEN. Jadi
+  perangkat yang tertinggal dalam keadaan terkunci bisa dibuka hanya dengan menekan refresh, dan hitungan idle
+  dimulai ulang. Kini status kunci + `lastActive` disimpan di `localStorage` (`dompetku-lock-state`):
+  terkunci-sebelum-refresh tetap terkunci, tab yang ditutup >15 menit terkunci saat dibuka, dan logout
+  membersihkan status agar login berikutnya tidak langsung terkunci. `IDLE_LIMIT_MS` kini satu konstanta
+  bersama (dulu 15 menit ditulis ulang di dalam interval).
+- **PIN Transaksi tidak mengunci penyimpanan.** Tombol "Simpan Transaksi" memanggil `handleSave` langsung dan
+  `setShowPinModal(true)` TIDAK pernah dipanggil di `FinanceAddTransaction` — `executeSave` (yang tersambung ke
+  modal PIN) adalah kode mati. Kini `handleSave` = validasi → gerbang PIN → `performSave()`, dan modal PIN
+  memanggil `performSave` yang sama (satu implementasi, tak ada lagi salinan yang bisa ketinggalan).
+- **Kata sandi plaintext di spreadsheet pengguna.** `FinanceSettings` menulis `upsertSetting('last_password', …)`
+  → kata sandi terbaca siapa pun yang bisa membuka sheet. Kini baris itu **dikosongkan** (`''`) dan tak pernah
+  ditulis lagi.
+- **Kredensial bersumber dari sheet.** `syncFromGoogleSheets` memanggil `authState.signup(email, lastPwdSetting.value, name)`
+  — plaintext di sheet menjadi sumber kebenaran login (siapa pun yang bisa MENGEDIT sheet bisa menetapkan kata
+  sandi). Blok sinkronisasi kredensial ini dihapus seluruhnya.
+- **Teks "Lupa Password"** di `FinanceLogin` yang menyuruh membaca `last_password` dari tab Settings diganti
+  dengan jalur pemulihan yang benar (Masuk dengan Google / ubah dari perangkat lain yang masih login).
+
+### Verifikasi
+Unit test 11/11 (pemulihan status kunci: terkunci→tetap terkunci, idle 16 mnt→terkunci, aktif 1 mnt→tetap
+terbuka, logout→bersih; gerbang PIN aktif/nonaktif; paparan sheet). **Browser: menyetel status terkunci lalu
+me-refresh → layar PIN tetap muncul** (dulu langsung masuk aplikasi). `tsc` & build bersih.
+
+### Belum termasuk (sengaja, akan menyusul)
+Kata sandi masih disimpan apa adanya di **localStorage perangkat ini** (bukan lagi di spreadsheet). Meng-hash-nya
+mengubah `login`/`signup` menjadi asinkron dan menyentuh beberapa pemanggil, jadi dipisahkan ke rilis
+tersendiri agar bisa diuji dengan benar — bukan ditumpangkan pada rilis ini.
+
+---
+
 ## [3.22.0] — 2026-07-26 · Audit Menyeluruh (3/4): Laporan, Cetak & Ekspor
 
 **Dampak Google Sheet/Apps Script: TIDAK ADA.** Client-side.

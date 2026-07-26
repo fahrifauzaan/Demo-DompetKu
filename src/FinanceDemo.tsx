@@ -42,6 +42,19 @@ export type FinanceTab = 'dashboard' | 'transactions' | 'budget' | 'assets' | 'd
  * 'equity-ledger', 'add-*'), sehingga membuka "Rencana Utang" menampilkan judul fallback "Manajemen".
  * Peta eksplisit ini mencakup SEMUA nilai FinanceTab, jadi tab baru tak bisa lolos tanpa judul.
  */
+/** Batas idle sebelum aplikasi terkunci otomatis (dipakai juga saat memulihkan status kunci setelah refresh). */
+const IDLE_LIMIT_MS = 15 * 60 * 1000; // 15 menit
+
+/** Status kunci layar disimpan per-perangkat agar TIDAK bisa dilewati dengan me-refresh halaman. */
+const LOCK_STATE_KEY = 'dompetku-lock-state';
+type LockState = { locked?: boolean; lastActive?: number };
+const readLockState = (): LockState => {
+  try { return JSON.parse(localStorage.getItem(LOCK_STATE_KEY) || '{}') as LockState; } catch { return {}; }
+};
+const writeLockState = (s: LockState) => {
+  try { localStorage.setItem(LOCK_STATE_KEY, JSON.stringify(s)); } catch { /* storage penuh/diblokir → abaikan */ }
+};
+
 const TAB_TITLES: Record<FinanceTab, string> = {
   dashboard: 'Dasbor',
   transactions: 'Transaksi',
@@ -82,6 +95,8 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
 
   const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
+  // Bersihkan status kunci saat keluar, supaya sesi login berikutnya tidak langsung terkunci.
+  const handleLogout = () => { writeLockState({}); logout(); };
 
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -91,8 +106,17 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
   const setGoogleCredentials = useFinanceStore(state => state.setGoogleCredentials);
 
   // Lock Screen States
-  const [isAppLocked, setIsAppLocked] = useState(false);
-  const lastActiveTime = useRef(Date.now());
+  // KUNCI LAYAR HARUS TAHAN REFRESH. Dulu `isAppLocked` hanya useState biasa dan `lastActiveTime` hanya
+  // useRef — keduanya hilang saat halaman dimuat ulang, sedangkan sesi login PERSISTEN. Akibatnya siapa pun
+  // yang memegang perangkat cukup menekan refresh untuk masuk ke aplikasi tanpa PIN/kata sandi, dan hitungan
+  // idle dimulai dari nol lagi. Sekarang status kunci + waktu aktif terakhir disimpan di localStorage.
+  const [isAppLocked, setIsAppLocked] = useState<boolean>(() => {
+    const s = readLockState();
+    if (s.locked) return true;                                            // terkunci sebelum refresh
+    if (s.lastActive && Date.now() - s.lastActive >= IDLE_LIMIT_MS) return true; // idle terlampaui saat tab tertutup
+    return false;
+  });
+  const lastActiveTime = useRef<number>(readLockState().lastActive || Date.now());
   const [pinInput, setPinInput] = useState('');
   const [pinInputError, setPinInputError] = useState(false);
   const [lockSetupStep, setLockSetupStep] = useState<'enter' | 'confirm'>('enter');
@@ -146,6 +170,11 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
     }
   }, [isAppLocked, hasPin]);
 
+  // Simpan status kunci tiap kali berubah → refresh tak bisa membuka aplikasi yang sedang terkunci.
+  useEffect(() => {
+    writeLockState({ locked: isAppLocked, lastActive: isAppLocked ? readLockState().lastActive : Date.now() });
+  }, [isAppLocked]);
+
   // Idle Timer auto-lock logic
   useEffect(() => {
     let lastUpdate = Date.now();
@@ -156,6 +185,8 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
       if (now - lastUpdate > 5000) {
         if (!isAppLocked) {
           lastActiveTime.current = now;
+          // Persist agar batas idle tetap dihitung walau tab ditutup lalu dibuka lagi.
+          writeLockState({ locked: false, lastActive: now });
         }
         lastUpdate = now;
       }
@@ -179,7 +210,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 Menit (Batas Produksi)
+      const INACTIVITY_LIMIT = IDLE_LIMIT_MS; // 15 menit (konstanta bersama dgn pemulihan status kunci)
       const elapsed = Date.now() - lastActiveTime.current;
       
       if (user && !isAppLocked && elapsed >= INACTIVITY_LIMIT) {
@@ -512,7 +543,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
               Tema {isDark ? 'Terang' : 'Gelap'}
             </a>
 
-            <a onClick={logout} className="text-error hover:bg-red-50 dark:hover:bg-red-900/20 mx-2 rounded-lg flex items-center gap-3 px-4 py-2 font-['Inter'] font-medium text-xs cursor-pointer border-t border-slate-200/10 mt-1 pt-2">
+            <a onClick={handleLogout} className="text-error hover:bg-red-50 dark:hover:bg-red-900/20 mx-2 rounded-lg flex items-center gap-3 px-4 py-2 font-['Inter'] font-medium text-xs cursor-pointer border-t border-slate-200/10 mt-1 pt-2">
               <span className="material-symbols-outlined text-sm">logout</span>
               Keluar Akun
             </a>
@@ -756,7 +787,7 @@ const FinanceDemo: React.FC<FinanceDemoProps> = ({ isDark, toggleDark }) => {
                   <span className="material-symbols-outlined">{isDark ? 'light_mode' : 'dark_mode'}</span>
                   Tema {isDark ? 'Terang' : 'Gelap'}
                 </a>
-                <a onClick={logout} className="text-error hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex items-center gap-3 px-4 py-3 font-['Inter'] font-medium text-sm cursor-pointer border-t border-slate-200/10 lg:border-t-0 pt-3 lg:pt-0">
+                <a onClick={handleLogout} className="text-error hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex items-center gap-3 px-4 py-3 font-['Inter'] font-medium text-sm cursor-pointer border-t border-slate-200/10 lg:border-t-0 pt-3 lg:pt-0">
                   <span className="material-symbols-outlined">logout</span>
                   Keluar Akun
                 </a>

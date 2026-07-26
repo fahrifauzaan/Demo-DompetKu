@@ -367,6 +367,19 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
       }
     }
 
+    // GERBANG PIN. Dulu tombol "Simpan Transaksi" memanggil handleSave langsung dan `setShowPinModal(true)`
+    // TIDAK PERNAH dipanggil di file ini — jadi PIN Transaksi yang sudah diaktifkan pengguna hanya mengunci
+    // penghapusan, bukan penambahan/pengubahan. Kini simpan ditahan sampai PIN benar.
+    if (isPinActive) {
+      setShowPinModal(true);
+      return;
+    }
+    await performSave();
+  };
+
+  // Logika simpan sebenarnya (dipakai jalur normal MAUPUN setelah PIN terverifikasi) — satu implementasi
+  // saja, supaya tidak ada lagi salinan yang bisa ketinggalan seperti `executeSave` sebelumnya.
+  const performSave = async () => {
     setIsSaving(true);
     const rawAmount = parseInt(amount.replace(/\D/g, ''), 10) || 0;
 
@@ -827,7 +840,7 @@ const FinanceAddTransaction: React.FC<FinanceAddTransactionProps> = ({ onShowCTA
       <FinancePinModal 
         isOpen={showPinModal}
         onClose={() => setShowPinModal(false)}
-        onSuccess={executeSave}
+        onSuccess={performSave}
         savedPin={savedPin}
         title="Otorisasi Transaksi"
       />

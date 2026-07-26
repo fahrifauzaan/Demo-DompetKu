@@ -158,7 +158,11 @@ const FinanceSettings: React.FC<FinanceSettingsProps> = ({ onBack }) => {
     // Save password ONLY when explicitly updating password (e.g. from the change password modal)
     const passToSave = typeof overridePassword === 'string' ? overridePassword : getSetting('last_password', 'password123');
     if (typeof overridePassword === 'string') {
-      upsertSetting('last_password', overridePassword);
+      // KATA SANDI TIDAK LAGI DITULIS KE GOOGLE SHEET. Sebelumnya disimpan apa adanya pada baris
+      // `last_password`, sehingga siapa pun yang bisa melihat spreadsheet (atau tautan yang pernah
+      // dibagikan) langsung tahu kata sandi akun. Baris lama sengaja DIKOSONGKAN sekali di sini agar
+      // paparan itu hilang dari sheet pengguna.
+      upsertSetting('last_password', '');
       upsertSetting('last_password_updated', new Date().toISOString());
       setLastPasswordUpdated(new Date().toISOString());
     }

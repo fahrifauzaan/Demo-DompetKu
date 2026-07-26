@@ -1431,23 +1431,10 @@ export const useFinanceStore = create<FinanceState>()(
               const securityKeep = (localHasPin ? localSettings : settingsList).filter((s) => LOCAL_ONLY.has(s.key));
               updates.settings = [...settingsList.filter((s) => !LOCAL_ONLY.has(s.key)), ...securityKeep];
 
-              // Sync last_password to auth store registeredUsers
-              const lastPwdSetting = settingsList.find(s => s.key === 'last_password');
-              if (lastPwdSetting && lastPwdSetting.value) {
-                const emailSetting = settingsList.find(s => s.key === 'email')?.value;
-                const nameSetting = settingsList.find(s => s.key === 'userName')?.value || 'User';
-                if (emailSetting) {
-                  const authState = useAuthStore.getState();
-                  const existing = authState.registeredUsers.find(u => u.email.toLowerCase() === emailSetting.toLowerCase());
-                  const needsUpdate = !existing || 
-                    existing.password !== lastPwdSetting.value || 
-                    existing.name !== nameSetting;
-                  
-                  if (needsUpdate) {
-                    authState.signup(emailSetting, lastPwdSetting.value, nameSetting);
-                  }
-                }
-              }
+              // KATA SANDI TIDAK LAGI DIAMBIL DARI SHEET. Dulu baris `last_password` dipakai untuk
+              // membuat/menimpa akun di auth store (`signup(email, plaintextDariSheet, name)`), artinya
+              // kata sandi plaintext di spreadsheet menjadi sumber kebenaran kredensial — siapa pun yang
+              // bisa melihat sheet bisa masuk. Sinkronisasi kredensial dari sheet dihentikan sepenuhnya.
 
             }
 

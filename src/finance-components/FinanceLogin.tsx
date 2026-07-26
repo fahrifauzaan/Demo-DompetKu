@@ -798,9 +798,17 @@ const FinanceLogin: React.FC = () => {
               </div>
               
               <h3 className="text-xl font-black font-headline text-slate-900 dark:text-white mb-2 relative z-10">Lupa Password?</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 relative z-10 leading-relaxed">
-                Silakan buka file <strong>Spreadsheet Google Drive</strong> Anda pada tab <strong>Settings</strong>.<br/><br/>
-                Anda dapat melihat kata sandi aktif Anda pada baris <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">last_password</code>.
+              {/* Kata sandi TIDAK lagi ditulis ke spreadsheet (baris `last_password` kini dikosongkan),
+                  jadi petunjuk lama "lihat di tab Settings" sudah tidak berlaku — dan memang tidak
+                  seharusnya: kata sandi tak boleh tersimpan terbuka di file yang bisa dibagikan. */}
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 relative z-10 leading-relaxed text-left">
+                Demi keamanan, kata sandi Anda <strong>tidak lagi disimpan di spreadsheet</strong>. Pilihan pemulihan:
+                <br/><br/>
+                <strong>1. Masuk dengan Akun Google</strong> — cara tercepat bila Anda pernah menghubungkan Google Drive: klik "Masuk dengan Akun Google" di halaman login.
+                <br/><br/>
+                <strong>2. Atur ulang di perangkat lain</strong> — bila Anda masih login di perangkat/browser lain, buka <strong>Pengaturan › Keamanan › Ubah Password</strong> di sana.
+                <br/><br/>
+                Data keuangan Anda tetap aman di Google Sheet milik Anda sendiri dan tidak terpengaruh.
               </p>
               
               <button 
